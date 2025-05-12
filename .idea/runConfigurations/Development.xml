@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Development" type="CompoundRunConfigurationType">
+    <toRun name="Build with Autoreload" type="GradleRunConfiguration" />
+    <toRun name="Run Server" type="KtorApplicationConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>

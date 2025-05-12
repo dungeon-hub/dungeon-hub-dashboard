@@ -1,0 +1,32 @@
+.rounded-sm {
+    border-radius: 10%;
+}
+
+.rounded-lg {
+    border-radius: 30%;
+}
+
+.rounded-full {
+    border-radius: 50%;
+}
+
+/*noinspection CssUnresolvedCustomProperty*/
+.holographic {
+    animation: gradient-animation 20s linear infinite;
+    background: var(--pico-primary);
+    background: repeating-linear-gradient(45deg, var(--pico-primary) 0, var(--pico-primary) 45%, #F9DAEA 50%, var(--pico-primary) 55%, var(--pico-primary) 100%);
+
+    -webkit-background-clip: text;
+    background-clip: text;
+    background-size: 2000px auto;
+    -webkit-text-fill-color: transparent;
+}
+
+@-webkit-keyframes gradient-animation {
+    from {
+        background-position: 0;
+    }
+    to {
+        background-position: 10000px;
+    }
+}
