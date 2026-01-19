@@ -1,4 +1,4 @@
-package net.dungeonhub.routing
+package net.dungeonhub.route
 
 import io.ktor.client.*
 import io.ktor.http.*
@@ -7,14 +7,17 @@ import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
-import net.dungeonhub.UserSession
 import net.dungeonhub.applicationHttpClient
+import net.dungeonhub.auth.UserSession
 import net.dungeonhub.env.env
 
 object AuthRoutes {
     fun Application.authRoutes(httpClient: HttpClient = applicationHttpClient) {
         install(Sessions) {
-            cookie<UserSession>("user_session")
+            cookie<UserSession>("user_session", SessionStorageMemory()) {
+                cookie.path = "/"
+                cookie.httpOnly = true
+            }
         }
 
         val redirects = mutableMapOf<String, String>()
@@ -30,7 +33,7 @@ object AuthRoutes {
                         requestMethod = HttpMethod.Post,
                         clientId = env("CLIENT_ID"),
                         clientSecret = env("CLIENT_SECRET"),
-                        defaultScopes = listOf("openid", "profile", "email"),
+                        defaultScopes = listOf("openid", "profile", "email", "guilds"),
                         onStateCreated = { call, state ->
                             call.request.queryParameters["redirectUrl"]?.let {
                                 redirects[state] = it
@@ -39,6 +42,16 @@ object AuthRoutes {
                     )
                 }
                 client = httpClient
+            }
+
+            session<UserSession>("auth-session") {
+                validate { session ->
+                    if(!session.validate()) return@validate null
+                    session
+                }
+                challenge {
+                    call.respondRedirect("/auth/login")
+                }
             }
         }
 
@@ -60,7 +73,22 @@ object AuthRoutes {
                                 return@get
                             }
 
-                            call.sessions.set(UserSession(state, principal.accessToken, idToken))
+                            val refreshToken = principal.refreshToken
+                            if (refreshToken == null) {
+                                (call.respond(HttpStatusCode.BadRequest, "No refresh token received"))
+                                return@get
+                            }
+
+                            val expiresIn = principal.extraParameters["expires_in"]?.toLongOrNull() ?: 300
+                            val expiresAt = System.currentTimeMillis() / 1000 + expiresIn
+
+                            call.sessions.set(UserSession(
+                                state,
+                                principal.accessToken,
+                                idToken,
+                                refreshToken,
+                                expiresAt
+                            ))
                             redirects[state]?.let { redirect ->
                                 call.respondRedirect(redirect)
                                 return@get
