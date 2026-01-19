@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm") version libs.versions.kotlin.get()
     kotlin("plugin.serialization") version libs.versions.kotlin.get()
     application
-    id("dev.kordex.gradle.kordex") version "1.7.0"
+    id("dev.kordex.gradle.kordex") version "1.9.0"
 }
 
 group = "net.dungeonhub"
@@ -10,11 +10,12 @@ version = "1.0.0"
 
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
 kordEx {
     kordExVersion = libs.versions.kord.extensions.get()
-    jvmTarget = 17
+    jvmTarget = 21
 }
 
 dependencies {
@@ -50,7 +51,7 @@ tasks.test {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 application {
