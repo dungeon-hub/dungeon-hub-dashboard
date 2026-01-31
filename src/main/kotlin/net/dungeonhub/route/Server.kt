@@ -65,7 +65,7 @@ fun Application.serverModule(httpClient: HttpClient = applicationHttpClient) {
                     it.jsonObject.toDiscordGuild()
                 }?.firstOrNull { it.id == serverId } ?: return@get call.respond(HttpStatusCode.BadRequest)
 
-                val ticketPanels = TicketPanelConnection[serverId].authenticated(session).allTicketPanels ?: emptyList()
+                val ticketPanels = TicketPanelConnection[serverId].authenticated(session).getAllTicketPanels() ?: emptyList()
 
                 call.respondHtml {
                     page(session) {

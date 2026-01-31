@@ -7,6 +7,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import kotlinx.serialization.json.Json
 import net.dungeonhub.client.DungeonHubClient
 import net.dungeonhub.env.env
 import net.dungeonhub.route.AuthRoutes.authRoutes
@@ -16,7 +17,10 @@ import net.dungeonhub.route.ticketPanelModule
 
 val applicationHttpClient = HttpClient(Apache5) {
     install(ContentNegotiation) {
-        json()
+        json(Json {
+            prettyPrint = true
+            isLenient = true
+        })
     }
 }
 

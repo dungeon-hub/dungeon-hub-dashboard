@@ -43,6 +43,10 @@ fun Application.dashboardModule(httpClient: HttpClient = applicationHttpClient) 
                 if(it.validate()) it else null
             }
 
+            val discordServers = if (session != null) {
+                DiscordServerConnection.authenticated(session).loadAllServers()
+            } else null
+
             call.respondHtml {
                 page(session) {
                     main(classes = "container-fluid") {
@@ -56,8 +60,6 @@ fun Application.dashboardModule(httpClient: HttpClient = applicationHttpClient) 
                                     val discordGuilds = userInfo["discord-guilds"]?.jsonArray?.map {
                                         it.jsonObject.toDiscordGuild()
                                     }
-
-                                    val discordServers = DiscordServerConnection.authenticated(session).loadAllServers()
 
                                     if(discordServers == null || discordGuilds == null) {
                                         return@p
