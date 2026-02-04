@@ -10,6 +10,11 @@
     border-radius: 50%;
 }
 
+:root {
+    --pico-nav-element-spacing-vertical: 0.25rem;
+    --pico-block-spacing-vertical: 0.5rem;
+}
+
 /*noinspection CssUnresolvedCustomProperty*/
 .holographic {
     animation: gradient-animation 20s linear infinite;
@@ -36,4 +41,37 @@
         flex: 1 1 100%;
         max-width: 100%;
     }
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: absolute;
+    margin-top: auto;
+    color: rgb(161 161 170);
+    text-align: center;
+    bottom: 0;
+    padding: 0.625rem;
+    width: 100%;
+}
+
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    column-gap: 0.5rem;
+    row-gap: 0.5rem;
+}
+
+.footer-link {
+    text-decoration-line: underline;
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+    color: rgb(161 161 170);
+    text-decoration-color: rgb(161 161 170);
+}
+.footer-link:hover {
+    color: rgb(255 255 255);
 }

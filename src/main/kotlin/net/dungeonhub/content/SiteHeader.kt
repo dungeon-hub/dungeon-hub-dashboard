@@ -7,6 +7,8 @@ import kotlinx.html.a
 import kotlinx.html.body
 import kotlinx.html.details
 import kotlinx.html.dir
+import kotlinx.html.div
+import kotlinx.html.footer
 import kotlinx.html.head
 import kotlinx.html.header
 import kotlinx.html.hr
@@ -16,6 +18,7 @@ import kotlinx.html.li
 import kotlinx.html.link
 import kotlinx.html.meta
 import kotlinx.html.nav
+import kotlinx.html.small
 import kotlinx.html.strong
 import kotlinx.html.summary
 import kotlinx.html.title
@@ -50,7 +53,7 @@ fun BODY.addHeader(session: UserSession?) {
                         img(
                             src = "https://static.dungeon-hub.net/favicon.gif",
                             alt = "Dungeon Hub Logo",
-                            classes = "rounded-sm"
+                            classes = "rounded-full"
                         ) { width = "50px"; height = "50px" }
                     }
                 }
@@ -105,5 +108,23 @@ fun HTML.page(session: UserSession?, page: BODY.() -> Unit) {
         addHeader(session)
 
         page()
+
+        footer(classes = "footer") {
+            small { + "© 2026. All rights reserved." }
+            div (classes = "footer-links"){
+                a(classes = "footer-link") {
+                    href = "https://dungeon-hub.net/terms-of-service"
+                    + "Terms"
+                }
+                a(classes = "footer-link") {
+                    href = "https://dungeon-hub.net/cookies"
+                    + "Cookies"
+                }
+                a(classes = "footer-link") {
+                    href = "https://dungeon-hub.net/privacy"
+                    + "Privacy and Legal Notice"
+                }
+            }
+        }
     }
 }
