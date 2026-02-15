@@ -20,11 +20,15 @@ import java.util.Base64
 @Serializable
 data class UserSession(
     val state: String,
-    override var apiToken: String,
+    var apiToken: String,
     var idToken: String,
     var refreshToken: String,
     var expiresAt: Long
 ) : AuthenticationProvider {
+    override suspend fun getApiToken(): String {
+        return apiToken
+    }
+
     fun parseApiToken(): JsonObject {
         val parts = apiToken.split(".")
         require(parts.size == 3) { "Invalid JWT format" }
