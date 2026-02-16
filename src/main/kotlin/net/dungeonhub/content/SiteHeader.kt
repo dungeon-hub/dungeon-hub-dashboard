@@ -20,6 +20,7 @@ import kotlinx.html.meta
 import kotlinx.html.nav
 import kotlinx.html.small
 import kotlinx.html.strong
+import kotlinx.html.style
 import kotlinx.html.summary
 import kotlinx.html.title
 import kotlinx.html.ul
@@ -105,6 +106,8 @@ fun HTML.page(session: UserSession?, page: BODY.() -> Unit) {
     addHead()
 
     body {
+        style = "display: flex; flex-direction: column; min-height: 100vh; margin: 0;"
+
         addHeader(session)
 
         page()
