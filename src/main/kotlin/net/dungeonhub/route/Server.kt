@@ -67,7 +67,7 @@ fun Application.serverModule(httpClient: HttpClient = applicationHttpClient) {
                 }?.firstOrNull { it.id == serverId } ?: return@get call.respond(HttpStatusCode.BadRequest)
 
                 val ticketPanels = TicketPanelConnection[serverId].authenticated(session).getAllTicketPanels() ?: emptyList()
-                val cntRequests = CntRequestConnection[serverId].authenticated(session).loadLeaderboard()?.requests ?: emptyList()
+                val cntRequests = CntRequestConnection[serverId].authenticated(session).getCntRequests()?.requests ?: emptyList()
 
                 call.respondHtml {
                     page(session) {

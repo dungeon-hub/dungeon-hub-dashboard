@@ -47,7 +47,7 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val leaderboard = CntRequestConnection[serverId].authenticated(session).loadLeaderboard(page)
+                val cntRequestPage = CntRequestConnection[serverId].authenticated(session).getCntRequests(page)
                     ?: return@get call.respond(HttpStatusCode.NotFound)
 
                 call.respondHtml {
@@ -68,10 +68,10 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                             section {
                                 style = "display: flex; flex-wrap: wrap; gap: 1rem;"
 
-                                if (leaderboard.requests.isEmpty()) {
+                                if (cntRequestPage.requests.isEmpty()) {
                                     p { +"No CNT requests found on this page." }
                                 } else {
-                                    leaderboard.requests.forEach { request ->
+                                    cntRequestPage.requests.forEach { request ->
                                         cntRequestCard(serverId, request)
                                     }
                                 }
@@ -80,16 +80,16 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                             footer {
                                 style = "display: flex; justify-content: space-between; margin-top: 2rem;"
 
-                                if (leaderboard.hasPrevPage()) {
-                                    a(href = "/dashboard/server/$serverId/cnt-requests?page=${leaderboard.page - 1}", classes = "outline") {
+                                if (cntRequestPage.hasPrevPage()) {
+                                    a(href = "/dashboard/server/$serverId/cnt-requests?page=${cntRequestPage.page - 1}", classes = "outline") {
                                         +"Previous"
                                     }
                                 } else {
                                     div {}
                                 }
 
-                                if (leaderboard.hasNextPage()) {
-                                    a(href = "/dashboard/server/$serverId/cnt-requests?page=${leaderboard.page + 1}", classes = "outline") {
+                                if (cntRequestPage.hasNextPage()) {
+                                    a(href = "/dashboard/server/$serverId/cnt-requests?page=${cntRequestPage.page + 1}", classes = "outline") {
                                         +"Next"
                                     }
                                 }
@@ -107,9 +107,9 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val leaderboard = CntRequestConnection[serverId].authenticated(session).loadLeaderboard(page)
+                val cntRequestPage = CntRequestConnection[serverId].authenticated(session).getCntRequests(page)
                     ?: return@get call.respond(HttpStatusCode.NotFound)
-                val cntRequest = leaderboard.requests.firstOrNull { it.id == cntRequestId }
+                val cntRequest = cntRequestPage.requests.firstOrNull { it.id == cntRequestId }
                     ?: return@get call.respond(HttpStatusCode.NotFound)
 
                 call.respondHtml {
@@ -190,9 +190,9 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@post call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val leaderboard = CntRequestConnection[serverId].authenticated(session).loadLeaderboard(page)
+                val cntRequestPage = CntRequestConnection[serverId].authenticated(session).getCntRequests(page)
                     ?: return@post call.respond(HttpStatusCode.NotFound)
-                val cntRequest = leaderboard.requests.firstOrNull { it.id == cntRequestId }
+                val cntRequest = cntRequestPage.requests.firstOrNull { it.id == cntRequestId }
                     ?: return@post call.respond(HttpStatusCode.NotFound)
 
                 val params = call.receiveParameters()
