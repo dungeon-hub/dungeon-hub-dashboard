@@ -11,6 +11,7 @@ import kotlinx.serialization.json.Json
 import net.dungeonhub.client.DungeonHubClient
 import net.dungeonhub.env.env
 import net.dungeonhub.route.AuthRoutes.authRoutes
+import net.dungeonhub.route.cntRequestModule
 import net.dungeonhub.route.dashboardModule
 import net.dungeonhub.route.serverModule
 import net.dungeonhub.route.ticketPanelModule
@@ -38,4 +39,5 @@ fun Application.mainModule(httpClient: HttpClient = applicationHttpClient) {
     dashboardModule(httpClient)
     serverModule(httpClient)
     ticketPanelModule(httpClient)
+    cntRequestModule(httpClient)
 }
