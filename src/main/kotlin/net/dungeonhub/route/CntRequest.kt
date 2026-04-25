@@ -109,10 +109,8 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val cntRequestPage = CntRequestConnection[serverId].authenticated(session)
-                    .getCntRequests(page = page, size = CNT_REQUESTS_PAGE_SIZE)
-                    ?: return@get call.respond(HttpStatusCode.NotFound)
-                val cntRequest = cntRequestPage.requests.firstOrNull { it.id == cntRequestId }
+                val cntRequest = CntRequestConnection[serverId].authenticated(session)
+                    .getCntRequest(cntRequestId)
                     ?: return@get call.respond(HttpStatusCode.NotFound)
 
                 call.respondHtml {
@@ -193,10 +191,8 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@post call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val cntRequestPage = CntRequestConnection[serverId].authenticated(session)
-                    .getCntRequests(page = page, size = CNT_REQUESTS_PAGE_SIZE)
-                    ?: return@post call.respond(HttpStatusCode.NotFound)
-                val cntRequest = cntRequestPage.requests.firstOrNull { it.id == cntRequestId }
+                val cntRequest = CntRequestConnection[serverId].authenticated(session)
+                    .getCntRequest(cntRequestId)
                     ?: return@post call.respond(HttpStatusCode.NotFound)
 
                 val params = call.receiveParameters()
