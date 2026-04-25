@@ -67,7 +67,7 @@ fun Application.serverModule(httpClient: HttpClient = applicationHttpClient) {
                 }?.firstOrNull { it.id == serverId } ?: return@get call.respond(HttpStatusCode.BadRequest)
 
                 val ticketPanels = TicketPanelConnection[serverId].authenticated(session).getAllTicketPanels() ?: emptyList()
-                val cntRequests = CntRequestConnection[serverId].authenticated(session).getCntRequests()?.requests ?: emptyList()
+                val cntRequestsPage = CntRequestConnection[serverId].authenticated(session).getCntRequests()
 
                 call.respondHtml {
                     page(session) {
@@ -168,7 +168,7 @@ fun Application.serverModule(httpClient: HttpClient = applicationHttpClient) {
 
                                 p {
                                     style = "margin-top: 0.75rem;"
-                                    +"There are currently ${cntRequests.size} CNT requests visible on the first page."
+                                    +"There are a total of ${cntRequestsPage?.totalElements} CNT requests."
                                 }
 
                                 a(href = "/dashboard/server/$serverId/cnt-requests", classes = "contrast") {

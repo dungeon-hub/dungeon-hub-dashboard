@@ -29,15 +29,27 @@ fun FlowContent.cntRequestCard(
         id = cntRequest.id.toString()
 
         h5 {
-            +"${cntRequest.requestType.name} #${cntRequest.id}"
+            +"${cntRequest.requestType.description} #${cntRequest.id}"
         }
 
         p {
-            +"${cntRequest.coinValue} - ${cntRequest.requirement}"
+            +"Request: ${cntRequest.description}"
         }
 
         p {
-            +if (cntRequest.completed) "Completed" else "Open"
+            +"Coin Value: ${cntRequest.coinValue}"
+        }
+
+        p {
+            +"Requirement: ${cntRequest.requirement}"
+        }
+
+        p {
+            +"${ 
+                if (cntRequest.completed) "Completed" else "Open" 
+            }${
+                if(cntRequest.claimer != null) " | Claimed" else ""
+            }"
         }
 
         a(

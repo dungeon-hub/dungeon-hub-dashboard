@@ -23,7 +23,6 @@ import kotlinx.html.div
 import kotlinx.html.footer
 import kotlinx.html.form
 import kotlinx.html.h2
-import kotlinx.html.h4
 import kotlinx.html.h5
 import kotlinx.html.input
 import kotlinx.html.label
@@ -47,7 +46,7 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val cntRequestPage = CntRequestConnection[serverId].authenticated(session).getCntRequests(page)
+                val cntRequestPage = CntRequestConnection[serverId].authenticated(session).getCntRequests(page) // TODO set page size to 10
                     ?: return@get call.respond(HttpStatusCode.NotFound)
 
                 call.respondHtml {
