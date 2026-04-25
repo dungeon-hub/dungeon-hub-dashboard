@@ -37,6 +37,8 @@ import net.dungeonhub.connection.CntRequestConnection
 import net.dungeonhub.content.cntRequestCard
 import net.dungeonhub.content.page
 
+private const val CNT_REQUESTS_PAGE_SIZE = 10
+
 fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient) {
     routing {
         authenticate("auth-session") {
@@ -46,7 +48,8 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val cntRequestPage = CntRequestConnection[serverId].authenticated(session).getCntRequests(page) // TODO set page size to 10
+                val cntRequestPage = CntRequestConnection[serverId].authenticated(session)
+                    .getCntRequests(page = page, size = CNT_REQUESTS_PAGE_SIZE)
                     ?: return@get call.respond(HttpStatusCode.NotFound)
 
                 call.respondHtml {
@@ -106,7 +109,8 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@get call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val cntRequestPage = CntRequestConnection[serverId].authenticated(session).getCntRequests(page)
+                val cntRequestPage = CntRequestConnection[serverId].authenticated(session)
+                    .getCntRequests(page = page, size = CNT_REQUESTS_PAGE_SIZE)
                     ?: return@get call.respond(HttpStatusCode.NotFound)
                 val cntRequest = cntRequestPage.requests.firstOrNull { it.id == cntRequestId }
                     ?: return@get call.respond(HttpStatusCode.NotFound)
@@ -189,7 +193,8 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                     ?: return@post call.respond(HttpStatusCode.BadRequest)
                 val page = call.request.queryParameters["page"]?.toIntOrNull() ?: 0
 
-                val cntRequestPage = CntRequestConnection[serverId].authenticated(session).getCntRequests(page)
+                val cntRequestPage = CntRequestConnection[serverId].authenticated(session)
+                    .getCntRequests(page = page, size = CNT_REQUESTS_PAGE_SIZE)
                     ?: return@post call.respond(HttpStatusCode.NotFound)
                 val cntRequest = cntRequestPage.requests.firstOrNull { it.id == cntRequestId }
                     ?: return@post call.respond(HttpStatusCode.NotFound)
