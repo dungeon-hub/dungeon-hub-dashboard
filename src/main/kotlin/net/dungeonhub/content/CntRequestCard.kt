@@ -8,6 +8,7 @@ import kotlinx.html.id
 import kotlinx.html.p
 import kotlinx.html.role
 import kotlinx.html.style
+import kotlinx.html.time
 import net.dungeonhub.model.cnt_request.CntRequestModel
 
 fun FlowContent.cntRequestCard(
@@ -50,6 +51,11 @@ fun FlowContent.cntRequestCard(
             }${
                 if(cntRequest.claimer != null) " | Claimed" else ""
             }"
+        }
+
+        time(classes = "js-local-time") {
+            attributes["datetime"] = cntRequest.time.toString()
+            +"Loading..."
         }
 
         a(

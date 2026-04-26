@@ -27,15 +27,20 @@ import kotlinx.html.h5
 import kotlinx.html.input
 import kotlinx.html.label
 import kotlinx.html.main
+import kotlinx.html.option
 import kotlinx.html.p
+import kotlinx.html.script
 import kotlinx.html.section
+import kotlinx.html.select
 import kotlinx.html.style
-import kotlinx.html.textArea
+import kotlinx.html.time
+import kotlinx.html.unsafe
 import net.dungeonhub.applicationHttpClient
 import net.dungeonhub.auth.UserSession
 import net.dungeonhub.connection.CntRequestConnection
 import net.dungeonhub.content.cntRequestCard
 import net.dungeonhub.content.page
+import net.dungeonhub.enums.CntRequestType
 
 private const val CNT_REQUESTS_PAGE_SIZE = 10
 
@@ -75,6 +80,17 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                                 } else {
                                     cntRequestPage.requests.forEach { request ->
                                         cntRequestCard(serverId, request)
+                                    }
+
+                                    script {
+                                        unsafe {
+                                            +"""
+                                                document.querySelectorAll(".js-local-time").forEach(el => {
+                                                    const date = new Date(el.dateTime);
+                                                    el.textContent = date.toLocaleString();
+                                                });
+                                            """.trimIndent()
+                                        }
                                     }
                                 }
                             }
@@ -134,8 +150,75 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                                         h5 { +"General" }
 
                                         p { +"Message ID: ${cntRequest.messageId}" }
-                                        p { +"Requester ID: ${cntRequest.user.id}" }
-                                        p { +"Request type: ${cntRequest.requestType.name}" }
+
+                                        label {
+                                            +"Coin Value"
+                                            input(type = InputType.text, name = "coinValue") {
+                                                value = cntRequest.coinValue
+                                            }
+                                        }
+
+                                        label {
+                                            +"Request type"
+                                            select {
+                                                name = "requestType"
+
+                                                for(requestType in CntRequestType.entries) {
+                                                    option {
+                                                        label = requestType.description
+                                                        selected = requestType == cntRequest.requestType
+                                                        value = requestType.name
+                                                    }
+                                                }
+                                            }
+                                        }
+
+
+                                        label {
+                                            +"Created at: "
+                                            time(classes = "js-local-time") {
+                                                attributes["datetime"] = cntRequest.time.toString()
+                                                +"Loading..."
+                                            }
+                                        }
+
+                                        label {
+                                            input(type = InputType.checkBox, name = "completed") {
+                                                checked = cntRequest.completed
+                                            }
+                                            +"Completed"
+                                        }
+
+                                        if(cntRequest.claimer != null) {
+                                            label {
+                                                input(type = InputType.checkBox, name = "unclaim") {
+                                                    checked = false
+                                                }
+                                                +"Unclaim"
+                                            }
+                                        }
+
+                                        script {
+                                            unsafe {
+                                                +"""
+                                                document.querySelectorAll(".js-local-time").forEach(el => {
+                                                    const date = new Date(el.dateTime);
+                                                    el.textContent = date.toLocaleString();
+                                                });
+                                            """.trimIndent()
+                                            }
+                                        }
+                                    }
+
+                                    article {
+                                        h5 { +"Information" }
+
+                                        label {
+                                            +"Description"
+                                            input(type = InputType.text, name = "description") {
+                                                value = cntRequest.description
+                                            }
+                                        }
 
                                         label {
                                             +"Coin Value"
@@ -148,24 +231,6 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                                             +"Requirement"
                                             input(type = InputType.text, name = "requirement") {
                                                 value = cntRequest.requirement
-                                            }
-                                        }
-
-                                        label {
-                                            input(type = InputType.checkBox, name = "completed") {
-                                                checked = cntRequest.completed
-                                            }
-                                            +"Completed"
-                                        }
-                                    }
-
-                                    article {
-                                        h5 { +"Description" }
-                                        label {
-                                            +"Description"
-                                            textArea(rows = "10") {
-                                                name = "description"
-                                                +cntRequest.description
                                             }
                                         }
                                     }
@@ -203,6 +268,8 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                 val requirement = params["requirement"].toCleanString()
                 val description = params["description"].toCleanString()
                 val completed = params["completed"] != null
+                val shouldUnclaim = params["unclaim"].toCleanString().let { "on" == it }
+                val requestType = params["requestType"].toCleanString()?.let { CntRequestType.valueOf(it) }
 
                 val updateModel = cntRequest.getUpdateModel()
                 if (coinValue != cntRequest.coinValue) {
@@ -216,6 +283,12 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
                 }
                 if (completed != cntRequest.completed) {
                     updateModel.completed = completed
+                }
+                if(shouldUnclaim) {
+                    updateModel.claimer = null
+                }
+                if(requestType != cntRequest.requestType) {
+                    updateModel.requestType = requestType
                 }
 
                 CntRequestConnection[serverId].authenticated(session).updateCntRequest(cntRequestId, updateModel)
