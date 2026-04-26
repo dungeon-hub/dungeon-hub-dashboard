@@ -41,6 +41,7 @@ import net.dungeonhub.connection.CntRequestConnection
 import net.dungeonhub.content.cntRequestCard
 import net.dungeonhub.content.page
 import net.dungeonhub.enums.CntRequestType
+import net.dungeonhub.mojang.connection.MojangConnection
 
 private const val CNT_REQUESTS_PAGE_SIZE = 10
 
@@ -151,11 +152,18 @@ fun Application.cntRequestModule(httpClient: HttpClient = applicationHttpClient)
 
                                         p { +"Message ID: ${cntRequest.messageId}" }
 
-                                        label {
-                                            +"Coin Value"
-                                            input(type = InputType.text, name = "coinValue") {
-                                                value = cntRequest.coinValue
-                                            }
+                                        p { +"Requester: ${
+                                            cntRequest.user.minecraftId?.let {
+                                                MojangConnection.getNameByUUID(it)
+                                            } ?: cntRequest.user.id
+                                        }" }
+
+                                        if(cntRequest.claimer != null) {
+                                            p { +"Claimed by: ${
+                                                cntRequest.claimer?.minecraftId?.let {
+                                                    MojangConnection.getNameByUUID(it)
+                                                } ?: cntRequest.claimer?.id
+                                            }" }
                                         }
 
                                         label {

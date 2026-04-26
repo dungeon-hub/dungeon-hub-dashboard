@@ -7,6 +7,7 @@ dungeon-hub-api = "0.7.0"
 kord-extensions = "2.4.1-SNAPSHOT"
 logback = "1.5.25"
 dotenv = "6.5.1"
+hypixel-wrapper = "0.7.3"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
@@ -23,5 +24,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 dungeon-hub-api-client = { module = "net.dungeon-hub.api:client", version.ref = "dungeon-hub-api" }
+
+hypixel-wrapper = { module = "net.dungeon-hub:hypixel-wrapper", version.ref = "hypixel-wrapper" }
 
 dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }

@@ -9,6 +9,11 @@ group = "net.dungeonhub"
 version = "1.0.0"
 
 repositories {
+    maven {
+        url = uri("https://repo.hypixel.net/repository/Hypixel/")
+        name = "Hypixel Repository"
+    }
+
     mavenCentral()
     mavenLocal()
 }
@@ -35,6 +40,9 @@ dependencies {
 
     // Dungeon Hub Libraries
     implementation(libs.dungeon.hub.api.client)
+
+    //Hypixel API
+    implementation(libs.hypixel.wrapper)
 
     // Environment Variables
     implementation(libs.dotenv)
