@@ -1,0 +1,491 @@
+import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { TicketPanelControllerService, TicketPanelUpdateModel, CarryTierControllerService, CarryDifficultyControllerService, CarryTierModel, CarryDifficultyModel, DiscordServerControllerService } from '@dungeon-hub/api-client';
+
+@Component({
+  selector: 'app-ticket-panel-edit',
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  template: `
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
+      <!-- Header -->
+      <div class="mb-8">
+        <a [routerLink]="['/server', serverId]" class="btn btn-secondary mb-4 inline-block">
+          ← Back to Server
+        </a>
+        <h2
+          class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent"
+        >
+          Edit Ticket Panel: {{ panel?.displayName || panel?.name }} #{{ panel?.id }}
+        </h2>
+      </div>
+
+      <!-- Loading State -->
+      <div *ngIf="loading" class="card text-center py-12">
+        <div
+          class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"
+        ></div>
+        <p class="mt-4 text-gray-400">Loading...</p>
+      </div>
+
+      <!-- Form -->
+      <form *ngIf="!loading && form" [formGroup]="form" (ngSubmit)="save()" class="space-y-6">
+        <!-- General Settings -->
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4">General Settings</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="label">Internal Name *</label>
+              <input formControlName="name" type="text" class="input" />
+            </div>
+            <div>
+              <label class="label">Display Name</label>
+              <input
+                formControlName="displayName"
+                type="text"
+                class="input"
+                placeholder="Visible on button"
+              />
+            </div>
+            <div>
+              <label class="label">Button Emoji</label>
+              <input formControlName="emoji" type="text" class="input" />
+            </div>
+            <div class="flex items-center">
+              <label class="flex items-center cursor-pointer">
+                <input formControlName="requiresLinking" type="checkbox" class="mr-2" />
+                <span class="text-gray-300">Require Linked Account</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ticket Logic -->
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4">Ticket Logic</h3>
+          <div class="space-y-3">
+            <label class="flex items-center cursor-pointer">
+              <input formControlName="claimable" type="checkbox" class="mr-2" />
+              <span class="text-gray-300">Enable claiming tickets</span>
+            </label>
+            <label class="flex items-center cursor-pointer">
+              <input formControlName="closeable" type="checkbox" class="mr-2" />
+              <span class="text-gray-300">Enable closing tickets</span>
+            </label>
+            <small class="text-gray-400 block ml-6"
+              >Tickets are instantly deleted if user tries to close</small
+            >
+            <label class="flex items-center cursor-pointer">
+              <input formControlName="closeConfirmation" type="checkbox" class="mr-2" />
+              <span class="text-gray-300">Ask for close confirmation</span>
+            </label>
+          </div>
+
+          <div class="mt-6 space-y-4">
+            <div>
+              <label class="label">Ticket Message Content</label>
+              <textarea formControlName="ticketMessageContent" rows="3" class="input"></textarea>
+              <small class="text-gray-400">Message sent when ticket is created</small>
+            </div>
+            <div>
+              <label class="label">Ticket Message Embeds (JSON)</label>
+              <textarea
+                formControlName="ticketMessageEmbeds"
+                rows="4"
+                class="input font-mono text-sm"
+              ></textarea>
+            </div>
+            <div>
+              <label class="label">Additional Buttons (JSON)</label>
+              <textarea
+                formControlName="ticketMessageButtons"
+                rows="4"
+                class="input font-mono text-sm"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Channel Naming -->
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4">Channel Naming</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="label">Open Channel Pattern</label>
+              <input formControlName="openChannelName" type="text" class="input" />
+            </div>
+            <div>
+              <label class="label">Claimed Channel Pattern</label>
+              <input formControlName="claimedChannelName" type="text" class="input" />
+            </div>
+            <div>
+              <label class="label">Closed Channel Pattern</label>
+              <input formControlName="closedChannelName" type="text" class="input" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Transcripts -->
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4">Transcripts</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="label">Transcript Channel ID</label>
+              <input formControlName="transcriptChannel" type="text" class="input" />
+              <small class="text-gray-400"
+                >If left blank, the property TRANSCRIPTS_CHANNEL from /config will be used</small
+              >
+            </div>
+            <div>
+              <label class="label">DM Transcript Embed (JSON)</label>
+              <textarea
+                formControlName="userTranscriptDm"
+                rows="4"
+                class="input font-mono text-sm"
+              ></textarea>
+            </div>
+            <div>
+              <label class="label">Close Transcript Target</label>
+              <select formControlName="closeTranscriptTarget" class="input">
+                <option value="None">None</option>
+                <option value="User">User</option>
+                <option value="TranscriptChannel">TranscriptChannel</option>
+                <option value="Both">Both</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Delete Transcript Target</label>
+              <select formControlName="deleteTranscriptTarget" class="input">
+                <option value="None">None</option>
+                <option value="User">User</option>
+                <option value="TranscriptChannel">TranscriptChannel</option>
+                <option value="Both">Both</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Roles & Categories -->
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4">Roles & Categories</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="label">Support Roles (Comma-separated IDs)</label>
+              <input formControlName="supportRoles" type="text" class="input" />
+            </div>
+            <div>
+              <label class="label">Additional Roles (Comma-separated IDs)</label>
+              <input formControlName="additionalRoles" type="text" class="input" />
+            </div>
+            <div>
+              <label class="label">Open Categories (Comma-separated IDs)</label>
+              <input formControlName="openCategories" type="text" class="input" />
+            </div>
+            <div>
+              <label class="label">Closed Categories (Comma-separated IDs)</label>
+              <input formControlName="closedCategories" type="text" class="input" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Carry Integration -->
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4">Carry Integration</h3>
+          <div class="space-y-4">
+            <div>
+              <label class="label">Related Carry Tier</label>
+              <select
+                formControlName="relatedCarryTier"
+                class="input"
+                (change)="onCarryTierChange()"
+              >
+                <option [value]="null">None</option>
+                <option *ngFor="let tier of carryTiers" [value]="tier.id">
+                  {{ tier.carryType?.displayName || tier.carryType?.identifier }} -
+                  {{ tier.displayName || tier.identifier }}
+                </option>
+              </select>
+            </div>
+            <div *ngIf="form.get('relatedCarryTier')?.value">
+              <label class="label">Related Carry Difficulty</label>
+              <select formControlName="relatedCarryDifficulty" class="input">
+                <option [value]="null">None</option>
+                <option *ngFor="let difficulty of carryDifficulties" [value]="difficulty.id">
+                  {{ difficulty.displayName || difficulty.identifier }}
+                </option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ticket Form -->
+        <div class="card">
+          <h3 class="text-xl font-semibold mb-4">Ticket Form</h3>
+          <div>
+            <label class="label">Form Questions (JSON)</label>
+            <textarea
+              formControlName="formQuestions"
+              rows="10"
+              class="input font-mono text-sm"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Sticky Save Button -->
+        <div class="sticky bottom-4 right-4 flex justify-end">
+          <button
+            type="submit"
+            [disabled]="!form.valid || saving"
+            class="btn btn-primary shadow-lg"
+          >
+            {{ saving ? 'Saving...' : 'Save Changes' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  `,
+})
+export class TicketPanelEditComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private fb = inject(FormBuilder);
+  private ticketPanelService = inject(TicketPanelControllerService);
+  private discordServerService = inject(DiscordServerControllerService);
+  private carryTierService = inject(CarryTierControllerService);
+  private carryDifficultyService = inject(CarryDifficultyControllerService);
+  private cdr = inject(ChangeDetectorRef);
+
+  serverId!: string;
+  panelId!: string;
+  panel: any;
+  form!: FormGroup;
+  loading = true;
+  saving = false;
+
+  carryTiers: CarryTierModel[] = [];
+  carryDifficulties: CarryDifficultyModel[] = [];
+
+  ngOnInit() {
+    this.serverId = this.route.snapshot.params['serverId'];
+    this.panelId = this.route.snapshot.params['panelId'];
+
+    this.initForm();
+    this.loadAllCarryTiers();
+    this.loadPanel();
+  }
+
+  initForm() {
+    this.form = this.fb.group({
+      name: [''],
+      displayName: [''],
+      emoji: [''],
+      requiresLinking: [false],
+      claimable: [false],
+      closeable: [false],
+      closeConfirmation: [false],
+      ticketMessageContent: [''],
+      ticketMessageEmbeds: [''],
+      ticketMessageButtons: [''],
+      openChannelName: [''],
+      claimedChannelName: [''],
+      closedChannelName: [''],
+      transcriptChannel: [''],
+      userTranscriptDm: [''],
+      closeTranscriptTarget: ['None'],
+      deleteTranscriptTarget: ['None'],
+      supportRoles: [''],
+      additionalRoles: [''],
+      openCategories: [''],
+      closedCategories: [''],
+      relatedCarryTier: [null],
+      relatedCarryDifficulty: [null],
+      formQuestions: [''],
+    });
+  }
+
+  loadPanel() {
+    this.ticketPanelService.getById1(this.serverId, this.panelId).subscribe({
+      next: (panel) => {
+        this.panel = panel;
+        this.populateForm(panel);
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load panel', err);
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  populateForm(panel: any) {
+    // Parse ticket message JSON
+    let ticketMessage: any = {};
+    try {
+      ticketMessage = JSON.parse(panel.ticketMessage || '{}');
+    } catch (e) {}
+
+    this.form.patchValue({
+      name: panel.name,
+      displayName: panel.displayName || '',
+      emoji: panel.emoji || '',
+      requiresLinking: panel.requiresLinking || false,
+      claimable: panel.claimable || false,
+      closeable: panel.closeable || false,
+      closeConfirmation: panel.closeConfirmation || false,
+      ticketMessageContent: ticketMessage.content || '',
+      ticketMessageEmbeds: ticketMessage.embeds
+        ? JSON.stringify(ticketMessage.embeds, null, 2)
+        : '',
+      ticketMessageButtons: ticketMessage['additional-buttons']
+        ? JSON.stringify(ticketMessage['additional-buttons'], null, 2)
+        : '',
+      openChannelName: panel.openChannelName || '',
+      claimedChannelName: panel.claimedChannelName || '',
+      closedChannelName: panel.closedChannelName || '',
+      transcriptChannel: panel.transcriptChannel?.id?.toString() || '',
+      userTranscriptDm: panel.userTranscriptDm || '',
+      closeTranscriptTarget: panel.closeTranscriptTarget || 'None',
+      deleteTranscriptTarget: panel.deleteTranscriptTarget || 'None',
+      supportRoles: panel.supportRoles?.map((r: any) => r.id?.toString()).join(', ') || '',
+      additionalRoles: panel.additionalRoles?.map((r: any) => r.id?.toString()).join(', ') || '',
+      openCategories: panel.openCategories?.map((id: any) => id?.toString()).join(', ') || '',
+      closedCategories: panel.closedCategories?.map((id: any) => id?.toString()).join(', ') || '',
+      relatedCarryTier: panel.relatedCarryTier?.id || null,
+      relatedCarryDifficulty: panel.relatedCarryDifficulty?.id || null,
+      formQuestions: panel.formQuestions ? JSON.stringify(panel.formQuestions, null, 2) : '',
+    });
+
+    // Load carry difficulties if carry tier is selected
+    if (panel.relatedCarryTier?.id && panel.relatedCarryTier?.carryType?.identifier) {
+      this.loadCarryDifficulties(
+        panel.relatedCarryTier.carryType.identifier,
+        panel.relatedCarryTier.identifier,
+      );
+    }
+  }
+
+  loadAllCarryTiers() {
+    this.discordServerService.getAllCarryTiers1(this.serverId).subscribe({
+      next: (tiers) => {
+        this.carryTiers = tiers.flat().filter((t) => t !== undefined) as CarryTierModel[];
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load carry types', err);
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  onCarryTierChange() {
+    const tierId = this.form.get('relatedCarryTier')?.value;
+    this.form.patchValue({ relatedCarryDifficulty: null });
+    this.carryDifficulties = [];
+
+    if (tierId) {
+      const tier = this.carryTiers.find((t) => t.id === tierId);
+      if (tier?.carryType?.identifier && tier?.identifier) {
+        this.loadCarryDifficulties(tier.carryType.identifier, tier.identifier);
+      }
+    }
+    this.cdr.detectChanges();
+  }
+
+  loadCarryDifficulties(carryTypeId: string, carryTierId: string) {
+    this.carryDifficultyService
+      .getAllCarryDifficulties(this.serverId, carryTypeId, carryTierId)
+      .subscribe({
+        next: (difficulties) => {
+          this.carryDifficulties = difficulties;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          console.error('Failed to load carry difficulties', err);
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  save() {
+    if (!this.form.valid || this.saving) return;
+
+    this.saving = true;
+    const formValue = this.form.value;
+
+    // Build ticket message JSON
+    const ticketMessage: any = {
+      content: formValue.ticketMessageContent || null,
+    };
+
+    try {
+      if (formValue.ticketMessageEmbeds) {
+        ticketMessage.embeds = JSON.parse(formValue.ticketMessageEmbeds);
+      }
+    } catch (e) {}
+
+    try {
+      if (formValue.ticketMessageButtons) {
+        ticketMessage['additional-buttons'] = JSON.parse(formValue.ticketMessageButtons);
+      }
+    } catch (e) {}
+
+    // Parse form questions
+    let formQuestions: any = undefined;
+    try {
+      if (formValue.formQuestions) {
+        formQuestions = JSON.parse(formValue.formQuestions);
+      }
+    } catch (e) {}
+
+    const updateModel: TicketPanelUpdateModel = {
+      name: formValue.name,
+      displayName: formValue.displayName || undefined,
+      emoji: formValue.emoji || undefined,
+      requiresLinking: formValue.requiresLinking,
+      claimable: formValue.claimable,
+      closeable: formValue.closeable,
+      closeConfirmation: formValue.closeConfirmation,
+      ticketMessage: JSON.stringify(ticketMessage),
+      openChannelName: formValue.openChannelName || undefined,
+      claimedChannelName: formValue.claimedChannelName || undefined,
+      closedChannelName: formValue.closedChannelName || undefined,
+      transcriptChannel: formValue.transcriptChannel || undefined,
+      userTranscriptDm: formValue.userTranscriptDm || undefined,
+      closeTranscriptTarget: formValue.closeTranscriptTarget,
+      deleteTranscriptTarget: formValue.deleteTranscriptTarget,
+      supportRoles: this.parseIdList(formValue.supportRoles) || undefined,
+      additionalRoles: this.parseIdList(formValue.additionalRoles) || undefined,
+      openCategories: this.parseIdList(formValue.openCategories) || undefined,
+      closedCategories: this.parseIdList(formValue.closedCategories) || undefined,
+      relatedCarryTier: formValue.relatedCarryTier || undefined,
+      relatedCarryDifficulty: formValue.relatedCarryDifficulty || undefined,
+      formQuestions: formQuestions,
+    };
+
+    this.ticketPanelService.updateTicketPanel(this.serverId, this.panelId, updateModel).subscribe({
+      next: (updated) => {
+        this.panel = updated;
+        this.saving = false;
+        this.cdr.detectChanges();
+        this.router.navigate(['/server', this.serverId]);
+      },
+      error: (err) => {
+        console.error('Failed to save', err);
+        this.saving = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private parseIdList(value: string): string[] | null {
+    if (!value?.trim()) return null;
+    return value
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => id);
+  }
+}
