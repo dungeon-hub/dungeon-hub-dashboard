@@ -7,7 +7,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "dungeon-hub-dashboard-ng": {
+    "dungeon-hub-dashboard": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -64,10 +64,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "dungeon-hub-dashboard-ng:build:production"
+              "buildTarget": "dungeon-hub-dashboard:build:production"
             },
             "development": {
-              "buildTarget": "dungeon-hub-dashboard-ng:build:development"
+              "buildTarget": "dungeon-hub-dashboard:build:development"
             }
           },
           "defaultConfiguration": "development"

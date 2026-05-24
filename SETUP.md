@@ -61,7 +61,7 @@ See `ENV_CONFIGURATION.md` for full details on .env setup.
 ### 2. Start Development Server
 
 ```bash
-cd dungeon-hub-dashboard-ng
+cd dungeon-hub-dashboard
 npm start
 ```
 
@@ -155,7 +155,7 @@ npm run format
 ng build --configuration production
 
 # Output location
-dist/dungeon-hub-dashboard-ng/browser/
+dist/dungeon-hub-dashboard/browser/
 ```
 
 Deploy the `browser/` folder to your hosting provider.
@@ -167,7 +167,7 @@ Deploy the `browser/` folder to your hosting provider.
 cd ../dungeon-hub-api/typescript-client
 npm link
 
-cd ../../dungeon-hub-dashboard-ng
+cd ../../dungeon-hub-dashboard
 npm link @dungeon-hub/api-client
 ```
 
