@@ -207,7 +207,7 @@ import { TicketPanelControllerService, TicketPanelUpdateModel, CarryDifficultyCo
                 <option [ngValue]="null">None</option>
                 @for (tier of carryTiers; track tier.id) {
                   <option [value]="tier.id">
-                    {{ tier.carryType?.displayName || tier.carryType?.identifier }} -
+                    {{ tier.carryType.displayName || tier.carryType.identifier }} -
                     {{ tier.displayName || tier.identifier }}
                   </option>
                 }
@@ -368,10 +368,10 @@ export class TicketPanelEditComponent implements OnInit {
     });
 
     // Load carry difficulties if carry tier is selected
-    if (panel.relatedCarryTier?.id && panel.relatedCarryTier?.carryType?.identifier) {
+    if (panel.relatedCarryTier) {
       this.loadCarryDifficulties(
-        panel.relatedCarryTier.carryType.identifier,
-        panel.relatedCarryTier.identifier,
+        panel.relatedCarryTier.carryType.id,
+        panel.relatedCarryTier.id,
       );
     }
   }
@@ -395,8 +395,8 @@ export class TicketPanelEditComponent implements OnInit {
 
     if (tierId) {
       const tier = this.carryTiers.find((t) => t.id === tierId);
-      if (tier?.carryType?.identifier && tier?.identifier) {
-        this.loadCarryDifficulties(tier.carryType.identifier, tier.identifier);
+      if (tier) {
+        this.loadCarryDifficulties(tier.carryType.id, tier.id);
       }
     }
     this.cdr.detectChanges();
@@ -460,28 +460,39 @@ export class TicketPanelEditComponent implements OnInit {
     }
 
     const updateModel: TicketPanelUpdateModel = {
-      name: formValue.name,
-      displayName: formValue.displayName || undefined,
-      emoji: formValue.emoji || undefined,
-      requiresLinking: formValue.requiresLinking,
-      claimable: formValue.claimable,
-      closeable: formValue.closeable,
-      closeConfirmation: formValue.closeConfirmation,
+      name: formValue.name ?? null,
+      displayName: formValue.displayName ?? null,
+      resetDisplayName: false,
+      emoji: formValue.emoji ?? null,
+      resetEmoji: false,
+      requiresLinking: formValue.requiresLinking ?? null,
+      claimable: formValue.claimable ?? null,
+      closeable: formValue.closeable ?? null,
+      closeConfirmation: formValue.closeConfirmation ?? null,
       ticketMessage: JSON.stringify(ticketMessage),
-      openChannelName: formValue.openChannelName || undefined,
-      claimedChannelName: formValue.claimedChannelName || undefined,
-      closedChannelName: formValue.closedChannelName || undefined,
-      transcriptChannel: formValue.transcriptChannel || undefined,
-      userTranscriptDm: formValue.userTranscriptDm || undefined,
-      closeTranscriptTarget: formValue.closeTranscriptTarget,
-      deleteTranscriptTarget: formValue.deleteTranscriptTarget,
-      supportRoles: this.parseIdList(formValue.supportRoles) || undefined,
-      additionalRoles: this.parseIdList(formValue.additionalRoles) || undefined,
-      openCategories: this.parseIdList(formValue.openCategories) || undefined,
-      closedCategories: this.parseIdList(formValue.closedCategories) || undefined,
-      relatedCarryTier: formValue.relatedCarryTier || undefined,
-      relatedCarryDifficulty: formValue.relatedCarryDifficulty || undefined,
-      formQuestions: formQuestions,
+      resetTicketMessage: false,
+      openChannelName: formValue.openChannelName ?? null,
+      resetOpenChannelName: false,
+      claimedChannelName: formValue.claimedChannelName ?? null,
+      resetClaimedChannelName: false,
+      closedChannelName: formValue.closedChannelName ?? null,
+      resetClosedChannelName: false,
+      transcriptChannel: formValue.transcriptChannel ?? null,
+      resetTranscriptChannel: false,
+      userTranscriptDm: formValue.userTranscriptDm ?? null,
+      resetUserTranscriptDm: false,
+      closeTranscriptTarget: formValue.closeTranscriptTarget ?? null,
+      deleteTranscriptTarget: formValue.deleteTranscriptTarget ?? null,
+      supportRoles: this.parseIdList(formValue.supportRoles) ?? undefined,
+      additionalRoles: this.parseIdList(formValue.additionalRoles) ?? undefined,
+      openCategories: this.parseIdList(formValue.openCategories) ?? undefined,
+      closedCategories: this.parseIdList(formValue.closedCategories) ?? undefined,
+      relatedCarryTier: formValue.relatedCarryTier ?? null,
+      resetRelatedCarryTier: false,
+      relatedCarryDifficulty: formValue.relatedCarryDifficulty ?? null,
+      resetRelatedCarryDifficulty: false,
+      formQuestions: formQuestions ?? null,
+      permissions: undefined,
     };
 
     this.ticketPanelService.updateTicketPanel(this.serverId, this.panelId, updateModel).subscribe({

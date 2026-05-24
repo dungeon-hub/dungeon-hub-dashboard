@@ -187,11 +187,12 @@ export class CntRequestEditComponent implements OnInit {
     const formValue = this.form.value;
 
     const updateModel: CntRequestUpdateModel = {
-      description: formValue.description || null,
-      coinValue: formValue.coinValue || null,
-      requirement: formValue.requirement || null,
+      description: formValue.description ?? null,
+      coinValue: formValue.coinValue ?? null,
+      requirement: formValue.requirement ?? null,
       completed: formValue.completed,
       requestType: formValue.requestType,
+      resetClaimer: formValue.unclaim || false,
     };
 
     if (formValue.unclaim) {
