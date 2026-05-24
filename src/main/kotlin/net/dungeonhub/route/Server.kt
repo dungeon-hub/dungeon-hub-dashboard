@@ -41,6 +41,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import net.dungeonhub.applicationHttpClient
 import net.dungeonhub.auth.UserSession
+import net.dungeonhub.connection.CntRequestConnection
 import net.dungeonhub.connection.TicketPanelConnection
 import net.dungeonhub.content.iconUrl
 import net.dungeonhub.content.page
@@ -66,6 +67,7 @@ fun Application.serverModule(httpClient: HttpClient = applicationHttpClient) {
                 }?.firstOrNull { it.id == serverId } ?: return@get call.respond(HttpStatusCode.BadRequest)
 
                 val ticketPanels = TicketPanelConnection[serverId].authenticated(session).getAllTicketPanels() ?: emptyList()
+                val cntRequestsPage = CntRequestConnection[serverId].authenticated(session).getCntRequests()
 
                 call.respondHtml {
                     page(session) {
@@ -153,6 +155,25 @@ fun Application.serverModule(httpClient: HttpClient = applicationHttpClient) {
                                             )
                                         }
                                     }
+                                }
+                            }
+
+                            div {
+                                style = "position: relative; border: 1px solid #374151; padding: 12px; border-radius: 8px; margin-top: 1rem;"
+
+                                h4 {
+                                    style = "margin: 0;"
+                                    +"CNT Requests"
+                                }
+
+                                p {
+                                    style = "margin-top: 0.75rem;"
+                                    +"There are a total of ${cntRequestsPage?.totalElements} CNT requests."
+                                }
+
+                                a(href = "/dashboard/server/$serverId/cnt-requests", classes = "contrast") {
+                                    style = "width: 100%; max-width: 240px;"
+                                    +"Open CNT Requests"
                                 }
                             }
 
