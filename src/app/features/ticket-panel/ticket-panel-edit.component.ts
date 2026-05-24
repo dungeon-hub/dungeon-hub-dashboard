@@ -459,38 +459,43 @@ export class TicketPanelEditComponent implements OnInit {
       return;
     }
 
+    // Helper to check if a field was cleared (had value before, now empty)
+    const wasCleared = (currentValue: any, formValue: any) => {
+      return currentValue != null && (formValue == null || formValue === '');
+    };
+
     const updateModel: TicketPanelUpdateModel = {
       name: formValue.name ?? null,
-      displayName: formValue.displayName ?? null,
-      resetDisplayName: false,
-      emoji: formValue.emoji ?? null,
-      resetEmoji: false,
+      displayName: formValue.displayName || null,
+      resetDisplayName: wasCleared(this.panel.displayName, formValue.displayName),
+      emoji: formValue.emoji || null,
+      resetEmoji: wasCleared(this.panel.emoji, formValue.emoji),
       requiresLinking: formValue.requiresLinking ?? null,
       claimable: formValue.claimable ?? null,
       closeable: formValue.closeable ?? null,
       closeConfirmation: formValue.closeConfirmation ?? null,
       ticketMessage: JSON.stringify(ticketMessage),
       resetTicketMessage: false,
-      openChannelName: formValue.openChannelName ?? null,
-      resetOpenChannelName: false,
-      claimedChannelName: formValue.claimedChannelName ?? null,
-      resetClaimedChannelName: false,
-      closedChannelName: formValue.closedChannelName ?? null,
-      resetClosedChannelName: false,
-      transcriptChannel: formValue.transcriptChannel ?? null,
-      resetTranscriptChannel: false,
-      userTranscriptDm: formValue.userTranscriptDm ?? null,
-      resetUserTranscriptDm: false,
+      openChannelName: formValue.openChannelName || null,
+      resetOpenChannelName: wasCleared(this.panel.openChannelName, formValue.openChannelName),
+      claimedChannelName: formValue.claimedChannelName || null,
+      resetClaimedChannelName: wasCleared(this.panel.claimedChannelName, formValue.claimedChannelName),
+      closedChannelName: formValue.closedChannelName || null,
+      resetClosedChannelName: wasCleared(this.panel.closedChannelName, formValue.closedChannelName),
+      transcriptChannel: formValue.transcriptChannel || null,
+      resetTranscriptChannel: wasCleared(this.panel.transcriptChannel?.id?.toString(), formValue.transcriptChannel),
+      userTranscriptDm: formValue.userTranscriptDm || null,
+      resetUserTranscriptDm: wasCleared(this.panel.userTranscriptDm, formValue.userTranscriptDm),
       closeTranscriptTarget: formValue.closeTranscriptTarget ?? null,
       deleteTranscriptTarget: formValue.deleteTranscriptTarget ?? null,
-      supportRoles: this.parseIdList(formValue.supportRoles) ?? undefined,
-      additionalRoles: this.parseIdList(formValue.additionalRoles) ?? undefined,
-      openCategories: this.parseIdList(formValue.openCategories) ?? undefined,
-      closedCategories: this.parseIdList(formValue.closedCategories) ?? undefined,
-      relatedCarryTier: formValue.relatedCarryTier ?? null,
-      resetRelatedCarryTier: false,
-      relatedCarryDifficulty: formValue.relatedCarryDifficulty ?? null,
-      resetRelatedCarryDifficulty: false,
+      supportRoles: this.parseIdListOrEmpty(formValue.supportRoles, this.panel.supportRoles),
+      additionalRoles: this.parseIdListOrEmpty(formValue.additionalRoles, this.panel.additionalRoles),
+      openCategories: this.parseIdListOrEmpty(formValue.openCategories, this.panel.openCategories),
+      closedCategories: this.parseIdListOrEmpty(formValue.closedCategories, this.panel.closedCategories),
+      relatedCarryTier: formValue.relatedCarryTier || null,
+      resetRelatedCarryTier: wasCleared(this.panel.relatedCarryTier?.id, formValue.relatedCarryTier),
+      relatedCarryDifficulty: formValue.relatedCarryDifficulty || null,
+      resetRelatedCarryDifficulty: wasCleared(this.panel.relatedCarryDifficulty?.id, formValue.relatedCarryDifficulty),
       formQuestions: formQuestions ?? null,
       permissions: undefined,
     };
@@ -515,5 +520,15 @@ export class TicketPanelEditComponent implements OnInit {
       .split(',')
       .map((id) => id.trim())
       .filter((id) => id);
+  }
+
+  private parseIdListOrEmpty(value: string, originalValue: any[]): string[] | undefined {
+    const parsed = this.parseIdList(value);
+    // If field is empty and there were original values, send empty array to clear
+    if (parsed === null && originalValue && originalValue.length > 0) {
+      return [];
+    }
+    // If there's a value, send it; if both are empty, send undefined (no change)
+    return parsed ?? undefined;
   }
 }
