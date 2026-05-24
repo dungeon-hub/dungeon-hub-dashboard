@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { OAuthService, OAuthEvent } from 'angular-oauth2-oidc';
-import { BehaviorSubject, Observable, filter } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -10,21 +10,25 @@ import { environment } from '../../../environments/environment';
 export class AuthService {
   private oauthService = inject(OAuthService);
   private router = inject(Router);
+  private readonly debugOAuth = !environment.production;
 
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
 
   constructor() {
-    // Log all OAuth events for debugging
     this.oauthService.events.subscribe((e: OAuthEvent) => {
-      console.log('OAuth Event:', e.type, e);
+      if (this.debugOAuth) {
+        console.log('[OAuth Event]', e.type);
+      }
 
       if (e.type === 'token_received') {
         this.isAuthenticatedSubject.next(true);
       }
 
       if (e.type === 'invalid_nonce_in_state') {
-        console.error('Invalid nonce - clearing storage and retrying');
+        if (this.debugOAuth) {
+          console.warn('[OAuth] Invalid nonce - clearing storage');
+        }
         sessionStorage.clear();
       }
     });
@@ -37,7 +41,7 @@ export class AuthService {
       clientId: environment.keycloak.clientId,
       responseType: 'code',
       scope: environment.keycloak.scope,
-      showDebugInformation: true,
+      showDebugInformation: this.debugOAuth,
       postLogoutRedirectUri: environment.keycloak.postLogoutRedirectUri
     });
 
@@ -46,19 +50,20 @@ export class AuthService {
 
     try {
       await this.oauthService.loadDiscoveryDocumentAndTryLogin();
-      console.log('OAuth initialized', {
-        hasValidToken: this.oauthService.hasValidAccessToken(),
-        state: this.oauthService.state
-      });
 
       if (this.oauthService.hasValidAccessToken()) {
         // Load user profile from userinfo endpoint
         await this.oauthService.loadUserProfile();
-        console.log('User profile loaded:', this.oauthService.getIdentityClaims());
         this.isAuthenticatedSubject.next(true);
+
+        if (this.debugOAuth) {
+          console.log('[OAuth] Initialized successfully');
+        }
       }
     } catch (err) {
-      console.error('OAuth discovery failed:', err);
+      if (this.debugOAuth) {
+        console.error('[OAuth] Initialization failed:', err);
+      }
     }
   }
 
@@ -84,9 +89,7 @@ export class AuthService {
   }
 
   getUserInfo(): any {
-    const claims = this.oauthService.getIdentityClaims();
-    console.log('User claims:', claims);
-    return claims;
+    return this.oauthService.getIdentityClaims();
   }
 
   handleAuthCallback() {

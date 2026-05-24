@@ -12,6 +12,5 @@ export const authGuard: CanActivateFn = (route, state) => {
 
   // Store the attempted URL and redirect to login page
   sessionStorage.setItem('auth_return_url', state.url);
-  router.navigate(['/login']);
-  return false;
+  return router.createUrlTree(['/login']);
 };

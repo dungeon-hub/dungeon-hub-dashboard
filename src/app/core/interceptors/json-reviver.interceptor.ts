@@ -1,6 +1,5 @@
 import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { map } from 'rxjs';
-import { inject } from '@angular/core';
 import { environment } from '../../../environments/environment';
 
 /**
@@ -12,6 +11,13 @@ import { environment } from '../../../environments/environment';
 export const jsonReviverInterceptor: HttpInterceptorFn = (req, next) => {
   // Only intercept requests to our API
   if (!req.url.startsWith(environment.apiUrl)) {
+    return next(req);
+  }
+
+  // Only apply text conversion for JSON/text compatible response types
+  // If the request expects blob, arraybuffer, or other binary types, pass through unchanged
+  const responseType = req.responseType || 'json';
+  if (responseType !== 'json' && responseType !== 'text') {
     return next(req);
   }
 
@@ -33,14 +39,14 @@ export const jsonReviverInterceptor: HttpInterceptorFn = (req, next) => {
               // Convert large integers to strings in the raw JSON text before parsing
               // This regex finds numbers that exceed JavaScript's safe integer range (> 2^53 - 1)
               // and wraps them in quotes so they're parsed as strings
-              // Matches both object values (after :) and array values (after [ or ,)
+              // Matches both object values (after :) and array values (after [ or a comma)
               let modifiedJson = event.body
                 .replace(
-                  /:\s*(\d{16,})(?=\s*[,\}\]])/g,  // Match big numbers in objects (after colon)
+                  /:\s*(\d{16,})(?=\s*[,}\]])/g,  // Match big numbers in objects (after colon)
                   ': "$1"'
                 )
                 .replace(
-                  /(\[|,)\s*(\d{16,})(?=\s*[,\]])/g,  // Match big numbers in arrays (after [ or ,)
+                  /([\[,])\s*(\d{16,})(?=\s*[,\]])/g,  // Match big numbers in arrays (after [ or a comma)
                   '$1"$2"'
                 );
 
@@ -52,9 +58,13 @@ export const jsonReviverInterceptor: HttpInterceptorFn = (req, next) => {
                 body: parsedBody
               });
             } catch (e) {
-              console.error('Failed to parse JSON with custom reviver:', e, 'Body:', event.body);
-              // If parsing fails, return original response
-              return event;
+              // Throw an error so callers receive a failure instead of unparsed text
+              const parseError = new Error(
+                `JSON parsing failed in jsonReviverInterceptor for ${req.url}. ` +
+                `Original error: ${e instanceof Error ? e.message : String(e)}.`
+              );
+              parseError.cause = e;
+              throw parseError;
             }
           } else {
             // Body is already parsed (shouldn't happen with responseType: 'text', but just in case)

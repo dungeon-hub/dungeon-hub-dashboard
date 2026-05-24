@@ -2,7 +2,7 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { TicketPanelControllerService, TicketPanelUpdateModel, CarryTierControllerService, CarryDifficultyControllerService, CarryTierModel, CarryDifficultyModel, DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { TicketPanelControllerService, TicketPanelUpdateModel, CarryDifficultyControllerService, CarryTierModel, CarryDifficultyModel, DiscordServerControllerService } from '@dungeon-hub/api-client';
 
 @Component({
   selector: 'app-ticket-panel-edit',
@@ -23,15 +23,18 @@ import { TicketPanelControllerService, TicketPanelUpdateModel, CarryTierControll
       </div>
 
       <!-- Loading State -->
-      <div *ngIf="loading" class="card text-center py-12">
-        <div
-          class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"
-        ></div>
-        <p class="mt-4 text-gray-400">Loading...</p>
-      </div>
+      @if (loading) {
+        <div class="card text-center py-12">
+          <div
+            class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"
+          ></div>
+          <p class="mt-4 text-gray-400">Loading...</p>
+        </div>
+      }
 
       <!-- Form -->
-      <form *ngIf="!loading && form" [formGroup]="form" (ngSubmit)="save()" class="space-y-6">
+      @if (!loading && form) {
+        <form [formGroup]="form" (ngSubmit)="save()" class="space-y-6">
         <!-- General Settings -->
         <div class="card">
           <h3 class="text-xl font-semibold mb-4">General Settings</h3>
@@ -43,7 +46,7 @@ import { TicketPanelControllerService, TicketPanelUpdateModel, CarryTierControll
             <div>
               <label class="label">Display Name</label>
               <input
-                formControlName="displayName"
+            formControlName="displayName"
                 type="text"
                 class="input"
                 placeholder="Visible on button"
@@ -201,22 +204,28 @@ import { TicketPanelControllerService, TicketPanelUpdateModel, CarryTierControll
                 class="input"
                 (change)="onCarryTierChange()"
               >
-                <option [value]="null">None</option>
-                <option *ngFor="let tier of carryTiers" [value]="tier.id">
-                  {{ tier.carryType?.displayName || tier.carryType?.identifier }} -
-                  {{ tier.displayName || tier.identifier }}
-                </option>
+                <option [ngValue]="null">None</option>
+                @for (tier of carryTiers; track tier.id) {
+                  <option [value]="tier.id">
+                    {{ tier.carryType?.displayName || tier.carryType?.identifier }} -
+                    {{ tier.displayName || tier.identifier }}
+                  </option>
+                }
               </select>
             </div>
-            <div *ngIf="form.get('relatedCarryTier')?.value">
-              <label class="label">Related Carry Difficulty</label>
-              <select formControlName="relatedCarryDifficulty" class="input">
-                <option [value]="null">None</option>
-                <option *ngFor="let difficulty of carryDifficulties" [value]="difficulty.id">
-                  {{ difficulty.displayName || difficulty.identifier }}
-                </option>
-              </select>
-            </div>
+            @if (form.get('relatedCarryTier')?.value) {
+              <div>
+                <label class="label">Related Carry Difficulty</label>
+                <select formControlName="relatedCarryDifficulty" class="input">
+                  <option [ngValue]="null">None</option>
+                  @for (difficulty of carryDifficulties; track difficulty.id) {
+                    <option [value]="difficulty.id">
+                      {{ difficulty.displayName || difficulty.identifier }}
+                    </option>
+                  }
+                </select>
+              </div>
+            }
           </div>
         </div>
 
@@ -243,7 +252,8 @@ import { TicketPanelControllerService, TicketPanelUpdateModel, CarryTierControll
             {{ saving ? 'Saving...' : 'Save Changes' }}
           </button>
         </div>
-      </form>
+        </form>
+      }
     </div>
   `,
 })
@@ -253,7 +263,6 @@ export class TicketPanelEditComponent implements OnInit {
   private fb = inject(FormBuilder);
   private ticketPanelService = inject(TicketPanelControllerService);
   private discordServerService = inject(DiscordServerControllerService);
-  private carryTierService = inject(CarryTierControllerService);
   private carryDifficultyService = inject(CarryDifficultyControllerService);
   private cdr = inject(ChangeDetectorRef);
 
@@ -313,8 +322,7 @@ export class TicketPanelEditComponent implements OnInit {
         this.loading = false;
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error('Failed to load panel', err);
+      error: () => {
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -374,8 +382,7 @@ export class TicketPanelEditComponent implements OnInit {
         this.carryTiers = tiers.flat().filter((t) => t !== undefined) as CarryTierModel[];
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error('Failed to load carry types', err);
+      error: () => {
         this.cdr.detectChanges();
       },
     });
@@ -403,8 +410,7 @@ export class TicketPanelEditComponent implements OnInit {
           this.carryDifficulties = difficulties;
           this.cdr.detectChanges();
         },
-        error: (err) => {
-          console.error('Failed to load carry difficulties', err);
+        error: () => {
           this.cdr.detectChanges();
         },
       });
@@ -425,13 +431,21 @@ export class TicketPanelEditComponent implements OnInit {
       if (formValue.ticketMessageEmbeds) {
         ticketMessage.embeds = JSON.parse(formValue.ticketMessageEmbeds);
       }
-    } catch (e) {}
+    } catch (e) {
+      this.form.get('ticketMessageEmbeds')?.setErrors({ invalidJson: 'Invalid JSON format' });
+      this.saving = false;
+      return;
+    }
 
     try {
       if (formValue.ticketMessageButtons) {
         ticketMessage['additional-buttons'] = JSON.parse(formValue.ticketMessageButtons);
       }
-    } catch (e) {}
+    } catch (e) {
+      this.form.get('ticketMessageButtons')?.setErrors({ invalidJson: 'Invalid JSON format' });
+      this.saving = false;
+      return;
+    }
 
     // Parse form questions
     let formQuestions: any = undefined;
@@ -439,7 +453,11 @@ export class TicketPanelEditComponent implements OnInit {
       if (formValue.formQuestions) {
         formQuestions = JSON.parse(formValue.formQuestions);
       }
-    } catch (e) {}
+    } catch (e) {
+      this.form.get('formQuestions')?.setErrors({ invalidJson: 'Invalid JSON format' });
+      this.saving = false;
+      return;
+    }
 
     const updateModel: TicketPanelUpdateModel = {
       name: formValue.name,
@@ -473,8 +491,7 @@ export class TicketPanelEditComponent implements OnInit {
         this.cdr.detectChanges();
         this.router.navigate(['/server', this.serverId]);
       },
-      error: (err) => {
-        console.error('Failed to save', err);
+      error: () => {
         this.saving = false;
         this.cdr.detectChanges();
       },

@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { CntRequestControllerService } from '@dungeon-hub/api-client';
+import {CntRequestControllerService, CntRequestModel} from '@dungeon-hub/api-client';
 import { getCntRequestTypeLabel } from './cnt-request-type-labels';
 
 @Component({
@@ -22,44 +22,53 @@ import { getCntRequestTypeLabel } from './cnt-request-type-labels';
 
       <!-- Request Cards -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <a
-          *ngFor="let request of requests"
-          [routerLink]="['/server', serverId, 'cnt-request', request.id]"
-          [queryParams]="{page: currentPage}"
-          class="card hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer group"
-        >
-          <div class="flex justify-between items-start mb-3">
-            <h3 class="text-lg font-semibold group-hover:text-blue-400 transition-colors">
-              Request #{{ request.id }}
-            </h3>
-            <span
-              class="px-2 py-1 rounded text-sm"
-              [class.bg-green-600]="request.completed"
-              [class.bg-yellow-600]="!request.completed"
-            >
-              {{ request.completed ? 'Completed' : 'Pending' }}
-            </span>
-          </div>
+        @for (request of requests; track request.id) {
+          <a
+            [routerLink]="['/server', serverId, 'cnt-request', request.id]"
+            [queryParams]="{page: currentPage}"
+            class="card hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer group"
+          >
+            <div class="flex justify-between items-start mb-3">
+              <h3 class="text-lg font-semibold group-hover:text-blue-400 transition-colors">
+                Request #{{ request.id }}
+              </h3>
+              <span
+                class="px-2 py-1 rounded text-sm"
+                [class.bg-green-600]="request.completed"
+                [class.bg-yellow-600]="!request.completed"
+              >
+                {{ request.completed ? 'Completed' : 'Pending' }}
+              </span>
+            </div>
 
-          <div class="space-y-2 text-sm text-gray-300">
-            <p><span class="text-gray-400">Type:</span> {{ getRequestTypeLabel(request.requestType) }}</p>
-            <p><span class="text-gray-400">Description:</span> {{ request.description || 'N/A' }}</p>
-            <p *ngIf="request.coinValue"><span class="text-gray-400">Value:</span> {{ request.coinValue }}</p>
-            <p *ngIf="request.claimer"><span class="text-gray-400">Claimed by:</span> {{ request.claimer }}</p>
-          </div>
-        </a>
+            <div class="space-y-2 text-sm text-gray-300">
+              <p><span class="text-gray-400">Type:</span> {{ getRequestTypeLabel(request.requestType) }}</p>
+              <p><span class="text-gray-400">Description:</span> {{ request.description || 'N/A' }}</p>
+              @if (request.coinValue) {
+                <p><span class="text-gray-400">Value:</span> {{ request.coinValue }}</p>
+              }
+              @if (request.claimer) {
+                <p><span class="text-gray-400">Claimed by:</span> {{ request.claimer.id }}</p>
+              }
+            </div>
+          </a>
+        }
       </div>
 
       <!-- Empty State -->
-      <div *ngIf="requests.length === 0 && !loading" class="card text-center py-12">
-        <p class="text-gray-400 text-lg">No CNT requests found.</p>
-      </div>
+      @if (requests.length === 0 && !loading) {
+        <div class="card text-center py-12">
+          <p class="text-gray-400 text-lg">No CNT requests found.</p>
+        </div>
+      }
 
       <!-- Loading State -->
-      <div *ngIf="loading" class="card text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <p class="mt-4 text-gray-400">Loading...</p>
-      </div>
+      @if (loading) {
+        <div class="card text-center py-12">
+          <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <p class="mt-4 text-gray-400">Loading...</p>
+        </div>
+      }
 
       <!-- Pagination -->
       <div class="flex justify-between items-center">
@@ -94,7 +103,7 @@ export class CntRequestListComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
 
   serverId!: string;
-  requests: any[] = [];
+  requests: CntRequestModel[] = [];
   currentPage = 0;
   pageSize = 10;
   totalPages = 0;
@@ -106,7 +115,9 @@ export class CntRequestListComponent implements OnInit {
 
   ngOnInit() {
     this.serverId = this.route.snapshot.params['serverId'];
-    this.currentPage = Number(this.route.snapshot.queryParams['page']) || 0;
+    const pageParam = this.route.snapshot.queryParams['page'];
+    const parsedPage = parseInt(pageParam, 10);
+    this.currentPage = Math.max(0, isNaN(parsedPage) ? 0 : parsedPage);
     this.loadRequests();
   }
 
@@ -120,8 +131,7 @@ export class CntRequestListComponent implements OnInit {
         this.loading = false;
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error('Failed to load requests', err);
+      error: () => {
         this.loading = false;
         this.cdr.detectChanges();
       }

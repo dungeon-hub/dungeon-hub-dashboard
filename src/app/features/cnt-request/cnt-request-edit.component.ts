@@ -26,13 +26,16 @@ import { CNT_REQUEST_TYPE_LABELS } from './cnt-request-type-labels';
       </div>
 
       <!-- Loading State -->
-      <div *ngIf="loading" class="card text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <p class="mt-4 text-gray-400">Loading...</p>
-      </div>
+      @if (loading) {
+        <div class="card text-center py-12">
+          <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          <p class="mt-4 text-gray-400">Loading...</p>
+        </div>
+      }
 
       <!-- Form -->
-      <form *ngIf="!loading && form" [formGroup]="form" (ngSubmit)="save()">
+      @if (!loading && form) {
+        <form [formGroup]="form" (ngSubmit)="save()">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- General Info -->
           <div class="card">
@@ -40,18 +43,22 @@ import { CNT_REQUEST_TYPE_LABELS } from './cnt-request-type-labels';
             <div class="space-y-3 text-sm">
               <p><span class="text-gray-400">Message ID:</span> {{ request?.messageId }}</p>
               <p><span class="text-gray-400">Requester:</span> {{ request?.user?.id }}</p>
-              <p *ngIf="request?.claimer">
-                <span class="text-gray-400">Claimed by:</span> {{ request?.claimer?.id }}
-              </p>
+              @if (request?.claimer) {
+                <p>
+                  <span class="text-gray-400">Claimed by:</span> {{ request?.claimer?.id }}
+                </p>
+              }
               <p><span class="text-gray-400">Created:</span> {{ request?.time | date:'medium' }}</p>
             </div>
 
             <div class="mt-6">
               <label class="label">Request Type (Coin Value)</label>
               <select formControlName="requestType" class="input">
-                <option *ngFor="let key of requestTypeKeys" [value]="requestTypeEnum[key]">
-                  {{ requestTypeLabels[requestTypeEnum[key]] }}
-                </option>
+                @for (key of requestTypeKeys; track key) {
+                  <option [value]="requestTypeEnum[key]">
+                    {{ requestTypeLabels[requestTypeEnum[key]] }}
+                  </option>
+                }
               </select>
             </div>
 
@@ -61,10 +68,12 @@ import { CNT_REQUEST_TYPE_LABELS } from './cnt-request-type-labels';
                 <span class="text-gray-300">Mark as Completed</span>
               </label>
 
-              <label *ngIf="request?.claimer" class="flex items-center cursor-pointer">
-                <input formControlName="unclaim" type="checkbox" class="mr-2" />
-                <span class="text-gray-300">Unclaim this request</span>
-              </label>
+              @if (request?.claimer) {
+                <label class="flex items-center cursor-pointer">
+                  <input formControlName="unclaim" type="checkbox" class="mr-2" />
+                  <span class="text-gray-300">Unclaim this request</span>
+                </label>
+              }
             </div>
           </div>
 
@@ -100,7 +109,8 @@ import { CNT_REQUEST_TYPE_LABELS } from './cnt-request-type-labels';
             {{ saving ? 'Saving...' : 'Save Changes' }}
           </button>
         </div>
-      </form>
+        </form>
+      }
     </div>
   `
 })
@@ -152,8 +162,7 @@ export class CntRequestEditComponent implements OnInit {
         this.loading = false;
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error('Failed to load request', err);
+      error: () => {
         this.loading = false;
         this.cdr.detectChanges();
       }
@@ -162,11 +171,11 @@ export class CntRequestEditComponent implements OnInit {
 
   populateForm(request: any) {
     this.form.patchValue({
-      requestType: request.requestType || '',
-      description: request.description || '',
-      coinValue: request.coinValue || '',
-      requirement: request.requirement || '',
-      completed: request.completed || false,
+      requestType: request.requestType ?? '',
+      description: request.description ?? '',
+      coinValue: request.coinValue ?? '',
+      requirement: request.requirement ?? '',
+      completed: request.completed ?? false,
       unclaim: false
     });
   }
@@ -196,8 +205,7 @@ export class CntRequestEditComponent implements OnInit {
           queryParams: { page: this.returnPage }
         });
       },
-      error: (err) => {
-        console.error('Failed to save', err);
+      error: () => {
         this.saving = false;
       }
     });

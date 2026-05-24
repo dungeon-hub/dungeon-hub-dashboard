@@ -143,12 +143,11 @@ gradle-app.setting
 
 # End of https://www.toptal.com/developers/gitignore/api/intellij+iml,gradle,kotlin
 
-.env.local
-
-
 # See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
 # Environment variables
+.env
+.env.local
 .env.*.local
 
 # Compiled output

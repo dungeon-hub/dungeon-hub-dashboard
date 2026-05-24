@@ -1,34 +1,16 @@
 # Dungeon Hub Dashboard Setup Guide
 
-## ✅ Migration Complete!
+Setup guide for the [Dungeon Hub](https://github.com/dungeon-hub/dungeon-hub-application) dashboard.
 
-The Kotlin/Ktor dashboard has been successfully migrated to Angular 18 with Tailwind CSS.
+## 🎯 What You're Setting Up
 
-## 🎯 What's Been Created
+A web interface for managing the Dungeon Hub Discord bot, built with:
 
-### Core Infrastructure
-- ✅ Angular 18 project with standalone components
-- ✅ Tailwind CSS configured
-- ✅ TypeScript API client generated and linked
-- ✅ OAuth2/Keycloak authentication setup
-- ✅ HTTP interceptors for automatic token injection
-- ✅ Auth guards for protected routes
-
-### Pages Implemented
-1. **Dashboard** (`/dashboard`) - Server list with guilds from Keycloak
-2. **Server Detail** (`/server/:id`) - Ticket panels & CNT requests overview
-3. **Ticket Panel Edit** (`/server/:id/ticket-panel/:id`) - Full CRUD with all fields
-4. **CNT Request List** (`/server/:id/cnt-requests`) - Paginated list
-5. **CNT Request Edit** (`/server/:id/cnt-request/:id`) - Edit form
-
-### Features
-- Dark theme with Tailwind
-- Responsive design
-- Form state preservation (reactive forms)
-- Automatic token refresh
-- Loading states
-- Error handling
-- Clean URLs with routing
+- **Angular 21** - Modern web framework with standalone components
+- **Tailwind CSS** - Dark-themed, responsive UI
+- **TypeScript API Client** - Type-safe backend communication
+- **OAuth2/Keycloak** - Discord-integrated authentication
+- **Reactive Forms** - Form validation and state management
 
 ## 🚀 Quick Start
 
@@ -78,7 +60,7 @@ Navigate to `http://localhost:4200`
 ### Required Configuration
 
 1. **Keycloak Setup**
-   - Configure redirect URIs in Keycloak client
+   - Configure redirect URIs in Keycloak Client
    - Add `guilds` scope to return Discord servers
    - Ensure token includes `discord-guilds` claim
 
@@ -178,50 +160,25 @@ npm link @dungeon-hub/api-client
 ### 3. Auth Not Working
 - Check Keycloak configuration
 - Verify redirect URIs match
-- Check browser console for errors
+- Check the browser console for errors
 
 ### 4. API Calls Failing
-- Verify API server is running
+- Verify that the API server is running
 - Check CORS configuration
 - Verify Bearer token is being sent (Network tab)
 
-## 📊 Migration Comparison
-
-| Aspect | Old (Kotlin) | New (Angular) |
-|--------|--------------|---------------|
-| Lines of Code | ~2,084 | ~800 (excluding generated) |
-| Auth Logic | Manual OAuth flow | Automatic (library) |
-| Form State | Manual localStorage | Reactive Forms |
-| Type Safety | ✅ (Kotlin) | ✅ (TypeScript) |
-| UI Framework | PicoCSS | Tailwind CSS |
-| Build Time | ~30s | ~10s |
-| Hot Reload | ❌ | ✅ |
-| Bundle Size | N/A (SSR) | ~300KB gzipped |
-
-## 🎉 Success Criteria
-
-- [x] All routes from Kotlin version implemented
-- [x] Authentication working
-- [x] CRUD operations functional
-- [x] Form state preserved
-- [x] Responsive design
-- [x] Dark theme applied
-- [x] TypeScript types from API
-- [x] Auto token refresh
-
 ## 📚 Documentation
 
-- Full README: `README.md`
-- Migration Status: `MIGRATION_STATUS.md`
-- API Client Guide: `../dungeon-hub-api/typescript-client/README.md`
-- Integration Examples: `../dungeon-hub-api/typescript-client/INTEGRATION_GUIDE.md`
+- **Main README**: `README.md` - Project overview and development guide
+- **API Client**: `../dungeon-hub-api/typescript-client/README.md`
+- **Integration Examples**: `../dungeon-hub-api/typescript-client/INTEGRATION_GUIDE.md`
+- **Angular CLI**: [Angular Documentation](https://angular.dev/tools/cli)
 
 ## 🤝 Need Help?
 
-Check the troubleshooting section in README.md or the integration guide for detailed examples.
+Check the troubleshooting section above or refer to the README.md for additional guidance.
 
 ---
 
-**Migrated from Kotlin/Ktor** ✅  
-**Built with Angular 18 + Tailwind CSS** 🎨  
+**Built with Angular 21 + Tailwind CSS** 🎨  
 **Powered by @dungeon-hub/api-client** 🚀

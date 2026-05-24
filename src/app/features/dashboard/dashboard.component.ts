@@ -113,58 +113,36 @@ export class DashboardComponent implements OnInit {
 
   loadGuilds() {
     // Get guilds from user info (from Keycloak token)
-    const claims = this.authService.getUserInfo();
-    console.log('All token claims:', claims);
+    const claims = this.authService.getUserInfo() ?? {};
 
     const allGuilds: DiscordGuild[] = claims['discord-guilds']
       || claims['guilds']
       || claims['discord_guilds']
       || [];
 
-    console.log('User guilds from token:', allGuilds);
-
     // Load servers from API to filter
     this.discordServerService.getAllServers().subscribe({
       next: (servers) => {
-        console.log('Servers from API:', servers);
-        console.log('Type of servers:', typeof servers);
-        console.log('Is array?:', Array.isArray(servers));
-
         // Handle case where API might return object instead of array
         let serverArray: any[] = [];
         if (Array.isArray(servers)) {
           serverArray = servers;
         } else if (servers && typeof servers === 'object') {
-          // If it's an object, it might be wrapped
-          console.log('Servers is an object, checking properties:', Object.keys(servers));
           serverArray = (servers as any).content || (servers as any).data || (servers as any).servers || [];
         }
 
-        console.log('Server array:', serverArray);
-        console.log('First server object:', serverArray[0]);
-        console.log('Server object keys:', serverArray[0] ? Object.keys(serverArray[0]) : 'empty');
-
         // Filter guilds to only show those that exist in both lists
         const serverIds = new Set(serverArray.map((s: any) => s.id?.toString()));
-        console.log('Server IDs from API:', Array.from(serverIds));
-        console.log('Guild IDs from token:', allGuilds.map(g => g.id));
-        console.log('Sample guild ID type:', typeof allGuilds[0]?.id);
-        console.log('Sample server ID type:', typeof serverArray[0]?.id);
-        console.log('Sample server ID value:', serverArray[0]?.id);
 
         this.guilds = allGuilds.filter(guild => {
           const guildId = guild.id?.toString();
-          const match = serverIds.has(guildId);
-          console.log(`Checking guild ${guildId}: ${match}`);
-          return match;
+          return serverIds.has(guildId);
         });
 
-        console.log('Filtered guilds:', this.guilds);
         this.loading = false;
         this.cdr.detectChanges();
       },
       error: (err) => {
-        console.error('Failed to load servers:', err);
         this.error = err.status === 401
           ? 'Unauthorized: Please log out and log in again'
           : `Failed to load servers: ${err.message || err.statusText || 'Unknown error'}`;
