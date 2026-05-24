@@ -20,6 +20,18 @@ import { TicketPanelControllerService, CntRequestControllerService } from '@dung
         </h2>
       </div>
 
+      <!-- Error Message -->
+      @if (loadError) {
+        <div class="card bg-red-900/20 border-red-500 mb-8">
+          <div class="flex justify-between items-center">
+            <p class="text-red-400">{{ loadError }}</p>
+            <button (click)="loadData()" class="btn btn-secondary">
+              Retry
+            </button>
+          </div>
+        </div>
+      }
+
       <!-- Ticket Panels Section -->
       <div class="card mb-8">
         <div class="flex justify-between items-center mb-6">
@@ -148,6 +160,7 @@ export class ServerDetailComponent implements OnInit {
   totalCntRequests = 0;
   showCreateModal = false;
   isCreatingPanel = false;
+  loadError: string | null = null;
 
   newPanel = {
     name: '',
@@ -161,13 +174,18 @@ export class ServerDetailComponent implements OnInit {
   }
 
   loadData() {
+    this.loadError = null;
+
     // Load ticket panels
     this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
       next: (panels) => {
         this.ticketPanels = panels || [];
         this.cdr.detectChanges();
       },
-      error: () => {}
+      error: (err) => {
+        this.loadError = 'Failed to load ticket panels. Please try again.';
+        this.cdr.detectChanges();
+      }
     });
 
     // Load CNT request count
@@ -176,7 +194,10 @@ export class ServerDetailComponent implements OnInit {
         this.totalCntRequests = Number(page.totalElements || 0);
         this.cdr.detectChanges();
       },
-      error: () => {},
+      error: (err) => {
+        this.loadError = 'Failed to load CNT requests. Please try again.';
+        this.cdr.detectChanges();
+      },
     });
   }
 
