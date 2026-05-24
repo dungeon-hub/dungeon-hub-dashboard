@@ -394,7 +394,7 @@ export class TicketPanelEditComponent implements OnInit {
     this.carryDifficulties = [];
 
     if (tierId) {
-      const tier = this.carryTiers.find((t) => t.id === tierId);
+      const tier = this.carryTiers.find((t) => t.id.toString() === tierId);
       if (tier) {
         this.loadCarryDifficulties(tier.carryType.id, tier.id);
       }
