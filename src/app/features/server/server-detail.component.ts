@@ -2,7 +2,11 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { TicketPanelControllerService, CntRequestControllerService } from '@dungeon-hub/api-client';
+import {
+  TicketPanelControllerService,
+  CntRequestControllerService,
+  TicketPanelCreationModel
+} from '@dungeon-hub/api-client';
 
 @Component({
   selector: 'app-server-detail',
@@ -206,7 +210,7 @@ export class ServerDetailComponent implements OnInit {
 
     this.isCreatingPanel = true;
 
-    const creationModel = {
+    const creationModel: TicketPanelCreationModel = {
       name: this.newPanel.name,
       displayName: this.newPanel.displayName || undefined,
       emoji: this.newPanel.emoji || undefined,
@@ -215,8 +219,25 @@ export class ServerDetailComponent implements OnInit {
       claimable: false,
       requiresLinking: false,
       openChannelName: '{panel.name}-{ticket.count}',
-      ticketMessage: '{"content":"Welcome, {user.mention}!\\nPlease describe your request below."}',
-      userTranscriptDm: '["transcript"]'
+      ticketMessage: '{"content":"Welcome, {user.mention}!\\nPlease describe your {panel.name} request below further."}',
+      userTranscriptDm: '["transcript"]',
+      permissions: {
+        SupportTeam: {
+          Allowed: "68608"
+        },
+        AdditionalRoles: {
+          Allowed: "68608"
+        },
+        TicketCreator: {
+          Allowed: "68608"
+        },
+        TicketClaimer: {
+          Allowed: "68608"
+        },
+        Everyone: {
+          Denied: "1024"
+        }
+      }
     };
 
     this.ticketPanelService.createNewTicketPanel(this.serverId, creationModel).subscribe({
