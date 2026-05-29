@@ -15,7 +15,7 @@ import { getCntRequestTypeLabel } from './cnt-request-type-labels';
         <a [routerLink]="['/server', serverId]" class="btn btn-secondary mb-4 inline-block">
           ← Back to Server
         </a>
-        <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+        <h2 class="text-3xl font-bold holographic">
           CNT Requests
         </h2>
       </div>

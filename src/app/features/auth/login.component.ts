@@ -5,9 +5,9 @@ import { AuthService } from '../../core/services/auth.service';
   selector: 'app-login',
   standalone: true,
   template: `
-    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div class="h-full flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div class="card max-w-md w-full mx-4 text-center">
-        <h1 class="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+        <h1 class="text-4xl font-bold mb-4 holographic">
           Dungeon Hub Dashboard
         </h1>
         <p class="text-gray-400 mb-8">

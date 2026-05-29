@@ -19,7 +19,7 @@ import {
         <a routerLink="/dashboard" class="btn btn-secondary mb-4 inline-block">
           ← Back to Dashboard
         </a>
-        <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+        <h2 class="text-3xl font-bold holographic">
           Server Dashboard
         </h2>
       </div>

@@ -20,7 +20,7 @@ import { CNT_REQUEST_TYPE_LABELS } from './cnt-request-type-labels';
         >
           ← Back to List
         </a>
-        <h2 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+        <h2 class="text-3xl font-bold holographic">
           Edit CNT Request #{{ request?.id }}
         </h2>
       </div>

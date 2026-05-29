@@ -16,16 +16,10 @@ interface DiscordGuild {
   template: `
     <div class="container mx-auto px-4 py-8">
       <!-- Header -->
-      <div class="flex justify-between items-center mb-8">
-        <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold holographic">
           Dungeon Hub Dashboard
         </h1>
-        <div class="flex items-center gap-4">
-          <span class="text-gray-400">{{ userInfo?.email || 'User' }}</span>
-          <button (click)="logout()" class="btn btn-secondary">
-            Logout
-          </button>
-        </div>
       </div>
 
       <!-- Loading State -->
