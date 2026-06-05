@@ -1,13 +1,23 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { TicketPanelControllerService, TicketPanelUpdateModel, CarryDifficultyControllerService, CarryTierModel, CarryDifficultyModel, DiscordServerControllerService } from '@dungeon-hub/api-client';
+import {ChangeDetectorRef, Component, inject, OnInit} from '@angular/core';
+import {CommonModule} from '@angular/common';
+import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule} from '@angular/forms';
+import {ActivatedRoute, Router, RouterLink} from '@angular/router';
+import {
+  CarryDifficultyControllerService,
+  CarryDifficultyModel,
+  CarryTierModel,
+  DiscordChannelControllerService,
+  DiscordChannelModel,
+  DiscordServerControllerService,
+  TicketPanelControllerService,
+  TicketPanelUpdateModel
+} from '@dungeon-hub/api-client';
+import {AutocompleteComponent} from '../../shared/components/autocomplete/autocomplete.component';
 
 @Component({
   selector: 'app-ticket-panel-edit',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink, AutocompleteComponent],
   template: `
     <div class="container mx-auto px-4 py-8 max-w-6xl">
       <!-- Header -->
@@ -33,223 +43,232 @@ import { TicketPanelControllerService, TicketPanelUpdateModel, CarryDifficultyCo
       <!-- Form -->
       @if (!loading && form) {
         <form [formGroup]="form" (ngSubmit)="save()" class="space-y-6">
-        <!-- General Settings -->
-        <div class="card">
-          <h3 class="text-xl font-semibold mb-4">General Settings</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label class="label">Internal Name *</label>
-              <input formControlName="name" type="text" class="input" />
+          <!-- General Settings -->
+          <div class="card">
+            <h3 class="text-xl font-semibold mb-4">General Settings</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">Internal Name *</label>
+                <input formControlName="name" type="text" class="input"/>
+              </div>
+              <div>
+                <label class="label">Display Name</label>
+                <input
+                  formControlName="displayName"
+                  type="text"
+                  class="input"
+                  placeholder="Visible on button"
+                />
+              </div>
+              <div>
+                <label class="label">Button Emoji</label>
+                <input formControlName="emoji" type="text" class="input"/>
+              </div>
+              <div class="flex items-center">
+                <label class="flex items-center cursor-pointer">
+                  <input formControlName="requiresLinking" type="checkbox" class="mr-2"/>
+                  <span class="text-gray-300">Require Linked Account</span>
+                </label>
+              </div>
             </div>
-            <div>
-              <label class="label">Display Name</label>
-              <input
-            formControlName="displayName"
-                type="text"
-                class="input"
-                placeholder="Visible on button"
-              />
-            </div>
-            <div>
-              <label class="label">Button Emoji</label>
-              <input formControlName="emoji" type="text" class="input" />
-            </div>
-            <div class="flex items-center">
+          </div>
+
+          <!-- Ticket Logic -->
+          <div class="card">
+            <h3 class="text-xl font-semibold mb-4">Ticket Logic</h3>
+            <div class="space-y-3">
               <label class="flex items-center cursor-pointer">
-                <input formControlName="requiresLinking" type="checkbox" class="mr-2" />
-                <span class="text-gray-300">Require Linked Account</span>
+                <input formControlName="claimable" type="checkbox" class="mr-2"/>
+                <span class="text-gray-300">Enable claiming tickets</span>
+              </label>
+              <label class="flex items-center cursor-pointer">
+                <input formControlName="closeable" type="checkbox" class="mr-2"/>
+                <span class="text-gray-300">Enable closing tickets</span>
+              </label>
+              <small class="text-gray-400 block ml-6"
+              >Tickets are instantly deleted if user tries to close</small
+              >
+              <label class="flex items-center cursor-pointer">
+                <input formControlName="closeConfirmation" type="checkbox" class="mr-2"/>
+                <span class="text-gray-300">Ask for close confirmation</span>
               </label>
             </div>
-          </div>
-        </div>
 
-        <!-- Ticket Logic -->
-        <div class="card">
-          <h3 class="text-xl font-semibold mb-4">Ticket Logic</h3>
-          <div class="space-y-3">
-            <label class="flex items-center cursor-pointer">
-              <input formControlName="claimable" type="checkbox" class="mr-2" />
-              <span class="text-gray-300">Enable claiming tickets</span>
-            </label>
-            <label class="flex items-center cursor-pointer">
-              <input formControlName="closeable" type="checkbox" class="mr-2" />
-              <span class="text-gray-300">Enable closing tickets</span>
-            </label>
-            <small class="text-gray-400 block ml-6"
-              >Tickets are instantly deleted if user tries to close</small
-            >
-            <label class="flex items-center cursor-pointer">
-              <input formControlName="closeConfirmation" type="checkbox" class="mr-2" />
-              <span class="text-gray-300">Ask for close confirmation</span>
-            </label>
-          </div>
-
-          <div class="mt-6 space-y-4">
-            <div>
-              <label class="label">Ticket Message Content</label>
-              <textarea formControlName="ticketMessageContent" rows="3" class="input"></textarea>
-              <small class="text-gray-400">Message sent when ticket is created</small>
-            </div>
-            <div>
-              <label class="label">Ticket Message Embeds (JSON)</label>
-              <textarea
-                formControlName="ticketMessageEmbeds"
-                rows="4"
-                class="input font-mono text-sm"
-              ></textarea>
-            </div>
-            <div>
-              <label class="label">Additional Buttons (JSON)</label>
-              <textarea
-                formControlName="ticketMessageButtons"
-                rows="4"
-                class="input font-mono text-sm"
-              ></textarea>
-            </div>
-          </div>
-        </div>
-
-        <!-- Channel Naming -->
-        <div class="card">
-          <h3 class="text-xl font-semibold mb-4">Channel Naming</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="label">Open Channel Pattern</label>
-              <input formControlName="openChannelName" type="text" class="input" />
-            </div>
-            <div>
-              <label class="label">Claimed Channel Pattern</label>
-              <input formControlName="claimedChannelName" type="text" class="input" />
-            </div>
-            <div>
-              <label class="label">Closed Channel Pattern</label>
-              <input formControlName="closedChannelName" type="text" class="input" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Transcripts -->
-        <div class="card">
-          <h3 class="text-xl font-semibold mb-4">Transcripts</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="label">Transcript Channel ID</label>
-              <input formControlName="transcriptChannel" type="text" class="input" />
-              <small class="text-gray-400"
-                >If left blank, the property TRANSCRIPTS_CHANNEL from /config will be used</small
-              >
-            </div>
-            <div>
-              <label class="label">DM Transcript Embed (JSON)</label>
-              <textarea
-                formControlName="userTranscriptDm"
-                rows="4"
-                class="input font-mono text-sm"
-              ></textarea>
-            </div>
-            <div>
-              <label class="label">Close Transcript Target</label>
-              <select formControlName="closeTranscriptTarget" class="input">
-                <option value="None">None</option>
-                <option value="User">User</option>
-                <option value="TranscriptChannel">TranscriptChannel</option>
-                <option value="Both">Both</option>
-              </select>
-            </div>
-            <div>
-              <label class="label">Delete Transcript Target</label>
-              <select formControlName="deleteTranscriptTarget" class="input">
-                <option value="None">None</option>
-                <option value="User">User</option>
-                <option value="TranscriptChannel">TranscriptChannel</option>
-                <option value="Both">Both</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- Roles & Categories -->
-        <div class="card">
-          <h3 class="text-xl font-semibold mb-4">Roles & Categories</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="label">Support Roles (Comma-separated IDs)</label>
-              <input formControlName="supportRoles" type="text" class="input" />
-            </div>
-            <div>
-              <label class="label">Additional Roles (Comma-separated IDs)</label>
-              <input formControlName="additionalRoles" type="text" class="input" />
-            </div>
-            <div>
-              <label class="label">Open Categories (Comma-separated IDs)</label>
-              <input formControlName="openCategories" type="text" class="input" />
-            </div>
-            <div>
-              <label class="label">Closed Categories (Comma-separated IDs)</label>
-              <input formControlName="closedCategories" type="text" class="input" />
-            </div>
-          </div>
-        </div>
-
-        <!-- Carry Integration -->
-        <div class="card">
-          <h3 class="text-xl font-semibold mb-4">Carry Integration</h3>
-          <div class="space-y-4">
-            <div>
-              <label class="label">Related Carry Tier</label>
-              <select
-                formControlName="relatedCarryTier"
-                class="input"
-                (change)="onCarryTierChange()"
-              >
-                <option [ngValue]="null">None</option>
-                @for (tier of carryTiers; track tier.id) {
-                  <option [value]="tier.id">
-                    {{ tier.carryType.displayName || tier.carryType.identifier }} -
-                    {{ tier.displayName || tier.identifier }}
-                  </option>
-                }
-              </select>
-            </div>
-            @if (form.get('relatedCarryTier')?.value) {
+            <div class="mt-6 space-y-4">
               <div>
-                <label class="label">Related Carry Difficulty</label>
-                <select formControlName="relatedCarryDifficulty" class="input">
+                <label class="label">Ticket Message Content</label>
+                <textarea formControlName="ticketMessageContent" rows="3" class="input"></textarea>
+                <small class="text-gray-400">Message sent when ticket is created</small>
+              </div>
+              <div>
+                <label class="label">Ticket Message Embeds (JSON)</label>
+                <textarea
+                  formControlName="ticketMessageEmbeds"
+                  rows="4"
+                  class="input font-mono text-sm"
+                ></textarea>
+              </div>
+              <div>
+                <label class="label">Additional Buttons (JSON)</label>
+                <textarea
+                  formControlName="ticketMessageButtons"
+                  rows="4"
+                  class="input font-mono text-sm"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Channel Naming -->
+          <div class="card">
+            <h3 class="text-xl font-semibold mb-4">Channel Naming</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="label">Open Channel Pattern</label>
+                <input formControlName="openChannelName" type="text" class="input"/>
+              </div>
+              <div>
+                <label class="label">Claimed Channel Pattern</label>
+                <input formControlName="claimedChannelName" type="text" class="input"/>
+              </div>
+              <div>
+                <label class="label">Closed Channel Pattern</label>
+                <input formControlName="closedChannelName" type="text" class="input"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Transcripts -->
+          <div class="card">
+            <h3 class="text-xl font-semibold mb-4">Transcripts</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="label">Transcript Channel</label>
+                <app-autocomplete
+                  [items]="discordChannels"
+                  displayKey="name"
+                  valueKey="id"
+                  placeholder="Search channels..."
+                  [(selectedItem)]="selectedTranscriptChannel"
+                  nullLabel="None (use default from config)"
+                  groupByKey="category.id"
+                  groupDisplayKey="category.name"
+                ></app-autocomplete>
+                <small class="text-gray-400"
+                >If left blank, the property TRANSCRIPTS_CHANNEL from /config will be used</small
+                >
+              </div>
+              <div>
+                <label class="label">DM Transcript Embed (JSON)</label>
+                <textarea
+                  formControlName="userTranscriptDm"
+                  rows="4"
+                  class="input font-mono text-sm"
+                ></textarea>
+              </div>
+              <div>
+                <label class="label">Close Transcript Target</label>
+                <select formControlName="closeTranscriptTarget" class="input">
+                  <option value="None">None</option>
+                  <option value="User">User</option>
+                  <option value="TranscriptChannel">TranscriptChannel</option>
+                  <option value="Both">Both</option>
+                </select>
+              </div>
+              <div>
+                <label class="label">Delete Transcript Target</label>
+                <select formControlName="deleteTranscriptTarget" class="input">
+                  <option value="None">None</option>
+                  <option value="User">User</option>
+                  <option value="TranscriptChannel">TranscriptChannel</option>
+                  <option value="Both">Both</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Roles & Categories -->
+          <div class="card">
+            <h3 class="text-xl font-semibold mb-4">Roles & Categories</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="label">Support Roles (Comma-separated IDs)</label>
+                <input formControlName="supportRoles" type="text" class="input"/>
+              </div>
+              <div>
+                <label class="label">Additional Roles (Comma-separated IDs)</label>
+                <input formControlName="additionalRoles" type="text" class="input"/>
+              </div>
+              <div>
+                <label class="label">Open Categories (Comma-separated IDs)</label>
+                <input formControlName="openCategories" type="text" class="input"/>
+              </div>
+              <div>
+                <label class="label">Closed Categories (Comma-separated IDs)</label>
+                <input formControlName="closedCategories" type="text" class="input"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Carry Integration -->
+          <div class="card">
+            <h3 class="text-xl font-semibold mb-4">Carry Integration</h3>
+            <div class="space-y-4">
+              <div>
+                <label class="label">Related Carry Tier</label>
+                <select
+                  formControlName="relatedCarryTier"
+                  class="input"
+                  (change)="onCarryTierChange()"
+                >
                   <option [ngValue]="null">None</option>
-                  @for (difficulty of carryDifficulties; track difficulty.id) {
-                    <option [value]="difficulty.id">
-                      {{ difficulty.displayName || difficulty.identifier }}
+                  @for (tier of carryTiers; track tier.id) {
+                    <option [value]="tier.id">
+                      {{ tier.carryType.displayName || tier.carryType.identifier }} -
+                      {{ tier.displayName || tier.identifier }}
                     </option>
                   }
                 </select>
               </div>
-            }
+              @if (form.get('relatedCarryTier')?.value) {
+                <div>
+                  <label class="label">Related Carry Difficulty</label>
+                  <select formControlName="relatedCarryDifficulty" class="input">
+                    <option [ngValue]="null">None</option>
+                    @for (difficulty of carryDifficulties; track difficulty.id) {
+                      <option [value]="difficulty.id">
+                        {{ difficulty.displayName || difficulty.identifier }}
+                      </option>
+                    }
+                  </select>
+                </div>
+              }
+            </div>
           </div>
-        </div>
 
-        <!-- Ticket Form -->
-        <div class="card">
-          <h3 class="text-xl font-semibold mb-4">Ticket Form</h3>
-          <div>
-            <label class="label">Form Questions (JSON)</label>
-            <textarea
-              formControlName="formQuestions"
-              rows="10"
-              class="input font-mono text-sm"
-            ></textarea>
+          <!-- Ticket Form -->
+          <div class="card">
+            <h3 class="text-xl font-semibold mb-4">Ticket Form</h3>
+            <div>
+              <label class="label">Form Questions (JSON)</label>
+              <textarea
+                formControlName="formQuestions"
+                rows="10"
+                class="input font-mono text-sm"
+              ></textarea>
+            </div>
           </div>
-        </div>
 
-        <!-- Sticky Save Button -->
-        <div class="sticky bottom-4 right-4 flex justify-end">
-          <button
-            type="submit"
-            [disabled]="!form.valid || saving"
-            class="btn btn-primary shadow-lg"
-          >
-            {{ saving ? 'Saving...' : 'Save Changes' }}
-          </button>
-        </div>
+          <!-- Sticky Save Button -->
+          <div class="sticky bottom-4 right-4 flex justify-end">
+            <button
+              type="submit"
+              [disabled]="!form.valid || saving"
+              class="btn btn-primary shadow-lg"
+            >
+              {{ saving ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
         </form>
       }
     </div>
@@ -262,6 +281,7 @@ export class TicketPanelEditComponent implements OnInit {
   private ticketPanelService = inject(TicketPanelControllerService);
   private discordServerService = inject(DiscordServerControllerService);
   private carryDifficultyService = inject(CarryDifficultyControllerService);
+  private discordChannelService = inject(DiscordChannelControllerService);
   private cdr = inject(ChangeDetectorRef);
 
   serverId!: string;
@@ -273,6 +293,8 @@ export class TicketPanelEditComponent implements OnInit {
 
   carryTiers: CarryTierModel[] = [];
   carryDifficulties: CarryDifficultyModel[] = [];
+  discordChannels: DiscordChannelModel[] = [];
+  selectedTranscriptChannel: DiscordChannelModel | null = null;
 
   ngOnInit() {
     this.serverId = this.route.snapshot.params['serverId'];
@@ -280,6 +302,7 @@ export class TicketPanelEditComponent implements OnInit {
 
     this.initForm();
     this.loadAllCarryTiers();
+    this.loadDiscordChannels();
     this.loadPanel();
   }
 
@@ -332,7 +355,8 @@ export class TicketPanelEditComponent implements OnInit {
     let ticketMessage: any = {};
     try {
       ticketMessage = JSON.parse(panel.ticketMessage || '{}');
-    } catch (e) {}
+    } catch (e) {
+    }
 
     this.form.patchValue({
       name: panel.name,
@@ -352,7 +376,7 @@ export class TicketPanelEditComponent implements OnInit {
       openChannelName: panel.openChannelName || '',
       claimedChannelName: panel.claimedChannelName || '',
       closedChannelName: panel.closedChannelName || '',
-      transcriptChannel: panel.transcriptChannel?.id?.toString() || '',
+      transcriptChannel: panel.transcriptChannel?.id?.toString() || null,
       userTranscriptDm: panel.userTranscriptDm || '',
       closeTranscriptTarget: panel.closeTranscriptTarget || 'None',
       deleteTranscriptTarget: panel.deleteTranscriptTarget || 'None',
@@ -364,6 +388,9 @@ export class TicketPanelEditComponent implements OnInit {
       relatedCarryDifficulty: panel.relatedCarryDifficulty?.id || null,
       formQuestions: panel.formQuestions ? JSON.stringify(panel.formQuestions, null, 2) : '',
     });
+
+    // Set selected channel object for autocomplete
+    this.selectedTranscriptChannel = panel.transcriptChannel || null;
 
     // Load carry difficulties if carry tier is selected
     if (panel.relatedCarryTier) {
@@ -386,9 +413,21 @@ export class TicketPanelEditComponent implements OnInit {
     });
   }
 
+  loadDiscordChannels() {
+    this.discordChannelService.getAllChannels(this.serverId).subscribe({
+      next: (channels) => {
+        this.discordChannels = channels || [];
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   onCarryTierChange() {
     const tierId = this.form.get('relatedCarryTier')?.value;
-    this.form.patchValue({ relatedCarryDifficulty: null });
+    this.form.patchValue({relatedCarryDifficulty: null});
     this.carryDifficulties = [];
 
     if (tierId) {
@@ -430,7 +469,7 @@ export class TicketPanelEditComponent implements OnInit {
         ticketMessage.embeds = JSON.parse(formValue.ticketMessageEmbeds);
       }
     } catch (e) {
-      this.form.get('ticketMessageEmbeds')?.setErrors({ invalidJson: 'Invalid JSON format' });
+      this.form.get('ticketMessageEmbeds')?.setErrors({invalidJson: 'Invalid JSON format'});
       this.saving = false;
       return;
     }
@@ -440,7 +479,7 @@ export class TicketPanelEditComponent implements OnInit {
         ticketMessage['additional-buttons'] = JSON.parse(formValue.ticketMessageButtons);
       }
     } catch (e) {
-      this.form.get('ticketMessageButtons')?.setErrors({ invalidJson: 'Invalid JSON format' });
+      this.form.get('ticketMessageButtons')?.setErrors({invalidJson: 'Invalid JSON format'});
       this.saving = false;
       return;
     }
@@ -452,7 +491,7 @@ export class TicketPanelEditComponent implements OnInit {
         formQuestions = JSON.parse(formValue.formQuestions);
       }
     } catch (e) {
-      this.form.get('formQuestions')?.setErrors({ invalidJson: 'Invalid JSON format' });
+      this.form.get('formQuestions')?.setErrors({invalidJson: 'Invalid JSON format'});
       this.saving = false;
       return;
     }
@@ -480,8 +519,8 @@ export class TicketPanelEditComponent implements OnInit {
       resetClaimedChannelName: wasCleared(this.panel.claimedChannelName, formValue.claimedChannelName),
       closedChannelName: formValue.closedChannelName || null,
       resetClosedChannelName: wasCleared(this.panel.closedChannelName, formValue.closedChannelName),
-      transcriptChannel: formValue.transcriptChannel || null,
-      resetTranscriptChannel: wasCleared(this.panel.transcriptChannel?.id?.toString(), formValue.transcriptChannel),
+      transcriptChannel: this.selectedTranscriptChannel?.id || undefined,
+      resetTranscriptChannel: wasCleared(this.panel.transcriptChannel?.id?.toString(), this.selectedTranscriptChannel?.id),
       userTranscriptDm: formValue.userTranscriptDm || null,
       resetUserTranscriptDm: wasCleared(this.panel.userTranscriptDm, formValue.userTranscriptDm),
       closeTranscriptTarget: formValue.closeTranscriptTarget ?? null,
