@@ -1,11 +1,22 @@
 import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { AuthService } from './core/services/auth.service';
 
 export const routes: Routes = [
   {
     path: '',
-    redirectTo: '/login',
-    pathMatch: 'full'
+    canActivate: [() => {
+      const authService = inject(AuthService);
+      const router = inject(Router);
+
+      if (authService.isAuthenticated()) {
+        return router.createUrlTree(['/dashboard']);
+      }
+      return router.createUrlTree(['/login']);
+    }],
+    children: []
   },
   {
     path: 'login',
