@@ -2,6 +2,7 @@ import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import emojies from 'unicode-emoji-json';
 
 interface DiscordGuild {
   id: string;
@@ -41,45 +42,92 @@ interface DiscordGuild {
         </div>
       }
 
-      <!-- Server Grid -->
-      @if (!loading && !error) {
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          @for (guild of guilds; track guild.id) {
-            <a
-              [routerLink]="['/server', guild.id]"
-              class="card hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer group"
-            >
-              <div class="flex items-center gap-4">
-                <div class="relative w-16 h-16 rounded-full overflow-hidden group-hover:scale-110 transition-transform">
-                  @if (guild.icon) {
-                    <img
-                      [src]="getIconUrl(guild)"
-                      [alt]="guild.name"
-                      class="w-full h-full object-cover"
-                    />
-                  } @else {
-                    <div
-                      class="w-full h-full flex items-center justify-center text-2xl font-bold text-white"
-                      [style.background-color]="getGuildColor(guild)"
-                    >
-                      {{ guild.name[0].toUpperCase() }}
-                    </div>
-                  }
+      <!-- Your Servers -->
+      @if (!loading && !error && guilds.length > 0) {
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">Your Servers</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @for (guild of guilds; track guild.id) {
+              <a
+                [routerLink]="['/server', guild.id]"
+                class="card hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer group"
+              >
+                <div class="flex items-center gap-4">
+                  <div class="relative w-16 h-16 rounded-full overflow-hidden group-hover:scale-110 transition-transform">
+                    @if (guild.icon) {
+                      <img
+                        [src]="getIconUrl(guild)"
+                        [alt]="guild.name"
+                        class="w-full h-full object-cover"
+                      />
+                    } @else {
+                      <div
+                        class="w-full h-full flex items-center justify-center text-2xl font-bold text-white"
+                        [style.background-color]="getGuildColor(guild)"
+                      >
+                        {{ guild.name[0].toUpperCase() }}
+                      </div>
+                    }
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-xl font-semibold group-hover:text-blue-400 transition-colors truncate">
+                      {{ getDisplayName(guild) }}
+                    </h3>
+                    <p class="text-gray-400 text-sm truncate">ID: {{ guild.id }}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 class="text-xl font-semibold group-hover:text-blue-400 transition-colors">
-                    {{ guild.name }}
-                  </h3>
-                  <p class="text-gray-400 text-sm">ID: {{ guild.id }}</p>
+              </a>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Servers Needing Bot Invite -->
+      @if (!loading && !error && guildsNeedingInvite.length > 0) {
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">Servers Needing Bot Invite</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @for (guild of guildsNeedingInvite; track guild.id) {
+              <div class="card">
+                <div class="flex items-center gap-4">
+                  <div class="relative w-16 h-16 rounded-full overflow-hidden">
+                    @if (guild.icon) {
+                      <img
+                        [src]="getIconUrl(guild)"
+                        [alt]="guild.name"
+                        class="w-full h-full object-cover"
+                      />
+                    } @else {
+                      <div
+                        class="w-full h-full flex items-center justify-center text-2xl font-bold text-white"
+                        [style.background-color]="getGuildColor(guild)"
+                      >
+                        {{ guild.name[0].toUpperCase() }}
+                      </div>
+                    }
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-xl font-semibold truncate">
+                      {{ getDisplayName(guild) }}
+                    </h3>
+                    <p class="text-gray-400 text-sm truncate">ID: {{ guild.id }}</p>
+                  </div>
+                  <a
+                    [href]="'https://invite.dungeon-hub.net/&guild_id=' + guild.id"
+                    target="_blank"
+                    class="btn btn-primary whitespace-nowrap"
+                  >
+                    Invite
+                  </a>
                 </div>
               </div>
-            </a>
-          }
+            }
+          </div>
         </div>
       }
 
       <!-- Empty State -->
-      @if (!loading && !error && guilds.length === 0) {
+      @if (!loading && !error && guilds.length === 0 && guildsNeedingInvite.length === 0) {
         <div class="card text-center py-12">
           <p class="text-gray-400 text-lg">No servers found.</p>
           <p class="text-gray-500 text-sm mt-2">
@@ -96,9 +144,15 @@ export class DashboardComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
 
   guilds: DiscordGuild[] = [];
+  guildsNeedingInvite: DiscordGuild[] = [];
   userInfo: any;
   loading = true;
   error: string | null = null;
+
+  // Build reverse emoji lookup map (name -> emoji character)
+  private emojiNameMap: Map<string, string> = new Map(
+    Object.entries(emojies).map(([emoji, data]) => [data.slug, emoji])
+  );
 
   ngOnInit() {
     this.userInfo = this.authService.getUserInfo();
@@ -106,7 +160,7 @@ export class DashboardComponent implements OnInit {
   }
 
   loadGuilds() {
-    // Get guilds from user info (from Keycloak token)
+    // Get guilds and permissions from user info (from Keycloak token)
     const claims = this.authService.getUserInfo() ?? {};
 
     const allGuilds: DiscordGuild[] = claims['discord-guilds']
@@ -114,7 +168,15 @@ export class DashboardComponent implements OnInit {
       || claims['discord_guilds']
       || [];
 
-    // Load servers from API to filter
+    // Get permissions claim and extract server IDs where user has admin permissions
+    const permissions: string[] = claims['permissions'] || [];
+    const adminServerIds = new Set(
+      permissions
+        .filter(p => p.startsWith('server_'))
+        .map(p => p.substring('server_'.length)) // Remove 'server_' prefix
+    );
+
+    // Load servers from API
     this.discordServerService.getAllServers().subscribe({
       next: (servers) => {
         // Handle case where API might return object instead of array
@@ -125,12 +187,19 @@ export class DashboardComponent implements OnInit {
           serverArray = (servers as any).content || (servers as any).data || (servers as any).servers || [];
         }
 
-        // Filter guilds to only show those that exist in both lists
+        // Get server IDs where bot has access
         const serverIds = new Set(serverArray.map((s: any) => s.id?.toString()));
 
+        // Your Servers: Use servers from API and match with guild info
         this.guilds = allGuilds.filter(guild => {
           const guildId = guild.id?.toString();
           return serverIds.has(guildId);
+        });
+
+        // Servers Needing Invite: Admin servers where bot doesn't have access
+        this.guildsNeedingInvite = allGuilds.filter(guild => {
+          const guildId = guild.id?.toString();
+          return adminServerIds.has(guildId) && !serverIds.has(guildId);
         });
 
         this.loading = false;
@@ -147,7 +216,10 @@ export class DashboardComponent implements OnInit {
   }
 
   getIconUrl(guild: DiscordGuild): string {
-    return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`;
+    // We're using webp here, since the gif extension doesn't seem to work with some animated server icons
+    let extension = guild.icon?.startsWith("a_") ? "webp?animated=true" : "png"
+
+    return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.${extension}`;
   }
 
   getGuildColor(guild: DiscordGuild): string {
@@ -168,6 +240,35 @@ export class DashboardComponent implements OnInit {
     // Use guild ID to pick a consistent color
     const index = parseInt(guild.id.slice(-2), 16) % colors.length;
     return colors[index];
+  }
+
+  getDisplayName(guild: DiscordGuild): string {
+    let displayName = guild.name;
+
+    // Convert emoji shortcodes to Unicode emojis, or remove them if not found
+    displayName = displayName.replace(/:([a-zA-Z0-9_+-]+):/g, (match, name) => {
+
+      // Some emojies are named differently on discord... There's no better way other than replacing those.
+      if (name === "steam_locomotive") name = "locomotive"
+      if (name === "tm") name = "trade_mark"
+      if (name === "ear_of_rice") name = "sheaf_of_rice"
+
+      // Try exact match
+      const emoji = this.emojiNameMap.get(name) || this.emojiNameMap.get(name.replace(/_/g, '-'));
+
+      if (!emoji) console.log(`emoji ${name} not found, ignoring it.`)
+
+      // Return emoji if found, otherwise remove the shortcode
+      return emoji || '☐';
+    });
+
+    // Remove Discord custom emoji format <:name:id> or <a:name:id>
+    displayName = displayName.replace(/<a?:[a-zA-Z0-9_]+:\d+>/g, '');
+
+    // Clean up multiple spaces and trim
+    displayName = displayName.replace(/\s+/g, ' ').trim();
+
+    return displayName;
   }
 
   logout() {
