@@ -5,7 +5,9 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   TicketPanelControllerService,
   CntRequestControllerService,
-  TicketPanelCreationModel
+  CarryTypeControllerService,
+  TicketPanelCreationModel,
+  CarryTypeModel
 } from '@dungeon-hub/api-client';
 
 @Component({
@@ -72,6 +74,46 @@ import {
         @if (ticketPanels.length === 0) {
           <p class="text-gray-400 text-center py-8">
             No ticket panels created yet. Click "New Panel" to create one.
+          </p>
+        }
+      </div>
+
+      <!-- Carry Types Section -->
+      <div class="card mb-8">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-2xl font-semibold">Carry Types</h3>
+          <a
+            [routerLink]="['/server', serverId, 'carry-types']"
+            class="btn btn-primary"
+          >
+            View All
+          </a>
+        </div>
+
+        @if (carryTypes.length > 0) {
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            @for (carryType of carryTypes; track carryType.id) {
+              <a
+                [routerLink]="['/server', serverId, 'carry-type', carryType.id]"
+                class="p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h4 class="font-semibold group-hover:text-blue-400 transition-colors">
+                      {{ carryType.displayName }}
+                    </h4>
+                    <p class="text-sm text-gray-400">{{ carryType.identifier }}</p>
+                  </div>
+                  <span class="text-gray-400">→</span>
+                </div>
+              </a>
+            }
+          </div>
+        }
+
+        @if (carryTypes.length === 0) {
+          <p class="text-gray-400 text-center py-8">
+            No carry types created yet.
           </p>
         }
       </div>
@@ -157,10 +199,12 @@ export class ServerDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private ticketPanelService = inject(TicketPanelControllerService);
   private cntRequestService = inject(CntRequestControllerService);
+  private carryTypeService = inject(CarryTypeControllerService);
   private cdr = inject(ChangeDetectorRef);
 
   serverId!: string;
   ticketPanels: any[] = [];
+  carryTypes: CarryTypeModel[] = [];
   totalCntRequests = 0;
   showCreateModal = false;
   isCreatingPanel = false;
@@ -188,6 +232,18 @@ export class ServerDetailComponent implements OnInit {
       },
       error: (err) => {
         this.loadError = 'Failed to load ticket panels. Please try again.';
+        this.cdr.detectChanges();
+      }
+    });
+
+    // Load carry types
+    this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+      next: (types) => {
+        this.carryTypes = types || [];
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Failed to load carry types:', err);
         this.cdr.detectChanges();
       }
     });

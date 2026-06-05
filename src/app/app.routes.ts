@@ -52,6 +52,26 @@ export const routes: Routes = [
     loadComponent: () => import('./features/cnt-request/cnt-request-edit.component').then(m => m.CntRequestEditComponent)
   },
   {
+    path: 'server/:serverId/carry-types',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/carry-type/carry-type-list.component').then(m => m.CarryTypeListComponent)
+  },
+  {
+    path: 'server/:serverId/carry-type/:carryTypeId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/carry-type/carry-type-detail.component').then(m => m.CarryTypeDetailComponent)
+  },
+  {
+    path: 'server/:serverId/carry-type/:carryTypeId/carry-tier/:carryTierId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/carry-type/carry-tier-detail.component').then(m => m.CarryTierDetailComponent)
+  },
+  {
+    path: 'server/:serverId/carry-type/:carryTypeId/carry-tier/:carryTierId/difficulty/:difficultyId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/carry-type/carry-difficulty-detail.component').then(m => m.CarryDifficultyDetailComponent)
+  },
+  {
     path: '**',
     redirectTo: '/dashboard'
   }
