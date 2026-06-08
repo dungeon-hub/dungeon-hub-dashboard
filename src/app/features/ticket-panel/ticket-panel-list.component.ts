@@ -54,9 +54,6 @@ import {
                 <div class="flex justify-between items-center">
                   <div class="flex-1">
                     <div class="flex items-center gap-4">
-                      @if (panel.emoji) {
-                        <span class="text-2xl">{{ panel.emoji }}</span>
-                      }
                       <span class="text-lg font-semibold group-hover:text-blue-400 transition-colors">
                         {{ panel.displayName || panel.name }}
                       </span>
