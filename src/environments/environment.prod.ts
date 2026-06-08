@@ -2,8 +2,8 @@ export const environment = {
   production: true,
   serverUrl: 'https://dungeon-hub.net',
   apiUrl: 'https://api.dungeon-hub.net',
-  cdnUrl: 'https://api.dungeon-hub.net/cdn/',
-  staticUrl: 'https://api.dungeon-hub.net/cdn/static/',
+  cdnUrl: 'https://cdn.dungeon-hub.net/',
+  staticUrl: 'https://static.dungeon-hub.net/',
   keycloak: {
     issuer: 'https://auth.dungeon-hub.net/realms/dungeon-hub',
     clientId: 'dungeon-hub-dashboard',

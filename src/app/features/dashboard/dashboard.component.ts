@@ -1,13 +1,16 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService, DiscordGuild } from '../../core/services/discord-guild.service';
+import { CdnService } from '../../core/services/cdn.service';
 import { DiscordServerControllerService } from '@dungeon-hub/api-client';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink],
+  imports: [CommonModule, RouterLink, FormsModule],
   template: `
     <div class="container mx-auto px-4 py-8">
       <!-- Header -->
@@ -129,6 +132,120 @@ import { DiscordServerControllerService } from '@dungeon-hub/api-client';
           </p>
         </div>
       }
+
+      <!-- CDN Upload Section (only for users with CDN permission) -->
+      @if (hasCdnPermission) {
+        <div class="card mt-8">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold">CDN File Upload</h2>
+            <button
+              (click)="showUploadModal = true"
+              class="btn btn-primary"
+            >
+              Upload File
+            </button>
+          </div>
+
+          @if (uploadError) {
+            <div class="mb-4 p-3 bg-red-900/20 border border-red-500 rounded">
+              <p class="text-red-400 text-sm">{{ uploadError }}</p>
+            </div>
+          }
+
+          @if (uploadHistory.length > 0) {
+            <div>
+              <h3 class="text-lg font-semibold mb-3">Recently Uploaded Files</h3>
+              <div class="space-y-2">
+                @for (upload of uploadHistory; track upload.url) {
+                  <div class="p-3 bg-gray-700 rounded-lg">
+                    <div class="flex justify-between items-start gap-4">
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold text-gray-300 truncate">{{ upload.filename }}</p>
+                        <a
+                          [href]="upload.url"
+                          target="_blank"
+                          class="text-xs text-blue-400 hover:text-blue-300 break-all"
+                        >
+                          {{ upload.url }}
+                        </a>
+                        <p class="text-xs text-gray-500 mt-1">{{ formatTimestamp(upload.timestamp) }}</p>
+                      </div>
+                      <button
+                        (click)="copyToClipboard(upload.url)"
+                        class="btn btn-secondary text-xs px-2 py-1 whitespace-nowrap"
+                        title="Copy URL"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          } @else {
+            <p class="text-gray-400 text-sm">No files uploaded yet.</p>
+          }
+        </div>
+      }
+
+      <!-- Upload Modal -->
+      @if (showUploadModal) {
+        <div
+          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          (click)="showUploadModal = false"
+        >
+          <div class="card max-w-md w-full mx-4" (click)="$event.stopPropagation()">
+            <h3 class="text-xl font-semibold mb-4">Upload File to CDN</h3>
+
+            <div class="space-y-4">
+              <div>
+                <label class="label">Filename (optional)</label>
+                <input
+                  [(ngModel)]="uploadFilename"
+                  type="text"
+                  class="input"
+                  placeholder="e.g. my-image (without extension)"
+                />
+                <small class="text-gray-400">Leave empty to generate a random name. Don't add an extension here.</small>
+              </div>
+
+              <div>
+                <label class="label">File *</label>
+                <input
+                  #fileInput
+                  type="file"
+                  class="input"
+                  (change)="onFileSelected($event)"
+                />
+              </div>
+
+              @if (selectedFile) {
+                <div class="text-sm text-gray-400">
+                  <p>Selected: {{ selectedFile.name }}</p>
+                  <p>Size: {{ formatFileSize(selectedFile.size) }}</p>
+                </div>
+              }
+            </div>
+
+            <div class="flex gap-3 mt-6">
+              <button (click)="closeUploadModal()" class="btn btn-secondary flex-1">
+                Cancel
+              </button>
+              <button
+                (click)="uploadFile()"
+                class="btn btn-primary flex-1"
+                [disabled]="!selectedFile || isUploading"
+              >
+                {{ isUploading ? 'Uploading...' : 'Upload' }}
+              </button>
+            </div>
+
+            @if (uploadError) {
+              <p class="text-red-400 text-sm mt-4">{{ uploadError }}</p>
+            }
+          </div>
+        </div>
+      }
     </div>
   `
 })
@@ -136,6 +253,7 @@ export class DashboardComponent implements OnInit {
   private authService = inject(AuthService);
   private discordServerService = inject(DiscordServerControllerService);
   private discordGuildService = inject(DiscordGuildService);
+  private cdnService = inject(CdnService);
   private cdr = inject(ChangeDetectorRef);
 
   guilds: DiscordGuild[] = [];
@@ -144,14 +262,25 @@ export class DashboardComponent implements OnInit {
   loading = true;
   error: string | null = null;
 
-  // Build reverse emoji lookup map (name -> emoji character)
-  private emojiNameMap: Map<string, string> = new Map(
-    Object.entries(emojies).map(([emoji, data]) => [data.slug, emoji])
-  );
+  // CDN Upload
+  hasCdnPermission = false;
+  showUploadModal = false;
+  uploadFilename = '';
+  selectedFile: File | null = null;
+  isUploading = false;
+  uploadError: string | null = null;
+  uploadHistory: Array<{url: string, filename: string, timestamp: Date}> = [];
 
   ngOnInit() {
     this.userInfo = this.authService.getUserInfo();
+    this.checkCdnPermission();
     this.loadGuilds();
+  }
+
+  checkCdnPermission() {
+    const claims = this.authService.getUserInfo() ?? {};
+    const permissions: string[] = claims['permissions'] || [];
+    this.hasCdnPermission = permissions.includes('CDN');
   }
 
   loadGuilds() {
@@ -221,5 +350,93 @@ export class DashboardComponent implements OnInit {
 
   logout() {
     this.authService.logout();
+  }
+
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      this.selectedFile = input.files[0];
+
+      // Auto-populate filename from file if not set
+      if (!this.uploadFilename && this.selectedFile) {
+        // Remove extension from filename
+        const nameWithoutExt = this.selectedFile.name.replace(/\.[^/.]+$/, '');
+        this.uploadFilename = nameWithoutExt;
+      }
+    }
+  }
+
+  uploadFile() {
+    if (!this.selectedFile || this.isUploading) return;
+
+    this.isUploading = true;
+    this.uploadError = null;
+
+    // Use filename from input (if cleared, CDN will generate random UUID)
+    const filename = this.uploadFilename.trim();
+    const originalFilename = this.selectedFile.name;
+
+    this.cdnService.uploadFile(filename, this.selectedFile).subscribe({
+      next: (url) => {
+        // Add to upload history
+        this.uploadHistory.unshift({
+          url,
+          filename: filename || originalFilename,
+          timestamp: new Date()
+        });
+
+        // Keep only the last 10 uploads
+        if (this.uploadHistory.length > 10) {
+          this.uploadHistory = this.uploadHistory.slice(0, 10);
+        }
+
+        // Reset uploading state and close modal
+        this.isUploading = false;
+        this.closeUploadModal();
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.uploadError = err.error?.message || 'Failed to upload file';
+        this.isUploading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  closeUploadModal() {
+    this.showUploadModal = false;
+    this.uploadFilename = '';
+    this.selectedFile = null;
+    this.uploadError = null;
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  }
+
+  formatTimestamp(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+
+    return date.toLocaleDateString();
+  }
+
+  copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      // Could add a toast notification here if desired
+      console.log('Copied to clipboard:', text);
+    });
   }
 }
