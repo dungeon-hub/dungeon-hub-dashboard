@@ -37,6 +37,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/server/server-detail.component').then(m => m.ServerDetailComponent)
   },
   {
+    path: 'server/:serverId/ticket-panels',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/ticket-panel/ticket-panel-list.component').then(m => m.TicketPanelListComponent)
+  },
+  {
     path: 'server/:serverId/ticket-panel/:panelId',
     canActivate: [authGuard],
     loadComponent: () => import('./features/ticket-panel/ticket-panel-edit.component').then(m => m.TicketPanelEditComponent)

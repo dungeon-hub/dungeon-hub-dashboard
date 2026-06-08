@@ -1,19 +1,18 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { DiscordGuildService } from '../../core/services/discord-guild.service';
 import {
   TicketPanelControllerService,
   CntRequestControllerService,
   CarryTypeControllerService,
-  TicketPanelCreationModel,
   CarryTypeModel
 } from '@dungeon-hub/api-client';
 
 @Component({
   selector: 'app-server-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink],
   template: `
     <div class="container mx-auto px-4 py-8">
       <!-- Back Button & Header -->
@@ -22,7 +21,7 @@ import {
           ← Back to Dashboard
         </a>
         <h2 class="text-3xl font-bold holographic">
-          Server Dashboard
+          {{ serverName ? getDisplayName(serverName) : 'Server Dashboard' }}
         </h2>
       </div>
 
@@ -42,17 +41,17 @@ import {
       <div class="card mb-8">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-2xl font-semibold">Ticket Panels</h3>
-          <button
-            (click)="showCreateModal = true"
+          <a
+            [routerLink]="['/server', serverId, 'ticket-panels']"
             class="btn btn-primary"
           >
-            ＋ New Panel
-          </button>
+            View All
+          </a>
         </div>
 
         @if (ticketPanels.length > 0) {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            @for (panel of ticketPanels; track panel.id) {
+            @for (panel of ticketPanels.slice(0, MAX_TICKET_PANELS_DISPLAY); track panel.id) {
               <a
                 [routerLink]="['/server', serverId, 'ticket-panel', panel.id]"
                 class="p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
@@ -69,11 +68,16 @@ import {
               </a>
             }
           </div>
+          @if (ticketPanels.length > MAX_TICKET_PANELS_DISPLAY) {
+            <p class="text-gray-400 text-center text-sm mt-4">
+              Showing {{ MAX_TICKET_PANELS_DISPLAY }} of {{ ticketPanels.length }} ticket panels
+            </p>
+          }
         }
 
         @if (ticketPanels.length === 0) {
           <p class="text-gray-400 text-center py-8">
-            No ticket panels created yet. Click "New Panel" to create one.
+            No ticket panels created yet. Click "View All" to create panels.
           </p>
         }
       </div>
@@ -92,7 +96,7 @@ import {
 
         @if (carryTypes.length > 0) {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            @for (carryType of carryTypes; track carryType.id) {
+            @for (carryType of carryTypes.slice(0, MAX_CARRY_TYPES_DISPLAY); track carryType.id) {
               <a
                 [routerLink]="['/server', serverId, 'carry-type', carryType.id]"
                 class="p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
@@ -109,6 +113,11 @@ import {
               </a>
             }
           </div>
+          @if (carryTypes.length > MAX_CARRY_TYPES_DISPLAY) {
+            <p class="text-gray-400 text-center text-sm mt-4">
+              Showing {{ MAX_CARRY_TYPES_DISPLAY }} of {{ carryTypes.length }} carry types
+            </p>
+          }
         }
 
         @if (carryTypes.length === 0) {
@@ -135,90 +144,42 @@ import {
           View All CNT Requests
         </a>
       </div>
-
-      <!-- Create Modal -->
-      @if (showCreateModal) {
-        <div
-          class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          (click)="showCreateModal = false"
-        >
-          <div class="card max-w-md w-full mx-4" (click)="$event.stopPropagation()">
-            <h3 class="text-xl font-semibold mb-4">Create New Ticket Panel</h3>
-
-            <div class="space-y-4">
-              <div>
-                <label class="label">Internal Name *</label>
-                <input
-                  [(ngModel)]="newPanel.name"
-                  type="text"
-                  class="input"
-                  placeholder="e.g. support_ticket"
-                  required
-                />
-                <small class="text-gray-400">Unique identifier for the system</small>
-              </div>
-
-              <div>
-                <label class="label">Display Name</label>
-                <input
-                  [(ngModel)]="newPanel.displayName"
-                  type="text"
-                  class="input"
-                  placeholder="e.g. Support Ticket"
-                />
-                <small class="text-gray-400">Shown to users on the button</small>
-              </div>
-
-              <div>
-                <label class="label">Emoji</label>
-                <input
-                  [(ngModel)]="newPanel.emoji"
-                  type="text"
-                  class="input"
-                  placeholder="🎫 or <:name:id>"
-                />
-                <small class="text-gray-400">Unicode emoji or custom Discord emoji</small>
-              </div>
-            </div>
-
-            <div class="flex gap-3 mt-6">
-              <button (click)="showCreateModal = false" class="btn btn-secondary flex-1">
-                Cancel
-              </button>
-              <button (click)="createPanel()" class="btn btn-primary flex-1" [disabled]="!newPanel.name || isCreatingPanel">
-                {{ isCreatingPanel ? 'Creating...' : 'Create' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      }
     </div>
   `
 })
 export class ServerDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
+  private discordGuildService = inject(DiscordGuildService);
   private ticketPanelService = inject(TicketPanelControllerService);
   private cntRequestService = inject(CntRequestControllerService);
   private carryTypeService = inject(CarryTypeControllerService);
   private cdr = inject(ChangeDetectorRef);
 
   serverId!: string;
+  serverName: string = '';
   ticketPanels: any[] = [];
   carryTypes: CarryTypeModel[] = [];
   totalCntRequests = 0;
-  showCreateModal = false;
-  isCreatingPanel = false;
   loadError: string | null = null;
 
-  newPanel = {
-    name: '',
-    displayName: '',
-    emoji: ''
-  };
+  // Limits for dashboard display
+  readonly MAX_TICKET_PANELS_DISPLAY = 9;
+  readonly MAX_CARRY_TYPES_DISPLAY = 9;
 
   ngOnInit() {
     this.serverId = this.route.snapshot.params['serverId'];
+
+    // Load server name from guild info
+    const guild = this.discordGuildService.getGuildById(this.serverId);
+    if (guild) {
+      this.serverName = guild.name;
+    }
+
     this.loadData();
+  }
+
+  getDisplayName(guildName: string): string {
+    return this.discordGuildService.getDisplayName(guildName);
   }
 
   loadData() {
@@ -258,54 +219,6 @@ export class ServerDetailComponent implements OnInit {
         this.loadError = 'Failed to load CNT requests. Please try again.';
         this.cdr.detectChanges();
       },
-    });
-  }
-
-  createPanel() {
-    if (!this.newPanel.name || this.isCreatingPanel) return;
-
-    this.isCreatingPanel = true;
-
-    const creationModel: TicketPanelCreationModel = {
-      name: this.newPanel.name,
-      displayName: this.newPanel.displayName || undefined,
-      emoji: this.newPanel.emoji || undefined,
-      closeable: false,
-      closeConfirmation: false,
-      claimable: false,
-      requiresLinking: false,
-      openChannelName: '{panel.name}-{ticket.count}',
-      ticketMessage: '{"content":"Welcome, {user.mention}!\\nPlease describe your {panel.name} request below further."}',
-      userTranscriptDm: '["transcript"]',
-      permissions: {
-        SupportTeam: {
-          Allowed: "68608"
-        },
-        AdditionalRoles: {
-          Allowed: "68608"
-        },
-        TicketCreator: {
-          Allowed: "68608"
-        },
-        TicketClaimer: {
-          Allowed: "68608"
-        },
-        Everyone: {
-          Denied: "1024"
-        }
-      }
-    };
-
-    this.ticketPanelService.createNewTicketPanel(this.serverId, creationModel).subscribe({
-      next: () => {
-        this.showCreateModal = false;
-        this.newPanel = { name: '', displayName: '', emoji: '' };
-        this.isCreatingPanel = false;
-        this.loadData();
-      },
-      error: () => {
-        this.isCreatingPanel = false;
-      }
     });
   }
 }

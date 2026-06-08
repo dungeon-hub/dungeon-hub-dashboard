@@ -1,14 +1,8 @@
 import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { DiscordGuildService, DiscordGuild } from '../../core/services/discord-guild.service';
 import { DiscordServerControllerService } from '@dungeon-hub/api-client';
-import emojies from 'unicode-emoji-json';
-
-interface DiscordGuild {
-  id: string;
-  name: string;
-  icon: string | null;
-}
 
 @Component({
   selector: 'app-dashboard',
@@ -141,6 +135,7 @@ interface DiscordGuild {
 export class DashboardComponent implements OnInit {
   private authService = inject(AuthService);
   private discordServerService = inject(DiscordServerControllerService);
+  private discordGuildService = inject(DiscordGuildService);
   private cdr = inject(ChangeDetectorRef);
 
   guilds: DiscordGuild[] = [];
@@ -163,10 +158,7 @@ export class DashboardComponent implements OnInit {
     // Get guilds and permissions from user info (from Keycloak token)
     const claims = this.authService.getUserInfo() ?? {};
 
-    const allGuilds: DiscordGuild[] = claims['discord-guilds']
-      || claims['guilds']
-      || claims['discord_guilds']
-      || [];
+    const allGuilds: DiscordGuild[] = this.discordGuildService.getAllGuilds();
 
     // Get permissions claim and extract server IDs where user has admin permissions
     const permissions: string[] = claims['permissions'] || [];
@@ -216,59 +208,15 @@ export class DashboardComponent implements OnInit {
   }
 
   getIconUrl(guild: DiscordGuild): string {
-    // We're using webp here, since the gif extension doesn't seem to work with some animated server icons
-    let extension = guild.icon?.startsWith("a_") ? "webp?animated=true" : "png"
-
-    return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.${extension}`;
+    return this.discordGuildService.getIconUrl(guild);
   }
 
   getGuildColor(guild: DiscordGuild): string {
-    // Generate a consistent color based on guild ID
-    const colors = [
-      '#5865F2', // Discord Blurple
-      '#57F287', // Green
-      '#FEE75C', // Yellow
-      '#EB459E', // Pink
-      '#ED4245', // Red
-      '#FF6B6B', // Coral
-      '#4ECDC4', // Teal
-      '#45B7D1', // Sky Blue
-      '#96CEB4', // Sage
-      '#DDA15E'  // Orange
-    ];
-
-    // Use guild ID to pick a consistent color
-    const index = parseInt(guild.id.slice(-2), 16) % colors.length;
-    return colors[index];
+    return this.discordGuildService.getGuildColor(guild);
   }
 
   getDisplayName(guild: DiscordGuild): string {
-    let displayName = guild.name;
-
-    // Convert emoji shortcodes to Unicode emojis, or remove them if not found
-    displayName = displayName.replace(/:([a-zA-Z0-9_+-]+):/g, (match, name) => {
-
-      // Some emojies are named differently on discord... There's no better way other than replacing those.
-      if (name === "steam_locomotive") name = "locomotive"
-      if (name === "tm") name = "trade_mark"
-      if (name === "ear_of_rice") name = "sheaf_of_rice"
-
-      // Try exact match
-      const emoji = this.emojiNameMap.get(name) || this.emojiNameMap.get(name.replace(/_/g, '-'));
-
-      if (!emoji) console.log(`emoji ${name} not found, ignoring it.`)
-
-      // Return emoji if found, otherwise remove the shortcode
-      return emoji || '☐';
-    });
-
-    // Remove Discord custom emoji format <:name:id> or <a:name:id>
-    displayName = displayName.replace(/<a?:[a-zA-Z0-9_]+:\d+>/g, '');
-
-    // Clean up multiple spaces and trim
-    displayName = displayName.replace(/\s+/g, ' ').trim();
-
-    return displayName;
+    return this.discordGuildService.getDisplayName(guild);
   }
 
   logout() {
