@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -196,6 +196,7 @@ import { DiscordServerControllerService } from '@dungeon-hub/api-client';
         >
           <div class="card max-w-md w-full mx-4" (click)="$event.stopPropagation()">
             <h3 class="text-xl font-semibold mb-4">Upload File to CDN</h3>
+            <p class="text-sm text-gray-400 mb-4">Tip: You can paste an image from your clipboard using Ctrl+V</p>
 
             <div class="space-y-4">
               <div>
@@ -209,22 +210,57 @@ import { DiscordServerControllerService } from '@dungeon-hub/api-client';
                 <small class="text-gray-400">Leave empty to generate a random name. Don't add an extension here.</small>
               </div>
 
-              <div>
-                <label class="label">File *</label>
-                <input
-                  #fileInput
-                  type="file"
-                  class="input"
-                  (change)="onFileSelected($event)"
-                />
+              <!-- Drag and Drop Area -->
+              <div
+                (drop)="onDrop($event)"
+                (dragover)="onDragOver($event)"
+                (dragleave)="onDragLeave($event)"
+                [class.border-blue-500]="isDragging"
+                [class.bg-blue-900/20]="isDragging"
+                class="border-2 border-dashed border-gray-600 rounded-lg p-6 transition-colors"
+              >
+                @if (!selectedFile) {
+                  <div class="text-center">
+                    <p class="text-gray-400 mb-2">Drag and drop a file here, or</p>
+                    <label class="btn btn-secondary cursor-pointer inline-block">
+                      <input
+                        #fileInput
+                        type="file"
+                        class="hidden"
+                        (change)="onFileSelected($event)"
+                      />
+                      Choose File
+                    </label>
+                  </div>
+                } @else {
+                  <div class="text-center">
+                    <div class="flex items-center justify-center gap-2 mb-2">
+                      <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      <span class="text-green-400 font-semibold">File Selected</span>
+                    </div>
+                    <p class="text-sm text-gray-300 mb-1">{{ selectedFile.name }}</p>
+                    <p class="text-xs text-gray-400 mb-3">{{ formatFileSize(selectedFile.size) }}</p>
+                    <div class="flex gap-2 justify-center">
+                      <label class="btn btn-secondary text-sm cursor-pointer">
+                        <input
+                          type="file"
+                          class="hidden"
+                          (change)="onFileSelected($event)"
+                        />
+                        Change File
+                      </label>
+                      <button
+                        (click)="removeSelectedFile()"
+                        class="btn btn-secondary text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                }
               </div>
-
-              @if (selectedFile) {
-                <div class="text-sm text-gray-400">
-                  <p>Selected: {{ selectedFile.name }}</p>
-                  <p>Size: {{ formatFileSize(selectedFile.size) }}</p>
-                </div>
-              }
             </div>
 
             <div class="flex gap-3 mt-6">
@@ -249,7 +285,7 @@ import { DiscordServerControllerService } from '@dungeon-hub/api-client';
     </div>
   `
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private discordServerService = inject(DiscordServerControllerService);
   private discordGuildService = inject(DiscordGuildService);
@@ -270,11 +306,50 @@ export class DashboardComponent implements OnInit {
   isUploading = false;
   uploadError: string | null = null;
   uploadHistory: Array<{url: string, filename: string, timestamp: Date}> = [];
+  isDragging = false;
 
   ngOnInit() {
     this.userInfo = this.authService.getUserInfo();
     this.checkCdnPermission();
     this.loadGuilds();
+    this.setupPasteListener();
+  }
+
+  ngOnDestroy() {
+    this.removePasteListener();
+  }
+
+  private pasteHandler = (event: ClipboardEvent) => {
+    if (!this.showUploadModal || !this.hasCdnPermission) return;
+
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          this.selectedFile = file;
+
+          // Always populate filename for pasted images
+          const extension = file.type.split('/')[1];
+          this.uploadFilename = `pasted-image-${Date.now()}`;
+
+          this.cdr.detectChanges();
+          event.preventDefault();
+          break;
+        }
+      }
+    }
+  };
+
+  private setupPasteListener() {
+    document.addEventListener('paste', this.pasteHandler);
+  }
+
+  private removePasteListener() {
+    document.removeEventListener('paste', this.pasteHandler);
   }
 
   checkCdnPermission() {
@@ -357,12 +432,50 @@ export class DashboardComponent implements OnInit {
     if (input.files && input.files.length > 0) {
       this.selectedFile = input.files[0];
 
-      // Auto-populate filename from file if not set
-      if (!this.uploadFilename && this.selectedFile) {
+      // Always populate filename from the new file
+      if (this.selectedFile) {
         // Remove extension from filename
         const nameWithoutExt = this.selectedFile.name.replace(/\.[^/.]+$/, '');
         this.uploadFilename = nameWithoutExt;
       }
+    }
+  }
+
+  removeSelectedFile() {
+    this.selectedFile = null;
+    this.uploadFilename = '';
+    this.cdr.detectChanges();
+  }
+
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = true;
+  }
+
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+  }
+
+  onDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragging = false;
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      this.selectedFile = files[0];
+
+      // Always populate filename from the new file
+      if (this.selectedFile) {
+        // Remove extension from filename
+        const nameWithoutExt = this.selectedFile.name.replace(/\.[^/.]+$/, '');
+        this.uploadFilename = nameWithoutExt;
+      }
+
+      this.cdr.detectChanges();
     }
   }
 
@@ -408,6 +521,7 @@ export class DashboardComponent implements OnInit {
     this.uploadFilename = '';
     this.selectedFile = null;
     this.uploadError = null;
+    this.isDragging = false;
   }
 
   formatFileSize(bytes: number): string {
