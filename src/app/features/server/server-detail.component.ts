@@ -51,7 +51,7 @@ import {
 
         @if (ticketPanels.length > 0) {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            @for (panel of ticketPanels.slice(0, MAX_TICKET_PANELS_DISPLAY); track panel.id) {
+            @for (panel of getCurrentTicketPanelPage(); track panel.id) {
               <a
                 [routerLink]="['/server', serverId, 'ticket-panel', panel.id]"
                 class="p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
@@ -69,9 +69,29 @@ import {
             }
           </div>
           @if (ticketPanels.length > MAX_TICKET_PANELS_DISPLAY) {
-            <p class="text-gray-400 text-center text-sm mt-4">
-              Showing {{ MAX_TICKET_PANELS_DISPLAY }} of {{ ticketPanels.length }} ticket panels
-            </p>
+            <div class="flex justify-center items-center gap-4 mt-4">
+              <button
+                (click)="previousTicketPanelPage()"
+                [disabled]="currentTicketPanelPage === 0"
+                class="btn btn-secondary"
+                [class.opacity-50]="currentTicketPanelPage === 0"
+                [class.cursor-not-allowed]="currentTicketPanelPage === 0"
+              >
+                ← Previous
+              </button>
+              <p class="text-gray-400 text-sm">
+                Showing {{ getTicketPanelRangeStart() }}-{{ getTicketPanelRangeEnd() }} of {{ ticketPanels.length }} ticket panels
+              </p>
+              <button
+                (click)="nextTicketPanelPage()"
+                [disabled]="currentTicketPanelPage >= getTotalTicketPanelPages() - 1"
+                class="btn btn-secondary"
+                [class.opacity-50]="currentTicketPanelPage >= getTotalTicketPanelPages() - 1"
+                [class.cursor-not-allowed]="currentTicketPanelPage >= getTotalTicketPanelPages() - 1"
+              >
+                Next →
+              </button>
+            </div>
           }
         }
 
@@ -96,7 +116,7 @@ import {
 
         @if (carryTypes.length > 0) {
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            @for (carryType of carryTypes.slice(0, MAX_CARRY_TYPES_DISPLAY); track carryType.id) {
+            @for (carryType of getCurrentCarryTypePage(); track carryType.id) {
               <a
                 [routerLink]="['/server', serverId, 'carry-type', carryType.id]"
                 class="p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
@@ -114,9 +134,29 @@ import {
             }
           </div>
           @if (carryTypes.length > MAX_CARRY_TYPES_DISPLAY) {
-            <p class="text-gray-400 text-center text-sm mt-4">
-              Showing {{ MAX_CARRY_TYPES_DISPLAY }} of {{ carryTypes.length }} carry types
-            </p>
+            <div class="flex justify-center items-center gap-4 mt-4">
+              <button
+                (click)="previousCarryTypePage()"
+                [disabled]="currentCarryTypePage === 0"
+                class="btn btn-secondary"
+                [class.opacity-50]="currentCarryTypePage === 0"
+                [class.cursor-not-allowed]="currentCarryTypePage === 0"
+              >
+                ← Previous
+              </button>
+              <p class="text-gray-400 text-sm">
+                Showing {{ getCarryTypeRangeStart() }}-{{ getCarryTypeRangeEnd() }} of {{ carryTypes.length }} carry types
+              </p>
+              <button
+                (click)="nextCarryTypePage()"
+                [disabled]="currentCarryTypePage >= getTotalCarryTypePages() - 1"
+                class="btn btn-secondary"
+                [class.opacity-50]="currentCarryTypePage >= getTotalCarryTypePages() - 1"
+                [class.cursor-not-allowed]="currentCarryTypePage >= getTotalCarryTypePages() - 1"
+              >
+                Next →
+              </button>
+            </div>
           }
         }
 
@@ -165,6 +205,10 @@ export class ServerDetailComponent implements OnInit {
   // Limits for dashboard display
   readonly MAX_TICKET_PANELS_DISPLAY = 9;
   readonly MAX_CARRY_TYPES_DISPLAY = 9;
+
+  // Pagination state
+  currentTicketPanelPage = 0;
+  currentCarryTypePage = 0;
 
   ngOnInit() {
     this.serverId = this.route.snapshot.params['serverId'];
@@ -220,5 +264,69 @@ export class ServerDetailComponent implements OnInit {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  // Ticket Panel Pagination Methods
+  getCurrentTicketPanelPage(): any[] {
+    const start = this.currentTicketPanelPage * this.MAX_TICKET_PANELS_DISPLAY;
+    const end = start + this.MAX_TICKET_PANELS_DISPLAY;
+    return this.ticketPanels.slice(start, end);
+  }
+
+  getTotalTicketPanelPages(): number {
+    return Math.ceil(this.ticketPanels.length / this.MAX_TICKET_PANELS_DISPLAY);
+  }
+
+  getTicketPanelRangeStart(): number {
+    return this.currentTicketPanelPage * this.MAX_TICKET_PANELS_DISPLAY + 1;
+  }
+
+  getTicketPanelRangeEnd(): number {
+    const end = (this.currentTicketPanelPage + 1) * this.MAX_TICKET_PANELS_DISPLAY;
+    return Math.min(end, this.ticketPanels.length);
+  }
+
+  nextTicketPanelPage(): void {
+    if (this.currentTicketPanelPage < this.getTotalTicketPanelPages() - 1) {
+      this.currentTicketPanelPage++;
+    }
+  }
+
+  previousTicketPanelPage(): void {
+    if (this.currentTicketPanelPage > 0) {
+      this.currentTicketPanelPage--;
+    }
+  }
+
+  // Carry Type Pagination Methods
+  getCurrentCarryTypePage(): CarryTypeModel[] {
+    const start = this.currentCarryTypePage * this.MAX_CARRY_TYPES_DISPLAY;
+    const end = start + this.MAX_CARRY_TYPES_DISPLAY;
+    return this.carryTypes.slice(start, end);
+  }
+
+  getTotalCarryTypePages(): number {
+    return Math.ceil(this.carryTypes.length / this.MAX_CARRY_TYPES_DISPLAY);
+  }
+
+  getCarryTypeRangeStart(): number {
+    return this.currentCarryTypePage * this.MAX_CARRY_TYPES_DISPLAY + 1;
+  }
+
+  getCarryTypeRangeEnd(): number {
+    const end = (this.currentCarryTypePage + 1) * this.MAX_CARRY_TYPES_DISPLAY;
+    return Math.min(end, this.carryTypes.length);
+  }
+
+  nextCarryTypePage(): void {
+    if (this.currentCarryTypePage < this.getTotalCarryTypePages() - 1) {
+      this.currentCarryTypePage++;
+    }
+  }
+
+  previousCarryTypePage(): void {
+    if (this.currentCarryTypePage > 0) {
+      this.currentCarryTypePage--;
+    }
   }
 }

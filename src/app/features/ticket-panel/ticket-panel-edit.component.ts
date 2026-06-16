@@ -542,7 +542,7 @@ export class TicketPanelEditComponent implements OnInit {
         this.panel = updated;
         this.saving = false;
         this.cdr.detectChanges();
-        this.router.navigate(['/server', this.serverId]);
+        this.router.navigate(['/server', this.serverId, 'ticket-panels']);
       },
       error: () => {
         this.saving = false;
