@@ -1,6 +1,6 @@
 import {ChangeDetectorRef, Component, inject, OnInit} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule} from '@angular/forms';
+import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {
   CarryDifficultyControllerService,
@@ -50,6 +50,9 @@ import {AutocompleteComponent} from '../../shared/components/autocomplete/autoco
               <div>
                 <label class="label">Internal Name *</label>
                 <input formControlName="name" type="text" class="input"/>
+                @if (form.get('name')?.invalid && form.get('name')?.touched) {
+                  <small class="text-red-400">Internal name is required and cannot be empty or whitespace-only</small>
+                }
               </div>
               <div>
                 <label class="label">Display Name</label>
@@ -107,6 +110,9 @@ import {AutocompleteComponent} from '../../shared/components/autocomplete/autoco
                   rows="4"
                   class="input font-mono text-sm"
                 ></textarea>
+                @if (form.get('ticketMessageEmbeds')?.hasError('invalidJson') && form.get('ticketMessageEmbeds')?.touched) {
+                  <small class="text-red-400">Invalid JSON format</small>
+                }
               </div>
               <div>
                 <label class="label">Additional Buttons (JSON)</label>
@@ -115,6 +121,9 @@ import {AutocompleteComponent} from '../../shared/components/autocomplete/autoco
                   rows="4"
                   class="input font-mono text-sm"
                 ></textarea>
+                @if (form.get('ticketMessageButtons')?.hasError('invalidJson') && form.get('ticketMessageButtons')?.touched) {
+                  <small class="text-red-400">Invalid JSON format</small>
+                }
               </div>
             </div>
           </div>
@@ -165,6 +174,9 @@ import {AutocompleteComponent} from '../../shared/components/autocomplete/autoco
                   rows="4"
                   class="input font-mono text-sm"
                 ></textarea>
+                @if (form.get('userTranscriptDm')?.hasError('invalidJson') && form.get('userTranscriptDm')?.touched) {
+                  <small class="text-red-400">Invalid JSON format</small>
+                }
               </div>
               <div>
                 <label class="label">Close Transcript Target</label>
@@ -256,6 +268,9 @@ import {AutocompleteComponent} from '../../shared/components/autocomplete/autoco
                 rows="10"
                 class="input font-mono text-sm"
               ></textarea>
+              @if (form.get('formQuestions')?.hasError('invalidJson') && form.get('formQuestions')?.touched) {
+                <small class="text-red-400">Invalid JSON format</small>
+              }
             </div>
           </div>
 
@@ -308,7 +323,7 @@ export class TicketPanelEditComponent implements OnInit {
 
   initForm() {
     this.form = this.fb.group({
-      name: [''],
+      name: ['', [Validators.required, Validators.pattern(/^(?!\s*$).+/)]],
       displayName: [''],
       emoji: [''],
       requiresLinking: [false],
@@ -316,13 +331,13 @@ export class TicketPanelEditComponent implements OnInit {
       closeable: [false],
       closeConfirmation: [false],
       ticketMessageContent: [''],
-      ticketMessageEmbeds: [''],
-      ticketMessageButtons: [''],
+      ticketMessageEmbeds: ['', this.jsonValidator],
+      ticketMessageButtons: ['', this.jsonValidator],
       openChannelName: [''],
       claimedChannelName: [''],
       closedChannelName: [''],
       transcriptChannel: [''],
-      userTranscriptDm: [''],
+      userTranscriptDm: ['', this.jsonValidator],
       closeTranscriptTarget: ['None'],
       deleteTranscriptTarget: ['None'],
       supportRoles: [''],
@@ -331,8 +346,20 @@ export class TicketPanelEditComponent implements OnInit {
       closedCategories: [''],
       relatedCarryTier: [null],
       relatedCarryDifficulty: [null],
-      formQuestions: [''],
+      formQuestions: ['', this.jsonValidator],
     });
+  }
+
+  jsonValidator(control: any) {
+    if (!control.value || control.value.trim() === '') {
+      return null;
+    }
+    try {
+      JSON.parse(control.value);
+      return null;
+    } catch (e) {
+      return { invalidJson: true };
+    }
   }
 
   loadPanel() {
@@ -356,6 +383,12 @@ export class TicketPanelEditComponent implements OnInit {
     try {
       ticketMessage = JSON.parse(panel.ticketMessage || '{}');
     } catch (e) {
+      console.error('Failed to parse ticketMessage JSON:', e);
+      this.loading = false;
+      this.cdr.detectChanges();
+      alert('Error: The ticket panel contains invalid JSON data. Please contact an administrator.');
+      this.router.navigate(['/server', this.serverId, 'ticket-panels']);
+      return;
     }
 
     this.form.patchValue({
@@ -459,41 +492,23 @@ export class TicketPanelEditComponent implements OnInit {
     this.saving = true;
     const formValue = this.form.value;
 
-    // Build ticket message JSON
+    // Build ticket message JSON (validators already ensured valid JSON)
     const ticketMessage: any = {
       content: formValue.ticketMessageContent || null,
     };
 
-    try {
-      if (formValue.ticketMessageEmbeds) {
-        ticketMessage.embeds = JSON.parse(formValue.ticketMessageEmbeds);
-      }
-    } catch (e) {
-      this.form.get('ticketMessageEmbeds')?.setErrors({invalidJson: 'Invalid JSON format'});
-      this.saving = false;
-      return;
+    if (formValue.ticketMessageEmbeds) {
+      ticketMessage.embeds = JSON.parse(formValue.ticketMessageEmbeds);
     }
 
-    try {
-      if (formValue.ticketMessageButtons) {
-        ticketMessage['additional-buttons'] = JSON.parse(formValue.ticketMessageButtons);
-      }
-    } catch (e) {
-      this.form.get('ticketMessageButtons')?.setErrors({invalidJson: 'Invalid JSON format'});
-      this.saving = false;
-      return;
+    if (formValue.ticketMessageButtons) {
+      ticketMessage['additional-buttons'] = JSON.parse(formValue.ticketMessageButtons);
     }
 
     // Parse form questions
     let formQuestions: any = undefined;
-    try {
-      if (formValue.formQuestions) {
-        formQuestions = JSON.parse(formValue.formQuestions);
-      }
-    } catch (e) {
-      this.form.get('formQuestions')?.setErrors({invalidJson: 'Invalid JSON format'});
-      this.saving = false;
-      return;
+    if (formValue.formQuestions) {
+      formQuestions = JSON.parse(formValue.formQuestions);
     }
 
     // Helper to check if a field was cleared (had value before, now empty)

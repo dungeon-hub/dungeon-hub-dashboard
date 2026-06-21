@@ -28,8 +28,10 @@ export class CdnService {
       responseType: 'text'  // Response is plain text filename
     }).pipe(
       map(responseFilename => {
+        // Strip leading slash to prevent double slashes when concatenating
+        const cleanFilename = responseFilename.replace(/^\/+/, '');
         // Return full CDN URL: {cdn_url}/{response_body}
-        return environment.cdnUrl + responseFilename;
+        return environment.cdnUrl + cleanFilename;
       })
     );
   }

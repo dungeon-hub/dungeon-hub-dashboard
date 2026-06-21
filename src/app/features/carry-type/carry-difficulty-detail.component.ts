@@ -85,7 +85,7 @@ import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carr
               </p>
             }
             @if (difficulty.thumbnailUrl) {
-              <p><strong>Thumbnail:</strong> <a [href]="difficulty.thumbnailUrl" target="_blank" class="text-blue-400 break-all">{{ difficulty.thumbnailUrl }}</a></p>
+              <p><strong>Thumbnail: </strong><a [href]="difficulty.thumbnailUrl" target="_blank" rel="noopener noreferrer" class="text-blue-400 break-all">{{ difficulty.thumbnailUrl }}</a></p>
             }
             <p><strong>Ingame Carry Type:</strong> {{ getIngameCarryTypeLabel(difficulty.ingameCarryType) }}</p>
           </div>
@@ -294,17 +294,9 @@ export class CarryDifficultyDetailComponent implements OnInit {
   loadData() {
     this.loadError = null;
 
-    console.log('CarryDifficultyDetail: Loading data with params:', {
-      serverId: this.serverId,
-      carryTypeId: this.carryTypeId,
-      carryTierId: this.carryTierId,
-      difficultyId: this.difficultyId
-    });
-
     this.carryTypeService.getById6(this.serverId, this.carryTypeId).subscribe({
       next: (type) => {
         this.carryType = type;
-        console.log('CarryDifficultyDetail: Loaded carry type:', type);
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -316,9 +308,7 @@ export class CarryDifficultyDetailComponent implements OnInit {
 
     this.carryTierService.getAllCarryTiers(this.serverId, this.carryTypeId).subscribe({
       next: (tiers) => {
-        console.log('CarryDifficultyDetail: Loaded tiers:', tiers);
         this.carryTier = tiers.find(t => t.id.toString() === this.carryTierId.toString()) || null;
-        console.log('CarryDifficultyDetail: Found tier:', this.carryTier);
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -329,14 +319,11 @@ export class CarryDifficultyDetailComponent implements OnInit {
 
     this.carryDifficultyService.getAllCarryDifficulties(this.serverId, this.carryTypeId, this.carryTierId).subscribe({
       next: (difficulties) => {
-        console.log('CarryDifficultyDetail: Loaded difficulties:', difficulties);
-        console.log('CarryDifficultyDetail: Looking for difficulty ID:', this.difficultyId);
         this.difficulty = difficulties.find(d => d.id.toString() === this.difficultyId.toString()) || null;
         if (!this.difficulty) {
           this.loadError = 'Difficulty not found.';
           console.error('CarryDifficultyDetail: Difficulty not found. Looking for ID:', this.difficultyId, 'Available difficulties:', difficulties.map(d => d.id));
         } else {
-          console.log('CarryDifficultyDetail: Found difficulty:', this.difficulty);
           this.editForm = {
             displayName: this.difficulty.displayName,
             price: this.difficulty.price,

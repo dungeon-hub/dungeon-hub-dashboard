@@ -122,7 +122,7 @@ import {
               <button (click)="showCreateModal = false" class="btn btn-secondary flex-1">
                 Cancel
               </button>
-              <button (click)="createPanel()" class="btn btn-primary flex-1" [disabled]="!newPanel.name || isCreating">
+              <button (click)="createPanel()" class="btn btn-primary flex-1" [disabled]="!newPanel.name.trim() || isCreating">
                 {{ isCreating ? 'Creating...' : 'Create' }}
               </button>
             </div>
@@ -175,13 +175,14 @@ export class TicketPanelListComponent implements OnInit {
   }
 
   createPanel() {
-    if (!this.newPanel.name || this.isCreating) return;
+    const trimmedName = this.newPanel.name.trim();
+    if (!trimmedName || this.isCreating) return;
 
     this.isCreating = true;
     this.createError = null;
 
     const creationModel: TicketPanelCreationModel = {
-      name: this.newPanel.name,
+      name: trimmedName,
       displayName: this.newPanel.displayName || undefined,
       emoji: this.newPanel.emoji || undefined,
       closeable: false,

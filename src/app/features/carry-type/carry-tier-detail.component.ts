@@ -80,7 +80,7 @@ import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carr
               <p><strong>Price Description:</strong> {{ carryTier.priceDescription }}</p>
             }
             @if (carryTier.thumbnailUrl) {
-              <p><strong>Thumbnail: </strong><a [href]="carryTier.thumbnailUrl" target="_blank" class="text-blue-400 break-all">{{ carryTier.thumbnailUrl }}</a></p>
+              <p><strong>Thumbnail: </strong><a [href]="carryTier.thumbnailUrl" target="_blank" rel="noopener noreferrer" class="text-blue-400 break-all">{{ carryTier.thumbnailUrl }}</a></p>
             }
           </div>
         </div>
@@ -507,8 +507,8 @@ export class CarryTierDetailComponent implements OnInit {
       displayName: this.newDifficulty.displayName,
       price: this.newDifficulty.price,
       score: this.newDifficulty.score,
-      bulkAmount: this.newDifficulty.bulkAmount || undefined,
-      bulkPrice: this.newDifficulty.bulkPrice || undefined,
+      bulkAmount: this.newDifficulty.bulkAmount != null ? this.newDifficulty.bulkAmount : undefined,
+      bulkPrice: this.newDifficulty.bulkPrice != null ? this.newDifficulty.bulkPrice : undefined,
       thumbnailUrl: this.newDifficulty.thumbnailUrl || undefined,
       priceName: this.newDifficulty.priceName || undefined,
       ingameCarryType: this.newDifficulty.ingameCarryType || undefined

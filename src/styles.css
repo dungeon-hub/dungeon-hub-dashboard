@@ -69,6 +69,14 @@ body {
   }
 }
 
+/* Respect user's motion preferences for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .holographic {
+    animation: none;
+    background-position: 0;
+  }
+}
+
 /* Custom rounded utilities */
 .rounded-sm-custom {
   border-radius: 10%;

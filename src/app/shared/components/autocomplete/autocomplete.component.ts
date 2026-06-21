@@ -8,37 +8,43 @@ import { FormsModule } from '@angular/forms';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="relative">
-      <!-- Trigger Button -->
-      <button
-        type="button"
-        (click)="toggleDropdown()"
-        class="input flex items-center justify-between w-full text-left"
-      >
-        <span class="flex-1 truncate">{{ getDisplayValue() }}</span>
-        <div class="flex items-center gap-2 ml-2 flex-shrink-0">
-          @if (selectedItem) {
-            <button
-              type="button"
-              (click)="clear($event)"
-              class="text-gray-400 hover:text-gray-200 p-1"
-              title="Clear selection"
+      <!-- Trigger Button and Clear Button (siblings) -->
+      <div class="relative">
+        <button
+          type="button"
+          (click)="toggleDropdown()"
+          class="input flex items-center justify-between w-full text-left"
+        >
+          <span class="flex-1 truncate">{{ getDisplayValue() }}</span>
+          <div class="flex items-center gap-2 ml-2 flex-shrink-0">
+            @if (selectedItem) {
+              <!-- Placeholder for clear button spacing -->
+              <div class="w-4 h-4"></div>
+            }
+            <svg
+              class="w-4 h-4 transition-transform text-gray-400"
+              [class.rotate-180]="isOpen"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          }
-          <svg
-            class="w-4 h-4 transition-transform text-gray-400"
-            [class.rotate-180]="isOpen"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </button>
+        @if (selectedItem) {
+          <button
+            type="button"
+            (click)="clear($event)"
+            class="absolute right-10 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 p-1 z-10"
+            title="Clear selection"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-          </svg>
-        </div>
-      </button>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        }
+      </div>
 
       <!-- Dropdown Popover -->
       @if (isOpen) {
@@ -204,9 +210,10 @@ export class AutocompleteComponent implements OnInit, OnChanges {
       this.filteredItems = this.items;
     } else {
       const query = this.searchQuery.toLowerCase();
-      this.filteredItems = this.items.filter(item =>
-        item[this.displayKey]?.toLowerCase().includes(query)
-      );
+      this.filteredItems = this.items.filter(item => {
+        const displayValue = this.getNestedProperty(item, this.displayKey);
+        return typeof displayValue === 'string' && displayValue.toLowerCase().includes(query);
+      });
     }
 
     // Group items if groupByKey is specified

@@ -112,6 +112,7 @@ import { DiscordServerControllerService } from '@dungeon-hub/api-client';
                   <a
                     [href]="'https://invite.dungeon-hub.net/&guild_id=' + guild.id"
                     target="_blank"
+                    rel="noopener noreferrer"
                     class="btn btn-primary whitespace-nowrap"
                   >
                     Invite
