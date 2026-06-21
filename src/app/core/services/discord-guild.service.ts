@@ -73,8 +73,12 @@ export class DiscordGuildService {
    * Get the icon URL for a guild
    */
   getIconUrl(guild: DiscordGuild): string {
+    if (!guild.icon) {
+      return 'https://cdn.discordapp.com/embed/avatars/0.png';
+    }
+
     // We're using webp here, since the gif extension doesn't seem to work with some animated server icons
-    let extension = guild.icon?.startsWith("a_") ? "webp?animated=true" : "png"
+    let extension = guild.icon.startsWith("a_") ? "webp?animated=true" : "png"
     return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.${extension}`;
   }
 
