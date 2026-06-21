@@ -112,10 +112,13 @@ import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carr
                         <span class="text-sm text-gray-400">{{ difficulty.identifier }}</span>
                       </div>
                       <div class="text-sm text-gray-400 mt-2 space-y-1">
-                        <p><strong>Price:</strong> {{ difficulty.price }}{{ difficulty.priceName ? ' ' + difficulty.priceName : '' }}</p>
+                        <p><strong>Price:</strong> {{ difficulty.price }} Coins</p>
                         <p><strong>Score:</strong> {{ difficulty.score }}</p>
-                        @if (difficulty.bulkPrice && difficulty.bulkAmount) {
-                          <p><strong>Bulk:</strong> {{ difficulty.bulkAmount }}x for {{ difficulty.bulkPrice }}{{ difficulty.priceName ? ' ' + difficulty.priceName : '' }}</p>
+                        @if (difficulty.bulkPrice != null && difficulty.bulkAmount != null) {
+                          <p><strong>Bulk:</strong> {{ difficulty.bulkAmount }}x for {{ difficulty.bulkPrice }} Coins</p>
+                        }
+                        @if (difficulty.priceName) {
+                          <p><strong>Alt. Price Name:</strong> {{ difficulty.priceName }}</p>
                         }
                         @if (difficulty.ingameCarryType) {
                           <p><strong>Ingame Type:</strong> {{ getIngameCarryTypeLabel(difficulty.ingameCarryType) }}</p>
@@ -223,13 +226,14 @@ import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carr
               </div>
 
               <div>
-                <label class="label">Price Name</label>
+                <label class="label">Alternative Price Name</label>
                 <input
                   [(ngModel)]="newDifficulty.priceName"
                   type="text"
                   class="input"
-                  placeholder="e.g. coins"
+                  placeholder="e.g. Master Mode 7"
                 />
+                <small class="text-gray-400">Alternative name that takes priority over the default display name in the static price embed</small>
               </div>
 
               <div>

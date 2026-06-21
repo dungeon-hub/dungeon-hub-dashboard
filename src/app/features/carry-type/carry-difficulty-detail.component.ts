@@ -69,15 +69,20 @@ import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carr
           <div class="space-y-2 text-gray-300">
             <p><strong>Display Name:</strong> {{ difficulty.displayName }}</p>
             <p><strong>Identifier:</strong> {{ difficulty.identifier }}</p>
-            <p><strong>Price:</strong> {{ difficulty.price }}{{ difficulty.priceName ? ' ' + difficulty.priceName : '' }}</p>
+            <p><strong>Price:</strong> {{ difficulty.price }} Coins</p>
             <p><strong>Score:</strong> {{ difficulty.score }}</p>
-            @if (difficulty.bulkAmount && difficulty.bulkPrice) {
-              <p><strong>Bulk Purchase:</strong> {{ difficulty.bulkAmount }}x for {{ difficulty.bulkPrice }}{{ difficulty.priceName ? ' ' + difficulty.priceName : '' }}</p>
+            @if (difficulty.bulkAmount != null && difficulty.bulkPrice != null) {
+              <p><strong>Bulk Purchase:</strong> {{ difficulty.bulkAmount }}x for {{ difficulty.bulkPrice }} Coins</p>
             } @else {
               <p><strong>Bulk Purchase:</strong> Not configured</p>
             }
             @if (difficulty.priceName) {
-              <p><strong>Price Name:</strong> {{ difficulty.priceName }}</p>
+              <p>
+                <strong class="cursor-help" title="Alternative name that takes priority over the default display name in the static price embed">Alternative Price Name:</strong>
+                <span class="cursor-help" title="Alternative name that takes priority over the default display name in the static price embed">
+                  {{ difficulty.priceName }}
+                </span>
+              </p>
             }
             @if (difficulty.thumbnailUrl) {
               <p><strong>Thumbnail:</strong> <a [href]="difficulty.thumbnailUrl" target="_blank" class="text-blue-400 break-all">{{ difficulty.thumbnailUrl }}</a></p>
@@ -162,13 +167,14 @@ import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carr
               </div>
 
               <div>
-                <label class="label">Price Name</label>
+                <label class="label">Alternative Price Name</label>
                 <input
                   [(ngModel)]="editForm.priceName"
                   type="text"
                   class="input"
+                  placeholder="e.g. Master Mode 7"
                 />
-                <small class="text-gray-400">Current: {{ difficulty.priceName || 'None' }} (clear to remove)</small>
+                <small class="text-gray-400">Alternative name that takes priority over the default display name in the static price embed. Current: {{ difficulty.priceName || 'None' }} (clear to remove)</small>
               </div>
 
               <div>
@@ -335,8 +341,8 @@ export class CarryDifficultyDetailComponent implements OnInit {
             displayName: this.difficulty.displayName,
             price: this.difficulty.price,
             score: this.difficulty.score,
-            bulkAmount: this.difficulty.bulkAmount || null,
-            bulkPrice: this.difficulty.bulkPrice || null,
+            bulkAmount: this.difficulty.bulkAmount != null ? this.difficulty.bulkAmount : null,
+            bulkPrice: this.difficulty.bulkPrice != null ? this.difficulty.bulkPrice : null,
             thumbnailUrl: this.difficulty.thumbnailUrl || '',
             priceName: this.difficulty.priceName || '',
             ingameCarryType: this.difficulty.ingameCarryType || null
@@ -372,8 +378,8 @@ export class CarryDifficultyDetailComponent implements OnInit {
       displayName: this.editForm.displayName || undefined,
       price: this.editForm.price !== null ? this.editForm.price : undefined,
       score: this.editForm.score !== null ? this.editForm.score : undefined,
-      bulkAmount: resetBulkAmount ? undefined : (this.editForm.bulkAmount || undefined),
-      bulkPrice: resetBulkPrice ? undefined : (this.editForm.bulkPrice || undefined),
+      bulkAmount: resetBulkAmount ? undefined : (this.editForm.bulkAmount != null ? this.editForm.bulkAmount : undefined),
+      bulkPrice: resetBulkPrice ? undefined : (this.editForm.bulkPrice != null ? this.editForm.bulkPrice : undefined),
       thumbnailUrl: resetThumbnailUrl ? undefined : (this.editForm.thumbnailUrl || undefined),
       priceName: resetPriceName ? undefined : (this.editForm.priceName || undefined),
       ingameCarryType: resetIngameCarryType ? undefined : (this.editForm.ingameCarryType || undefined),
