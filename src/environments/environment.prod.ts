@@ -7,8 +7,8 @@ export const environment = {
   keycloak: {
     issuer: 'https://auth.dungeon-hub.net/realms/dungeon-hub',
     clientId: 'dungeon-hub-dashboard',
-    redirectUri: 'https://beta.dashboard.dungeon-hub.net/auth/callback',
-    postLogoutRedirectUri: 'https://beta.dashboard.dungeon-hub.net',
+    redirectUri: 'https://dashboard.dungeon-hub.net/auth/callback',
+    postLogoutRedirectUri: 'https://dashboard.dungeon-hub.net',
     scope: 'openid profile email guilds'
   }
 };
