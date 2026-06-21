@@ -1,0 +1,100 @@
+import { Injectable, inject } from '@angular/core';
+import { Router } from '@angular/router';
+import { OAuthService, OAuthEvent } from 'angular-oauth2-oidc';
+import { BehaviorSubject } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  private oauthService = inject(OAuthService);
+  private router = inject(Router);
+  private readonly debugOAuth = !environment.production;
+
+  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
+  public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
+
+  constructor() {
+    this.oauthService.events.subscribe((e: OAuthEvent) => {
+      if (this.debugOAuth) {
+        console.log('[OAuth Event]', e.type);
+      }
+
+      if (e.type === 'token_received') {
+        this.isAuthenticatedSubject.next(true);
+      }
+
+      if (e.type === 'invalid_nonce_in_state') {
+        if (this.debugOAuth) {
+          console.warn('[OAuth] Invalid nonce - clearing storage');
+        }
+        sessionStorage.clear();
+      }
+    });
+  }
+
+  async initialize(): Promise<void> {
+    this.oauthService.configure({
+      issuer: environment.keycloak.issuer,
+      redirectUri: environment.keycloak.redirectUri,
+      clientId: environment.keycloak.clientId,
+      responseType: 'code',
+      scope: environment.keycloak.scope,
+      showDebugInformation: this.debugOAuth,
+      postLogoutRedirectUri: environment.keycloak.postLogoutRedirectUri
+    });
+
+    this.oauthService.setStorage(sessionStorage);
+    this.oauthService.setupAutomaticSilentRefresh();
+
+    try {
+      await this.oauthService.loadDiscoveryDocumentAndTryLogin();
+
+      if (this.oauthService.hasValidAccessToken()) {
+        // Load user profile from userinfo endpoint
+        await this.oauthService.loadUserProfile();
+        this.isAuthenticatedSubject.next(true);
+
+        if (this.debugOAuth) {
+          console.log('[OAuth] Initialized successfully');
+        }
+      }
+    } catch (err) {
+      if (this.debugOAuth) {
+        console.error('[OAuth] Initialization failed:', err);
+      }
+    }
+  }
+
+  login(returnUrl?: string) {
+    if (returnUrl) {
+      sessionStorage.setItem('auth_return_url', returnUrl);
+    }
+    this.oauthService.initCodeFlow();
+  }
+
+  logout() {
+    this.oauthService.logOut();
+    this.isAuthenticatedSubject.next(false);
+    this.router.navigate(['/login']);
+  }
+
+  getAccessToken(): string | null {
+    return this.oauthService.getAccessToken();
+  }
+
+  isAuthenticated(): boolean {
+    return this.oauthService.hasValidAccessToken();
+  }
+
+  getUserInfo(): any {
+    return this.oauthService.getIdentityClaims();
+  }
+
+  handleAuthCallback() {
+    const returnUrl = sessionStorage.getItem('auth_return_url') || '/dashboard';
+    sessionStorage.removeItem('auth_return_url');
+    this.router.navigate([returnUrl]);
+  }
+}
