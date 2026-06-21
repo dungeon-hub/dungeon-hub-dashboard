@@ -44,6 +44,9 @@ export class DiscordGuildService {
     const guildName = typeof guild === 'string' ? guild : guild.name;
     let displayName = guildName;
 
+    // Remove Discord custom emoji format <:name:id> or <a:name:id>
+    displayName = displayName.replace(/<a?:[a-zA-Z0-9_]+:\d+>/g, '');
+
     // Convert emoji shortcodes to Unicode emojis, or remove them if not found
     displayName = displayName.replace(/:([a-zA-Z0-9_+-]+):/g, (match, name) => {
       // Some emojies are named differently on discord... There's no better way other than replacing those.
@@ -59,9 +62,6 @@ export class DiscordGuildService {
       // Return emoji if found, otherwise return placeholder
       return emoji || '☐';
     });
-
-    // Remove Discord custom emoji format <:name:id> or <a:name:id>
-    displayName = displayName.replace(/<a?:[a-zA-Z0-9_]+:\d+>/g, '');
 
     // Clean up multiple spaces and trim
     displayName = displayName.replace(/\s+/g, ' ').trim();
