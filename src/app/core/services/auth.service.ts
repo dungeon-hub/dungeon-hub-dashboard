@@ -12,6 +12,27 @@ export class AuthService {
   private router = inject(Router);
   private readonly debugOAuth = !environment.production;
 
+  private getBrowserOrigin(): string | null {
+    if (typeof window === 'undefined' || !window.location?.origin) {
+      return null;
+    }
+
+    return window.location.origin;
+  }
+
+  private resolveRedirectUri(configuredRedirectUri: string): string {
+    const browserOrigin = this.getBrowserOrigin();
+    if (!browserOrigin) {
+      return configuredRedirectUri;
+    }
+
+    return `${browserOrigin}/auth/callback`;
+  }
+
+  private resolvePostLogoutRedirectUri(configuredPostLogoutRedirectUri: string): string {
+    return this.getBrowserOrigin() || configuredPostLogoutRedirectUri;
+  }
+
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
   public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
 
@@ -37,12 +58,12 @@ export class AuthService {
   async initialize(): Promise<void> {
     this.oauthService.configure({
       issuer: environment.keycloak.issuer,
-      redirectUri: environment.keycloak.redirectUri,
+      redirectUri: this.resolveRedirectUri(environment.keycloak.redirectUri),
       clientId: environment.keycloak.clientId,
       responseType: 'code',
       scope: environment.keycloak.scope,
       showDebugInformation: this.debugOAuth,
-      postLogoutRedirectUri: environment.keycloak.postLogoutRedirectUri
+      postLogoutRedirectUri: this.resolvePostLogoutRedirectUri(environment.keycloak.postLogoutRedirectUri)
     });
 
     this.oauthService.setStorage(sessionStorage);
