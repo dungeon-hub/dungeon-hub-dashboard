@@ -11,6 +11,7 @@ export class AuthService {
   private oauthService = inject(OAuthService);
   private router = inject(Router);
   private readonly debugOAuth = !environment.production;
+  private initialized = false;
 
   private getBrowserOrigin(): string | null {
     if (typeof window === 'undefined' || !window.location?.origin) {
@@ -71,25 +72,51 @@ export class AuthService {
 
     try {
       await this.oauthService.loadDiscoveryDocumentAndTryLogin();
+      await this.refreshAuthenticatedState();
 
-      if (this.oauthService.hasValidAccessToken()) {
-        // Load user profile from userinfo endpoint
-        await this.oauthService.loadUserProfile();
-        this.isAuthenticatedSubject.next(true);
-
-        if (this.debugOAuth) {
-          console.log('[OAuth] Initialized successfully');
-        }
+      if (this.debugOAuth && this.oauthService.hasValidAccessToken()) {
+        console.log('[OAuth] Initialized successfully');
       }
     } catch (err) {
       if (this.debugOAuth) {
         console.error('[OAuth] Initialization failed:', err);
       }
+    } finally {
+      this.initialized = true;
     }
   }
 
+  async completeLogin(): Promise<boolean> {
+    if (!this.initialized) {
+      await this.initialize();
+    } else if (!this.oauthService.hasValidAccessToken()) {
+      await this.oauthService.tryLoginCodeFlow();
+    }
+
+    return this.refreshAuthenticatedState();
+  }
+
+  private async refreshAuthenticatedState(): Promise<boolean> {
+    const hasValidToken = this.oauthService.hasValidAccessToken();
+    this.isAuthenticatedSubject.next(hasValidToken);
+
+    if (!hasValidToken) {
+      return false;
+    }
+
+    try {
+      await this.oauthService.loadUserProfile();
+    } catch (err) {
+      if (this.debugOAuth) {
+        console.warn('[OAuth] Failed to load user profile after login:', err);
+      }
+    }
+
+    return true;
+  }
+
   login(returnUrl?: string) {
-    if (returnUrl) {
+    if (returnUrl && returnUrl !== '/login' && !returnUrl.startsWith('/auth/callback')) {
       sessionStorage.setItem('auth_return_url', returnUrl);
     }
     this.oauthService.initCodeFlow();
@@ -116,6 +143,6 @@ export class AuthService {
   handleAuthCallback() {
     const returnUrl = sessionStorage.getItem('auth_return_url') || '/dashboard';
     sessionStorage.removeItem('auth_return_url');
-    this.router.navigate([returnUrl]);
+    this.router.navigateByUrl(returnUrl);
   }
 }
