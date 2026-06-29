@@ -1,23 +1,48 @@
 import {ChangeDetectorRef, Component, OnInit, inject} from '@angular/core';
+import {forkJoin, of} from 'rxjs';
 import {CommonModule} from '@angular/common';
-import {FormBuilder, ReactiveFormsModule, Validators} from '@angular/forms';
+import {AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators} from '@angular/forms';
 import {ActivatedRoute, RouterLink} from '@angular/router';
 import {
+  CarryTierControllerService,
+  CarryTypeControllerService,
   DiscordChannelControllerService,
   DiscordChannelModel,
   StaticMessageControllerService,
   StaticMessageModel,
-  StaticMessageUpdateModel
+  StaticMessageUpdateModel,
+  TicketPanelControllerService
 } from '@dungeon-hub/api-client';
 import {AutocompleteComponent} from '../shared/components/autocomplete/autocomplete.component';
+import {MultiSelectAutocompleteComponent} from '../shared/components/multi-select-autocomplete/multi-select-autocomplete.component';
+import {getStaticMessageTypeLabel, StaticMessageType} from './static-message/static-message-labels';
+import {
+  StaticMessageObjectOption,
+  supportsObjectIds,
+  toCarryTierOption,
+  toCarryTypeOption,
+  toTicketPanelOption
+} from './static-message/static-message-object-options';
 
 type StaticMessageWithActive = StaticMessageModel & { active?: boolean };
 type StaticMessageUpdateWithActive = StaticMessageUpdateModel & { active?: boolean };
 
+function jsonValidator(control: AbstractControl): ValidationErrors | null {
+  const value = control.value;
+  if (!value || !value.trim()) return null;
+
+  try {
+    JSON.parse(value);
+    return null;
+  } catch {
+    return {invalidJson: true};
+  }
+}
+
 @Component({
   selector: 'app-static-message-edit',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, AutocompleteComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, AutocompleteComponent, MultiSelectAutocompleteComponent],
   template: `
     <div class="container mx-auto px-4 py-8 max-w-5xl">
       <div class="mb-8">
@@ -53,11 +78,11 @@ type StaticMessageUpdateWithActive = StaticMessageUpdateModel & { active?: boole
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="label">Type</label>
-                <input [value]="message?.staticMessageType" class="input" disabled />
+                <p class="px-3 py-2 bg-gray-800 rounded text-gray-200">{{ message ? getTypeLabel(message.staticMessageType) : 'Unknown' }}</p>
               </div>
               <div>
                 <label class="label">Message ID</label>
-                <input formControlName="messageId" type="text" class="input" />
+                <p class="px-3 py-2 bg-gray-800 rounded text-gray-200 break-all">{{ message?.messageId || 'Not sent yet' }}</p>
               </div>
               <div class="md:col-span-2">
                 <label class="label">Channel</label>
@@ -76,11 +101,6 @@ type StaticMessageUpdateWithActive = StaticMessageUpdateModel & { active?: boole
                   <small class="text-red-400">Channel is required</small>
                 }
               </div>
-              <div class="md:col-span-2">
-                <label class="label">Channel ID</label>
-                <input formControlName="channelId" type="text" class="input" />
-                <small class="text-gray-400">The API client exposes this as <code>channelId</code>.</small>
-              </div>
               <div class="flex items-center">
                 <label class="flex items-center cursor-pointer">
                   <input formControlName="active" type="checkbox" class="mr-2" />
@@ -93,19 +113,26 @@ type StaticMessageUpdateWithActive = StaticMessageUpdateModel & { active?: boole
           <div class="card">
             <h3 class="text-xl font-semibold mb-4">Embed Override</h3>
             <textarea formControlName="embedOverride" rows="12" class="input font-mono text-sm"></textarea>
-            <div class="mt-3 flex items-center">
-              <label class="flex items-center cursor-pointer">
-                <input formControlName="resetEmbedOverride" type="checkbox" class="mr-2" />
-                <span class="text-gray-300">Reset embed override</span>
-              </label>
-            </div>
+            @if (form.get('embedOverride')?.hasError('invalidJson') && form.get('embedOverride')?.touched) {
+              <small class="text-red-400">Invalid JSON format</small>
+            }
+            <small class="text-gray-400 block mt-2">Leave empty to reset the embed override.</small>
           </div>
 
-          <div class="card">
-            <h3 class="text-xl font-semibold mb-4">Object IDs</h3>
-            <textarea formControlName="objectIds" rows="4" class="input font-mono text-sm"></textarea>
-            <small class="text-gray-400">One object ID per line.</small>
-          </div>
+          @if (message && shouldShowObjectIds(message.staticMessageType)) {
+            <div class="card">
+              <h3 class="text-xl font-semibold mb-4">Object IDs</h3>
+              <app-multi-select-autocomplete
+                [items]="objectOptions"
+                [selectedItems]="selectedObjectOptions"
+                (selectedItemsChange)="onObjectOptionsSelected($event)"
+                displayKey="name"
+                valueKey="id"
+                placeholder="Search objects..."
+                nullLabel="No objects selected"
+              ></app-multi-select-autocomplete>
+            </div>
+          }
 
           <div class="flex gap-4">
             <button type="submit" class="btn btn-primary" [disabled]="saving || form.invalid">
@@ -127,13 +154,18 @@ export class StaticMessageEditComponent implements OnInit {
   private fb = inject(FormBuilder);
   private staticMessageService = inject(StaticMessageControllerService);
   private discordChannelService = inject(DiscordChannelControllerService);
+  private ticketPanelService = inject(TicketPanelControllerService);
+  private carryTypeService = inject(CarryTypeControllerService);
+  private carryTierService = inject(CarryTierControllerService);
   private cdr = inject(ChangeDetectorRef);
 
   serverId!: string;
   staticMessageId!: string;
   message: StaticMessageWithActive | null = null;
   discordChannels: DiscordChannelModel[] = [];
+  objectOptions: StaticMessageObjectOption[] = [];
   selectedChannel: DiscordChannelModel | null = null;
+  selectedObjectOptions: StaticMessageObjectOption[] = [];
   loading = true;
   saving = false;
   loadError: string | null = null;
@@ -142,11 +174,8 @@ export class StaticMessageEditComponent implements OnInit {
 
   form = this.fb.group({
     channelId: ['', Validators.required],
-    messageId: [''],
     active: [true],
-    embedOverride: [''],
-    resetEmbedOverride: [false],
-    objectIds: ['']
+    embedOverride: ['', jsonValidator]
   });
 
   ngOnInit(): void {
@@ -157,6 +186,14 @@ export class StaticMessageEditComponent implements OnInit {
     });
     this.loadChannels();
     this.loadMessage();
+  }
+
+  getTypeLabel(type: StaticMessageType): string {
+    return getStaticMessageTypeLabel(type);
+  }
+
+  shouldShowObjectIds(type: StaticMessageType): boolean {
+    return supportsObjectIds(type);
   }
 
   loadChannels(): void {
@@ -178,13 +215,11 @@ export class StaticMessageEditComponent implements OnInit {
         this.message = message;
         this.form.patchValue({
           channelId: message.channelId,
-          messageId: message.messageId || '',
           active: (message as StaticMessageWithActive).active ?? true,
-          embedOverride: message.embedOverride || '',
-          resetEmbedOverride: false,
-          objectIds: (message.objectIds || []).join('\n')
+          embedOverride: message.embedOverride || ''
         });
         this.selectedChannel = this.discordChannels.find(channel => channel.id === message.channelId) || null;
+        this.loadObjectOptions(message.staticMessageType, message.objectIds || []);
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -197,25 +232,54 @@ export class StaticMessageEditComponent implements OnInit {
     });
   }
 
+  loadObjectOptions(type: StaticMessageType, selectedIds: string[] = []): void {
+    this.objectOptions = [];
+    this.selectedObjectOptions = [];
+    if (type === 'TicketPanel') {
+      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({next: panels => this.setObjectOptions((panels || []).map(toTicketPanelOption), selectedIds)});
+    } else if (type === 'ScoreLeaderboard') {
+      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({next: carryTypes => this.setObjectOptions((carryTypes || []).map(toCarryTypeOption), selectedIds)});
+    } else if (type === 'PriceMessage') {
+      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+        next: carryTypes => {
+          const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
+          (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
+            next: carryTierGroups => this.setObjectOptions(carryTierGroups.flat().map(toCarryTierOption), selectedIds)
+          });
+        }
+      });
+    }
+  }
+
+  setObjectOptions(options: StaticMessageObjectOption[], selectedIds: string[]): void {
+    this.objectOptions = options;
+    this.selectedObjectOptions = options.filter(option => selectedIds.includes(option.id));
+    this.cdr.detectChanges();
+  }
+
   onChannelSelected(channel: DiscordChannelModel | null): void {
     this.selectedChannel = channel;
     this.form.patchValue({channelId: channel?.id || ''});
   }
 
+  onObjectOptionsSelected(options: StaticMessageObjectOption[]): void {
+    this.selectedObjectOptions = options;
+  }
+
   save(): void {
-    if (this.form.invalid || this.saving) return;
+    if (this.form.invalid || this.saving || !this.message) return;
     this.saving = true;
     this.saveError = null;
     this.saveSuccess = false;
 
     const value = this.form.value;
+    const embedOverride = (value.embedOverride || '').trim();
     const updateModel: StaticMessageUpdateWithActive = {
       channelId: this.selectedChannel?.id || value.channelId || undefined,
-      messageId: value.messageId || undefined,
       active: value.active ?? true,
-      embedOverride: value.embedOverride || undefined,
-      resetEmbedOverride: value.resetEmbedOverride ?? false,
-      objectIds: (value.objectIds || '').split('\n').map(id => id.trim()).filter(Boolean)
+      embedOverride: embedOverride || undefined,
+      resetEmbedOverride: !embedOverride,
+      objectIds: supportsObjectIds(this.message.staticMessageType) ? this.selectedObjectOptions.map(option => option.id) : []
     };
 
     this.staticMessageService.updateStaticMessage(this.serverId, this.staticMessageId, updateModel).subscribe({

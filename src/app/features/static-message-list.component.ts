@@ -1,24 +1,36 @@
 import {ChangeDetectorRef, Component, OnInit, inject} from '@angular/core';
+import {forkJoin, of} from 'rxjs';
 import {CommonModule} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {ActivatedRoute, RouterLink} from '@angular/router';
 import {
+  CarryTierControllerService,
+  CarryTypeControllerService,
   DiscordChannelControllerService,
   DiscordChannelModel,
   StaticMessageControllerService,
   StaticMessageCreationModel,
-  StaticMessageModel
+  StaticMessageModel,
+  TicketPanelControllerService
 } from '@dungeon-hub/api-client';
 import {AutocompleteComponent} from '../shared/components/autocomplete/autocomplete.component';
+import {MultiSelectAutocompleteComponent} from '../shared/components/multi-select-autocomplete/multi-select-autocomplete.component';
+import {getStaticMessageTypeLabel, STATIC_MESSAGE_TYPES, StaticMessageType} from './static-message/static-message-labels';
+import {
+  StaticMessageObjectOption,
+  supportsObjectIds,
+  toCarryTierOption,
+  toCarryTypeOption,
+  toTicketPanelOption
+} from './static-message/static-message-object-options';
 
 type StaticMessageWithActive = StaticMessageModel & { active?: boolean };
-type StaticMessageType = StaticMessageCreationModel.StaticMessageTypeEnum;
 type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: boolean };
 
 @Component({
   selector: 'app-static-message-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AutocompleteComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AutocompleteComponent, MultiSelectAutocompleteComponent],
   template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
@@ -38,7 +50,7 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
       <div class="card">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-2xl font-semibold">Static Messages</h3>
-          <button (click)="showCreateModal = true" class="btn btn-primary">＋ New Static Message</button>
+          <button (click)="openCreateModal()" class="btn btn-primary">＋ New Static Message</button>
         </div>
 
         @if (loading) {
@@ -55,15 +67,15 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
                 <div class="flex justify-between items-center gap-4">
                   <div class="flex-1">
                     <div class="flex flex-wrap items-center gap-3">
-                      <span class="text-lg font-semibold group-hover:text-blue-400 transition-colors">{{ message.staticMessageType }}</span>
+                      <span class="text-lg font-semibold group-hover:text-blue-400 transition-colors">{{ getTypeLabel(message.staticMessageType) }}</span>
                       <span class="text-sm text-gray-400">#{{ message.id }}</span>
                       <span class="text-xs px-2 py-1 rounded" [class.bg-green-900]="message.active !== false" [class.text-green-300]="message.active !== false" [class.bg-red-900]="message.active === false" [class.text-red-300]="message.active === false">
                         {{ message.active === false ? 'Inactive' : 'Active' }}
                       </span>
                     </div>
-                    <p class="text-sm text-gray-400 mt-1">Channel: {{ getChannelName(message.channelId) }} ({{ message.channelId }})</p>
+                    <p class="text-sm text-gray-400 mt-1">Channel: {{ getChannelName(message.channelId) }}</p>
                     @if (message.messageId) {
-                      <p class="text-sm text-gray-400">Message: {{ message.messageId }}</p>
+                      <p class="text-sm text-gray-400">Message ID: {{ message.messageId }}</p>
                     }
                   </div>
                   <span class="text-gray-400">→</span>
@@ -85,9 +97,9 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
             <div class="space-y-4">
               <div>
                 <label class="label">Type *</label>
-                <select [(ngModel)]="newMessage.staticMessageType" class="input">
+                <select [(ngModel)]="newMessage.staticMessageType" (ngModelChange)="onCreateTypeChange($event)" class="input">
                   @for (type of staticMessageTypes; track type) {
-                    <option [value]="type">{{ type }}</option>
+                    <option [value]="type">{{ getTypeLabel(type) }}</option>
                   }
                 </select>
               </div>
@@ -95,18 +107,18 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
                 <label class="label">Channel *</label>
                 <app-autocomplete [items]="discordChannels" displayKey="name" valueKey="id" placeholder="Search channels..." [selectedItem]="selectedCreateChannel" (selectedItemChange)="onCreateChannelSelected($event)" nullLabel="Select a channel" groupByKey="category.id" groupDisplayKey="category.name"></app-autocomplete>
               </div>
-              <div>
-                <label class="label">Message ID</label>
-                <input [(ngModel)]="newMessage.messageId" type="text" class="input" />
-              </div>
-              <div>
-                <label class="label">Object IDs</label>
-                <textarea [(ngModel)]="newMessage.objectIds" rows="3" class="input font-mono text-sm"></textarea>
-                <small class="text-gray-400">One object ID per line.</small>
-              </div>
+              @if (shouldShowObjectIds(newMessage.staticMessageType)) {
+                <div>
+                  <label class="label">Object IDs</label>
+                  <app-multi-select-autocomplete [items]="objectOptions" [selectedItems]="selectedCreateObjectOptions" (selectedItemsChange)="onCreateObjectOptionsSelected($event)" displayKey="name" valueKey="id" placeholder="Search objects..." nullLabel="No objects selected"></app-multi-select-autocomplete>
+                </div>
+              }
               <div>
                 <label class="label">Embed Override</label>
-                <textarea [(ngModel)]="newMessage.embedOverride" rows="6" class="input font-mono text-sm"></textarea>
+                <textarea [(ngModel)]="newMessage.embedOverride" (ngModelChange)="validateCreateEmbedOverride()" rows="6" class="input font-mono text-sm"></textarea>
+                @if (createEmbedOverrideError) {
+                  <small class="text-red-400">{{ createEmbedOverrideError }}</small>
+                }
               </div>
               <label class="flex items-center cursor-pointer">
                 <input [(ngModel)]="newMessage.active" type="checkbox" class="mr-2" />
@@ -115,7 +127,7 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
             </div>
             <div class="flex gap-3 mt-6">
               <button (click)="closeCreateModal()" class="btn btn-secondary flex-1">Cancel</button>
-              <button (click)="createStaticMessage()" class="btn btn-primary flex-1" [disabled]="!newMessage.channelId || isCreating">{{ isCreating ? 'Creating...' : 'Create' }}</button>
+              <button (click)="createStaticMessage()" class="btn btn-primary flex-1" [disabled]="!newMessage.channelId || isCreating || !!createEmbedOverrideError">{{ isCreating ? 'Creating...' : 'Create' }}</button>
             </div>
             @if (createError) {
               <p class="text-red-400 text-sm mt-4">{{ createError }}</p>
@@ -130,23 +142,28 @@ export class StaticMessageListComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private staticMessageService = inject(StaticMessageControllerService);
   private discordChannelService = inject(DiscordChannelControllerService);
+  private ticketPanelService = inject(TicketPanelControllerService);
+  private carryTypeService = inject(CarryTypeControllerService);
+  private carryTierService = inject(CarryTierControllerService);
   private cdr = inject(ChangeDetectorRef);
 
   serverId!: string;
   staticMessages: StaticMessageWithActive[] = [];
   discordChannels: DiscordChannelModel[] = [];
+  objectOptions: StaticMessageObjectOption[] = [];
   loading = true;
   loadError: string | null = null;
   showCreateModal = false;
   isCreating = false;
   createError: string | null = null;
+  createEmbedOverrideError: string | null = null;
   selectedCreateChannel: DiscordChannelModel | null = null;
-  staticMessageTypes: StaticMessageType[] = ['ScoreLeaderboard', 'TotalLeaderboard', 'ReputationLeaderboard', 'TicketPanel', 'PriceMessage'];
+  selectedCreateObjectOptions: StaticMessageObjectOption[] = [];
+  staticMessageTypes = STATIC_MESSAGE_TYPES;
   newMessage = {
     channelId: '',
-    messageId: '',
     staticMessageType: 'ScoreLeaderboard' as StaticMessageType,
-    objectIds: '',
+    objectIds: [] as string[],
     embedOverride: '',
     active: true
   };
@@ -155,6 +172,10 @@ export class StaticMessageListComponent implements OnInit {
     this.serverId = this.route.snapshot.params['serverId'];
     this.loadChannels();
     this.loadStaticMessages();
+  }
+
+  getTypeLabel(type: StaticMessageType): string {
+    return getStaticMessageTypeLabel(type);
   }
 
   loadStaticMessages(): void {
@@ -189,27 +210,81 @@ export class StaticMessageListComponent implements OnInit {
     return this.discordChannels.find(channel => channel.id === channelId)?.name || 'Unknown channel';
   }
 
+  openCreateModal(): void {
+    this.showCreateModal = true;
+    this.loadObjectOptions(this.newMessage.staticMessageType);
+  }
+
+  onCreateTypeChange(type: StaticMessageType): void {
+    this.selectedCreateObjectOptions = [];
+    this.newMessage.objectIds = [];
+    this.loadObjectOptions(type);
+  }
+
+  shouldShowObjectIds(type: StaticMessageType): boolean {
+    return supportsObjectIds(type);
+  }
+
+  loadObjectOptions(type: StaticMessageType): void {
+    this.objectOptions = [];
+    if (type === 'TicketPanel') {
+      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({next: panels => this.objectOptions = (panels || []).map(toTicketPanelOption)});
+    } else if (type === 'ScoreLeaderboard') {
+      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({next: carryTypes => this.objectOptions = (carryTypes || []).map(toCarryTypeOption)});
+    } else if (type === 'PriceMessage') {
+      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+        next: carryTypes => {
+          const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
+          (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
+            next: carryTierGroups => this.objectOptions = carryTierGroups.flat().map(toCarryTierOption)
+          });
+        }
+      });
+    }
+  }
+
   onCreateChannelSelected(channel: DiscordChannelModel | null): void {
     this.selectedCreateChannel = channel;
     this.newMessage.channelId = channel?.id || '';
   }
 
+  onCreateObjectOptionsSelected(options: StaticMessageObjectOption[]): void {
+    this.selectedCreateObjectOptions = options;
+    this.newMessage.objectIds = options.map(option => option.id);
+  }
+
   closeCreateModal(): void {
     this.showCreateModal = false;
     this.createError = null;
+    this.createEmbedOverrideError = null;
+  }
+
+  validateCreateEmbedOverride(): void {
+    this.createEmbedOverrideError = this.getJsonValidationError(this.newMessage.embedOverride);
+  }
+
+  private getJsonValidationError(value: string): string | null {
+    if (!value.trim()) return null;
+    try {
+      JSON.parse(value);
+      return null;
+    } catch {
+      return 'Invalid JSON format';
+    }
   }
 
   createStaticMessage(): void {
-    if (!this.newMessage.channelId || this.isCreating) return;
+    this.validateCreateEmbedOverride();
+    if (!this.newMessage.channelId || this.isCreating || this.createEmbedOverrideError) return;
     this.isCreating = true;
     this.createError = null;
 
+    const embedOverride = this.newMessage.embedOverride.trim();
     const creationModel: StaticMessageCreationWithActive = {
       channelId: this.newMessage.channelId,
-      messageId: this.newMessage.messageId || undefined,
       staticMessageType: this.newMessage.staticMessageType,
-      objectIds: this.newMessage.objectIds.split('\n').map(id => id.trim()).filter(Boolean),
-      embedOverride: this.newMessage.embedOverride || undefined,
+      objectIds: supportsObjectIds(this.newMessage.staticMessageType) ? this.newMessage.objectIds : [],
+      embedOverride: embedOverride || undefined,
       active: this.newMessage.active
     };
 
@@ -218,7 +293,8 @@ export class StaticMessageListComponent implements OnInit {
         this.isCreating = false;
         this.showCreateModal = false;
         this.selectedCreateChannel = null;
-        this.newMessage = {channelId: '', messageId: '', staticMessageType: 'ScoreLeaderboard', objectIds: '', embedOverride: '', active: true};
+        this.selectedCreateObjectOptions = [];
+        this.newMessage = {channelId: '', staticMessageType: 'ScoreLeaderboard', objectIds: [], embedOverride: '', active: true};
         this.loadStaticMessages();
       },
       error: err => {
