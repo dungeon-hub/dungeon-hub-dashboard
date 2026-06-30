@@ -18,6 +18,7 @@ import {MultiSelectAutocompleteComponent} from '../shared/components/multi-selec
 import {getStaticMessageTypeLabel, StaticMessageType} from './static-message/static-message-labels';
 import {
   StaticMessageObjectOption,
+  getObjectOptionTypeLabel,
   supportsObjectIds,
   toCarryTierOption,
   toCarryTypeOption,
@@ -124,7 +125,7 @@ function jsonValidator(control: AbstractControl): ValidationErrors | null {
 
           @if (message && shouldShowObjectIds(message.staticMessageType)) {
             <div class="card">
-              <h3 class="text-xl font-semibold mb-4">Object IDs</h3>
+              <h3 class="text-xl font-semibold mb-4">{{ getObjectOptionLabel(message.staticMessageType) }}</h3>
               <app-multi-select-autocomplete
                 [items]="objectOptions"
                 [selectedItems]="selectedObjectOptions"
@@ -197,6 +198,10 @@ export class StaticMessageEditComponent implements OnInit {
 
   shouldShowObjectIds(type: StaticMessageType): boolean {
     return supportsObjectIds(type);
+  }
+
+  getObjectOptionLabel(type: StaticMessageType): string {
+    return getObjectOptionTypeLabel(type) || 'Object';
   }
 
   loadChannels(): void {

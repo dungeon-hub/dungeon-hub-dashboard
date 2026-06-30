@@ -18,6 +18,7 @@ import {MultiSelectAutocompleteComponent} from '../shared/components/multi-selec
 import {getStaticMessageTypeLabel, STATIC_MESSAGE_TYPES, StaticMessageType} from './static-message/static-message-labels';
 import {
   StaticMessageObjectOption,
+  getObjectOptionTypeLabel,
   supportsObjectIds,
   toCarryTierOption,
   toCarryTypeOption,
@@ -76,6 +77,9 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
                     <p class="text-sm text-gray-400 mt-1">Channel: {{ getChannelName(message.channelId) }}</p>
                     @if (message.messageId) {
                       <p class="text-sm text-gray-400">Message ID: {{ message.messageId }}</p>
+                    }
+                    @if (getObjectNames(message).length > 0) {
+                      <p class="text-sm text-gray-400">{{ getObjectOptionLabel(message.staticMessageType) }}: {{ getObjectNames(message).join(', ') }}</p>
                     }
                   </div>
                   <div class="flex flex-col sm:flex-row gap-2">
@@ -156,6 +160,9 @@ export class StaticMessageListComponent implements OnInit {
   staticMessages: StaticMessageWithActive[] = [];
   discordChannels: DiscordChannelModel[] = [];
   objectOptions: StaticMessageObjectOption[] = [];
+  private ticketPanelNameById = new Map<string, string>();
+  private carryTypeNameById = new Map<string, string>();
+  private carryTierNameById = new Map<string, string>();
   loading = true;
   loadError: string | null = null;
   showCreateModal = false;
@@ -176,6 +183,7 @@ export class StaticMessageListComponent implements OnInit {
   ngOnInit(): void {
     this.serverId = this.route.snapshot.params['serverId'];
     this.loadChannels();
+    this.loadObjectNameMaps();
     this.loadStaticMessages();
   }
 
@@ -213,6 +221,48 @@ export class StaticMessageListComponent implements OnInit {
 
   getChannelName(channelId: string): string {
     return this.discordChannels.find(channel => channel.id === channelId)?.name || 'Unknown channel';
+  }
+
+  getObjectOptionLabel(type: StaticMessageType): string {
+    return getObjectOptionTypeLabel(type) || 'Object';
+  }
+
+  getObjectNames(message: StaticMessageModel): string[] {
+    if (!supportsObjectIds(message.staticMessageType)) return [];
+
+    const nameMap = message.staticMessageType === 'TicketPanel'
+      ? this.ticketPanelNameById
+      : message.staticMessageType === 'ScoreLeaderboard'
+        ? this.carryTypeNameById
+        : this.carryTierNameById;
+
+    return (message.objectIds || []).map(id => nameMap.get(id) || id);
+  }
+
+  loadObjectNameMaps(): void {
+    this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
+      next: panels => {
+        this.ticketPanelNameById = new Map((panels || []).map(panel => [panel.id, toTicketPanelOption(panel).name]));
+        this.cdr.detectChanges();
+      }
+    });
+
+    this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+      next: carryTypes => {
+        const carryTypeOptions = (carryTypes || []).map(toCarryTypeOption);
+        this.carryTypeNameById = new Map(carryTypeOptions.map(option => [option.id, option.name]));
+        this.cdr.detectChanges();
+
+        const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
+        (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
+          next: carryTierGroups => {
+            const carryTierOptions = carryTierGroups.flat().map(toCarryTierOption);
+            this.carryTierNameById = new Map(carryTierOptions.map(option => [option.id, option.name]));
+            this.cdr.detectChanges();
+          }
+        });
+      }
+    });
   }
 
   getDiscordMessageUrl(message: StaticMessageModel): string {

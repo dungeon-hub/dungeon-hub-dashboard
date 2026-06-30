@@ -15,6 +15,19 @@ export function supportsObjectIds(type: StaticMessageType): type is ObjectOption
   return type in STATIC_MESSAGE_OBJECT_OPTION_TYPES;
 }
 
+export function getObjectOptionTypeLabel(type: StaticMessageType): string | null {
+  if (!supportsObjectIds(type)) return null;
+
+  switch (STATIC_MESSAGE_OBJECT_OPTION_TYPES[type]) {
+    case 'TicketPanel':
+      return 'Ticket Panel';
+    case 'CarryType':
+      return 'Carry Type';
+    case 'CarryTier':
+      return 'Carry Tier';
+  }
+}
+
 export function toTicketPanelOption(panel: TicketPanelModel): StaticMessageObjectOption {
   return {id: panel.id, name: panel.displayName || panel.name || panel.id};
 }
