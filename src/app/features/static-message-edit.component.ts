@@ -83,6 +83,9 @@ function jsonValidator(control: AbstractControl): ValidationErrors | null {
               <div>
                 <label class="label">Message ID</label>
                 <p class="px-3 py-2 bg-gray-800 rounded text-gray-200 break-all">{{ message?.messageId || 'Not sent yet' }}</p>
+                @if (message?.messageId) {
+                  <a [href]="getDiscordMessageUrl()" target="_blank" rel="noopener noreferrer" class="btn btn-secondary mt-3 inline-block">Jump to Message</a>
+                }
               </div>
               <div class="md:col-span-2">
                 <label class="label">Channel</label>
@@ -255,6 +258,10 @@ export class StaticMessageEditComponent implements OnInit {
     this.objectOptions = options;
     this.selectedObjectOptions = options.filter(option => selectedIds.includes(option.id));
     this.cdr.detectChanges();
+  }
+
+  getDiscordMessageUrl(): string {
+    return `https://discord.com/channels/${this.serverId}/${this.message?.channelId}/${this.message?.messageId}`;
   }
 
   onChannelSelected(channel: DiscordChannelModel | null): void {

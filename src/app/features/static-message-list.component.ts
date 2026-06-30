@@ -63,11 +63,11 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
         @if (!loading && staticMessages.length > 0) {
           <div class="space-y-4">
             @for (message of staticMessages; track message.id) {
-              <a [routerLink]="['/server', serverId, 'static-message', message.id]" class="block p-4 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group">
-                <div class="flex justify-between items-center gap-4">
+              <div class="p-4 bg-gray-700 rounded-lg transition-colors group">
+                <div class="flex justify-between items-start gap-4">
                   <div class="flex-1">
                     <div class="flex flex-wrap items-center gap-3">
-                      <span class="text-lg font-semibold group-hover:text-blue-400 transition-colors">{{ getTypeLabel(message.staticMessageType) }}</span>
+                      <span class="text-lg font-semibold">{{ getTypeLabel(message.staticMessageType) }}</span>
                       <span class="text-sm text-gray-400">#{{ message.id }}</span>
                       <span class="text-xs px-2 py-1 rounded" [class.bg-green-900]="message.active !== false" [class.text-green-300]="message.active !== false" [class.bg-red-900]="message.active === false" [class.text-red-300]="message.active === false">
                         {{ message.active === false ? 'Inactive' : 'Active' }}
@@ -78,9 +78,14 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
                       <p class="text-sm text-gray-400">Message ID: {{ message.messageId }}</p>
                     }
                   </div>
-                  <span class="text-gray-400">→</span>
+                  <div class="flex flex-col sm:flex-row gap-2">
+                    @if (message.messageId) {
+                      <a [href]="getDiscordMessageUrl(message)" target="_blank" rel="noopener noreferrer" class="btn btn-secondary whitespace-nowrap">Jump to Message</a>
+                    }
+                    <a [routerLink]="['/server', serverId, 'static-message', message.id]" class="btn btn-primary whitespace-nowrap">Edit</a>
+                  </div>
                 </div>
-              </a>
+              </div>
             }
           </div>
         }
@@ -208,6 +213,10 @@ export class StaticMessageListComponent implements OnInit {
 
   getChannelName(channelId: string): string {
     return this.discordChannels.find(channel => channel.id === channelId)?.name || 'Unknown channel';
+  }
+
+  getDiscordMessageUrl(message: StaticMessageModel): string {
+    return `https://discord.com/channels/${this.serverId}/${message.channelId}/${message.messageId}`;
   }
 
   openCreateModal(): void {
