@@ -46,6 +46,17 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/ticket-panel/ticket-panel-edit.component').then(m => m.TicketPanelEditComponent)
   },
+
+  {
+    path: 'server/:serverId/static-messages',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/static-message-list.component').then(m => m.StaticMessageListComponent)
+  },
+  {
+    path: 'server/:serverId/static-message/:staticMessageId',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/static-message-edit.component').then(m => m.StaticMessageEditComponent)
+  },
   {
     path: 'server/:serverId/cnt-requests',
     canActivate: [authGuard],
