@@ -316,6 +316,9 @@ export class StaticMessageListComponent implements OnInit {
     this.showCreateModal = false;
     this.createError = null;
     this.createEmbedOverrideError = null;
+    this.selectedCreateChannel = null;
+    this.selectedCreateObjectOptions = [];
+    this.newMessage = {channelId: '', staticMessageType: 'ScoreLeaderboard', objectIds: [], embedOverride: '', active: true};
   }
 
   validateCreateEmbedOverride(): void {

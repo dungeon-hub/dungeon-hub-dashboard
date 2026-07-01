@@ -227,9 +227,10 @@ export class StaticMessageEditComponent implements OnInit {
           embedOverride: message.embedOverride || ''
         });
         this.selectedChannel = this.discordChannels.find(channel => channel.id === message.channelId) || null;
-        this.loadObjectOptions(message.staticMessageType, message.objectIds || []);
-        this.loading = false;
-        this.cdr.detectChanges();
+        this.loadObjectOptions(message.staticMessageType, message.objectIds || [], () => {
+          this.loading = false;
+          this.cdr.detectChanges();
+        });
       },
       error: err => {
         this.loadError = 'Failed to load static message. Please try again.';
@@ -240,22 +241,32 @@ export class StaticMessageEditComponent implements OnInit {
     });
   }
 
-  loadObjectOptions(type: StaticMessageType, selectedIds: string[] = []): void {
+  loadObjectOptions(type: StaticMessageType, selectedIds: string[] = [], onComplete?: () => void): void {
     this.objectOptions = [];
     this.selectedObjectOptions = [];
     if (type === 'TicketPanel') {
-      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({next: panels => this.setObjectOptions((panels || []).map(toTicketPanelOption), selectedIds)});
+      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
+        next: panels => { this.setObjectOptions((panels || []).map(toTicketPanelOption), selectedIds); onComplete?.(); },
+        error: err => { console.error('Failed to load ticket panels:', err); onComplete?.(); }
+      });
     } else if (type === 'ScoreLeaderboard') {
-      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({next: carryTypes => this.setObjectOptions((carryTypes || []).map(toCarryTypeOption), selectedIds)});
+      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+        next: carryTypes => { this.setObjectOptions((carryTypes || []).map(toCarryTypeOption), selectedIds); onComplete?.(); },
+        error: err => { console.error('Failed to load carry types:', err); onComplete?.(); }
+      });
     } else if (type === 'PriceMessage') {
       this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
         next: carryTypes => {
           const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
           (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
-            next: carryTierGroups => this.setObjectOptions(carryTierGroups.flat().map(toCarryTierOption), selectedIds)
+            next: carryTierGroups => { this.setObjectOptions(carryTierGroups.flat().map(toCarryTierOption), selectedIds); onComplete?.(); },
+            error: err => { console.error('Failed to load carry tiers:', err); onComplete?.(); }
           });
-        }
+        },
+        error: err => { console.error('Failed to load carry types:', err); onComplete?.(); }
       });
+    } else {
+      onComplete?.();
     }
   }
 

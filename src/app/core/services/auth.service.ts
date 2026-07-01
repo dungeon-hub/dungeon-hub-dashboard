@@ -27,11 +27,18 @@ export class AuthService {
       return configuredRedirectUri;
     }
 
-    return `${browserOrigin}/auth/callback`;
+    const configuredPath = new URL(configuredRedirectUri).pathname;
+    return `${browserOrigin}${configuredPath}`;
   }
 
   private resolvePostLogoutRedirectUri(configuredPostLogoutRedirectUri: string): string {
-    return this.getBrowserOrigin() || configuredPostLogoutRedirectUri;
+    const browserOrigin = this.getBrowserOrigin();
+    if (!browserOrigin) {
+      return configuredPostLogoutRedirectUri;
+    }
+
+    const configuredPath = new URL(configuredPostLogoutRedirectUri).pathname;
+    return configuredPath && configuredPath !== '/' ? `${browserOrigin}${configuredPath}` : browserOrigin;
   }
 
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
