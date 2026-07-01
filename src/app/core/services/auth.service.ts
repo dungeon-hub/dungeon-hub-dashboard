@@ -81,9 +81,11 @@ export class AuthService {
       if (this.debugOAuth) {
         console.error('[OAuth] Initialization failed:', err);
       }
-    } finally {
-      this.initialized = true;
+      this.initialized = false;
+      return;
     }
+
+    this.initialized = true;
   }
 
   async completeLogin(): Promise<boolean> {
@@ -118,6 +120,8 @@ export class AuthService {
   login(returnUrl?: string) {
     if (returnUrl && returnUrl !== '/login' && !returnUrl.startsWith('/auth/callback')) {
       sessionStorage.setItem('auth_return_url', returnUrl);
+    } else {
+      sessionStorage.removeItem('auth_return_url');
     }
     this.oauthService.initCodeFlow();
   }
