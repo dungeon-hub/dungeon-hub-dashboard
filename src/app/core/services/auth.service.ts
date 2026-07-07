@@ -58,7 +58,12 @@ export class AuthService {
         if (this.debugOAuth) {
           console.warn('[OAuth] Invalid nonce - clearing storage');
         }
-        sessionStorage.clear();
+        this.clearOAuthStorage();
+      } else if (e.type === 'token_expires' || e.type === 'session_terminated') {
+        if (this.debugOAuth) {
+          console.warn('[OAuth] Session expired or terminated');
+        }
+        this.isAuthenticatedSubject.next(false);
       }
     });
   }
@@ -74,7 +79,7 @@ export class AuthService {
       postLogoutRedirectUri: this.resolvePostLogoutRedirectUri(environment.keycloak.postLogoutRedirectUri)
     });
 
-    this.oauthService.setStorage(sessionStorage);
+    this.oauthService.setStorage(localStorage);
     this.oauthService.setupAutomaticSilentRefresh();
 
     try {
@@ -126,11 +131,22 @@ export class AuthService {
 
   login(returnUrl?: string) {
     if (returnUrl && returnUrl !== '/login' && !returnUrl.startsWith('/auth/callback')) {
-      sessionStorage.setItem('auth_return_url', returnUrl);
+      localStorage.setItem('auth_return_url', returnUrl);
     } else {
-      sessionStorage.removeItem('auth_return_url');
+      localStorage.removeItem('auth_return_url');
     }
     this.oauthService.initCodeFlow();
+  }
+
+  private clearOAuthStorage() {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('oauth_') || key.startsWith('nonce_') || key.startsWith('PKCE_') || key === 'access_token' || key === 'id_token' || key === 'refresh_token' || key === 'expires_at')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
   }
 
   logout() {
@@ -152,8 +168,17 @@ export class AuthService {
   }
 
   handleAuthCallback() {
-    const returnUrl = sessionStorage.getItem('auth_return_url') || '/dashboard';
-    sessionStorage.removeItem('auth_return_url');
+    const returnUrl = localStorage.getItem('auth_return_url') || '/dashboard';
+    localStorage.removeItem('auth_return_url');
     this.router.navigateByUrl(returnUrl);
+  }
+
+  handleExpiredSession() {
+    if (this.debugOAuth) {
+      console.warn('[OAuth] Handling expired session');
+    }
+    this.isAuthenticatedSubject.next(false);
+    this.clearOAuthStorage();
+    this.router.navigate(['/login']);
   }
 }
