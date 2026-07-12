@@ -292,17 +292,23 @@ export class StaticMessageListComponent implements OnInit {
     this.currentObjectTypeRequest = type;
     this.objectOptions = [];
     if (type === 'TicketPanel') {
-      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({next: panels => {
-        if (this.currentObjectTypeRequest === type) {
-          this.objectOptions = (panels || []).map(toTicketPanelOption);
-        }
-      }});
+      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
+        next: panels => {
+          if (this.currentObjectTypeRequest === type) {
+            this.objectOptions = (panels || []).map(toTicketPanelOption);
+          }
+        },
+        error: err => { console.error('Failed to load ticket panels:', err); this.createError = 'Failed to load ticket panels. Please try again.'; this.cdr.detectChanges(); }
+      });
     } else if (type === 'ScoreLeaderboard') {
-      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({next: carryTypes => {
-        if (this.currentObjectTypeRequest === type) {
-          this.objectOptions = (carryTypes || []).map(toCarryTypeOption);
-        }
-      }});
+      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+        next: carryTypes => {
+          if (this.currentObjectTypeRequest === type) {
+            this.objectOptions = (carryTypes || []).map(toCarryTypeOption);
+          }
+        },
+        error: err => { console.error('Failed to load carry types:', err); this.createError = 'Failed to load carry types. Please try again.'; this.cdr.detectChanges(); }
+      });
     } else if (type === 'PriceMessage') {
       this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
         next: carryTypes => {
@@ -313,10 +319,12 @@ export class StaticMessageListComponent implements OnInit {
                 if (this.currentObjectTypeRequest === type) {
                   this.objectOptions = carryTierGroups.flat().map(toCarryTierOption);
                 }
-              }
+              },
+              error: err => { console.error('Failed to load carry tiers:', err); this.createError = 'Failed to load carry tiers. Please try again.'; this.cdr.detectChanges(); }
             });
           }
-        }
+        },
+        error: err => { console.error('Failed to load carry types:', err); this.createError = 'Failed to load carry types. Please try again.'; this.cdr.detectChanges(); }
       });
     }
   }
