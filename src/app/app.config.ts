@@ -10,7 +10,7 @@ import { AuthService } from './core/services/auth.service';
 import { routes } from './app.routes';
 
 export function storageFactory(): OAuthStorage {
-  return sessionStorage;
+  return localStorage;
 }
 
 function createApiConfiguration(): Configuration {

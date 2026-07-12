@@ -247,12 +247,12 @@ export class StaticMessageEditComponent implements OnInit {
     if (type === 'TicketPanel') {
       this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
         next: panels => { this.setObjectOptions((panels || []).map(toTicketPanelOption), selectedIds); onComplete?.(); },
-        error: err => { console.error('Failed to load ticket panels:', err); onComplete?.(); }
+        error: err => { this.loadError = 'Failed to load ticket panels. Please try again.'; console.error('Failed to load ticket panels:', err); this.cdr.detectChanges(); onComplete?.(); }
       });
     } else if (type === 'ScoreLeaderboard') {
       this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
         next: carryTypes => { this.setObjectOptions((carryTypes || []).map(toCarryTypeOption), selectedIds); onComplete?.(); },
-        error: err => { console.error('Failed to load carry types:', err); onComplete?.(); }
+        error: err => { this.loadError = 'Failed to load carry types. Please try again.'; console.error('Failed to load carry types:', err); this.cdr.detectChanges(); onComplete?.(); }
       });
     } else if (type === 'PriceMessage') {
       this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
@@ -260,10 +260,10 @@ export class StaticMessageEditComponent implements OnInit {
           const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
           (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
             next: carryTierGroups => { this.setObjectOptions(carryTierGroups.flat().map(toCarryTierOption), selectedIds); onComplete?.(); },
-            error: err => { console.error('Failed to load carry tiers:', err); onComplete?.(); }
+            error: err => { this.loadError = 'Failed to load carry tiers. Please try again.'; console.error('Failed to load carry tiers:', err); this.cdr.detectChanges(); onComplete?.(); }
           });
         },
-        error: err => { console.error('Failed to load carry types:', err); onComplete?.(); }
+        error: err => { this.loadError = 'Failed to load carry types. Please try again.'; console.error('Failed to load carry types:', err); this.cdr.detectChanges(); onComplete?.(); }
       });
     } else {
       onComplete?.();

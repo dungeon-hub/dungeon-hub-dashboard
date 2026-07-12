@@ -33,7 +33,7 @@ import {FormsModule} from '@angular/forms';
 
           <div class="max-h-60 overflow-y-auto">
             @for (item of filteredItems; track getNestedProperty(item, valueKey)) {
-              <button type="button" (click)="toggleItem(item)" (keydown.enter)="toggleItem(item)" (keydown.space)="toggleItem(item); $event.preventDefault()" class="w-full px-4 py-2 cursor-pointer hover:bg-gray-700 transition-colors flex items-center justify-between text-left bg-transparent border-none" [class.bg-gray-700]="isItemSelected(item)">
+              <button type="button" (click)="toggleItem(item)" class="w-full px-4 py-2 cursor-pointer hover:bg-gray-700 transition-colors flex items-center justify-between text-left bg-transparent border-none" [class.bg-gray-700]="isItemSelected(item)">
                 <span class="text-gray-300">{{ getNestedProperty(item, displayKey) }}</span>
                 @if (isItemSelected(item)) {
                   <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

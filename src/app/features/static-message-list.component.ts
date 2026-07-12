@@ -245,7 +245,8 @@ export class StaticMessageListComponent implements OnInit {
       next: panels => {
         this.ticketPanelNameById = new Map((panels || []).map(panel => [panel.id, toTicketPanelOption(panel).name]));
         this.cdr.detectChanges();
-      }
+      },
+      error: err => console.error('Failed to load ticket panels:', err)
     });
 
     this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
@@ -260,9 +261,11 @@ export class StaticMessageListComponent implements OnInit {
             const carryTierOptions = carryTierGroups.flat().map(toCarryTierOption);
             this.carryTierNameById = new Map(carryTierOptions.map(option => [option.id, option.name]));
             this.cdr.detectChanges();
-          }
+          },
+          error: err => console.error('Failed to load carry tiers:', err)
         });
-      }
+      },
+      error: err => console.error('Failed to load carry types:', err)
     });
   }
 

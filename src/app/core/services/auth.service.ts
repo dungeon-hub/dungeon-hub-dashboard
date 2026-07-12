@@ -79,7 +79,6 @@ export class AuthService {
       postLogoutRedirectUri: this.resolvePostLogoutRedirectUri(environment.keycloak.postLogoutRedirectUri)
     });
 
-    this.oauthService.setStorage(localStorage);
     this.oauthService.setupAutomaticSilentRefresh();
 
     try {
@@ -139,14 +138,7 @@ export class AuthService {
   }
 
   private clearOAuthStorage() {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.startsWith('oauth_') || key.startsWith('nonce_') || key.startsWith('PKCE_') || key === 'access_token' || key === 'id_token' || key === 'refresh_token' || key === 'expires_at')) {
-        keysToRemove.push(key);
-      }
-    }
-    keysToRemove.forEach(key => localStorage.removeItem(key));
+    this.oauthService.logOut(true);
   }
 
   logout() {
