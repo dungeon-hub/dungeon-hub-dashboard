@@ -163,6 +163,7 @@ export class StaticMessageListComponent implements OnInit {
   private ticketPanelNameById = new Map<string, string>();
   private carryTypeNameById = new Map<string, string>();
   private carryTierNameById = new Map<string, string>();
+  private currentObjectTypeRequest: StaticMessageType | null = null;
   loading = true;
   loadError: string | null = null;
   showCreateModal = false;
@@ -285,18 +286,33 @@ export class StaticMessageListComponent implements OnInit {
   }
 
   loadObjectOptions(type: StaticMessageType): void {
+    this.currentObjectTypeRequest = type;
     this.objectOptions = [];
     if (type === 'TicketPanel') {
-      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({next: panels => this.objectOptions = (panels || []).map(toTicketPanelOption)});
+      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({next: panels => {
+        if (this.currentObjectTypeRequest === type) {
+          this.objectOptions = (panels || []).map(toTicketPanelOption);
+        }
+      }});
     } else if (type === 'ScoreLeaderboard') {
-      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({next: carryTypes => this.objectOptions = (carryTypes || []).map(toCarryTypeOption)});
+      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({next: carryTypes => {
+        if (this.currentObjectTypeRequest === type) {
+          this.objectOptions = (carryTypes || []).map(toCarryTypeOption);
+        }
+      }});
     } else if (type === 'PriceMessage') {
       this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
         next: carryTypes => {
-          const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
-          (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
-            next: carryTierGroups => this.objectOptions = carryTierGroups.flat().map(toCarryTierOption)
-          });
+          if (this.currentObjectTypeRequest === type) {
+            const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
+            (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
+              next: carryTierGroups => {
+                if (this.currentObjectTypeRequest === type) {
+                  this.objectOptions = carryTierGroups.flat().map(toCarryTierOption);
+                }
+              }
+            });
+          }
         }
       });
     }

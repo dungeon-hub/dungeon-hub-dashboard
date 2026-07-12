@@ -223,7 +223,7 @@ export class StaticMessageEditComponent implements OnInit {
         this.message = message;
         this.form.patchValue({
           channelId: message.channelId,
-          active: (message as StaticMessageWithActive).active ?? true,
+          active: (message as StaticMessageWithActive).active,
           embedOverride: message.embedOverride || ''
         });
         this.selectedChannel = this.discordChannels.find(channel => channel.id === message.channelId) || null;
