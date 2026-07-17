@@ -25,9 +25,6 @@ import {
   toTicketPanelOption
 } from './static-message/static-message-object-options';
 
-type StaticMessageWithActive = StaticMessageModel & { active?: boolean };
-type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: boolean };
-
 @Component({
   selector: 'app-static-message-list',
   standalone: true,
@@ -70,8 +67,8 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
                     <div class="flex flex-wrap items-center gap-3">
                       <span class="text-lg font-semibold">{{ getTypeLabel(message.staticMessageType) }}</span>
                       <span class="text-sm text-gray-400">#{{ message.id }}</span>
-                      <span class="text-xs px-2 py-1 rounded" [class.bg-green-900]="message.active !== false" [class.text-green-300]="message.active !== false" [class.bg-red-900]="message.active === false" [class.text-red-300]="message.active === false">
-                        {{ message.active === false ? 'Inactive' : 'Active' }}
+                      <span class="text-xs px-2 py-1 rounded" [class.bg-green-900]="message.active" [class.text-green-300]="message.active" [class.bg-red-900]="!message.active" [class.text-red-300]="!message.active">
+                        {{ message.active ? 'Active' : 'Inactive' }}
                       </span>
                     </div>
                     <p class="text-sm text-gray-400 mt-1">Channel: {{ getChannelName(message.channelId) }}</p>
@@ -129,10 +126,6 @@ type StaticMessageCreationWithActive = StaticMessageCreationModel & { active?: b
                   <small class="text-red-400">{{ createEmbedOverrideError }}</small>
                 }
               </div>
-              <label class="flex items-center cursor-pointer">
-                <input [(ngModel)]="newMessage.active" type="checkbox" class="mr-2" />
-                <span class="text-gray-300">Active</span>
-              </label>
             </div>
             <div class="flex gap-3 mt-6">
               <button (click)="closeCreateModal()" class="btn btn-secondary flex-1">Cancel</button>
@@ -157,7 +150,7 @@ export class StaticMessageListComponent implements OnInit {
   private cdr = inject(ChangeDetectorRef);
 
   serverId!: string;
-  staticMessages: StaticMessageWithActive[] = [];
+  staticMessages: StaticMessageModel[] = [];
   discordChannels: DiscordChannelModel[] = [];
   objectOptions: StaticMessageObjectOption[] = [];
   private ticketPanelNameById = new Map<string, string>();
@@ -369,12 +362,11 @@ export class StaticMessageListComponent implements OnInit {
     this.createError = null;
 
     const embedOverride = this.newMessage.embedOverride.trim();
-    const creationModel: StaticMessageCreationWithActive = {
+    const creationModel: StaticMessageCreationModel = {
       channelId: this.newMessage.channelId,
       staticMessageType: this.newMessage.staticMessageType,
       objectIds: supportsObjectIds(this.newMessage.staticMessageType) ? this.newMessage.objectIds : [],
-      embedOverride: embedOverride || undefined,
-      active: this.newMessage.active
+      embedOverride: embedOverride || undefined
     };
 
     this.staticMessageService.createStaticMessage(this.serverId, creationModel).subscribe({

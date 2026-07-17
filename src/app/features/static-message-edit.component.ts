@@ -25,9 +25,6 @@ import {
   toTicketPanelOption
 } from './static-message/static-message-object-options';
 
-type StaticMessageWithActive = StaticMessageModel & { active?: boolean };
-type StaticMessageUpdateWithActive = StaticMessageUpdateModel & { active?: boolean };
-
 function jsonValidator(control: AbstractControl): ValidationErrors | null {
   const value = control.value;
   if (!value || !value.trim()) return null;
@@ -165,7 +162,7 @@ export class StaticMessageEditComponent implements OnInit {
 
   serverId!: string;
   staticMessageId!: string;
-  message: StaticMessageWithActive | null = null;
+  message: StaticMessageModel | null = null;
   discordChannels: DiscordChannelModel[] = [];
   objectOptions: StaticMessageObjectOption[] = [];
   selectedChannel: DiscordChannelModel | null = null;
@@ -223,7 +220,7 @@ export class StaticMessageEditComponent implements OnInit {
         this.message = message;
         this.form.patchValue({
           channelId: message.channelId,
-          active: (message as StaticMessageWithActive).active,
+          active: message.active,
           embedOverride: message.embedOverride || ''
         });
         this.selectedChannel = this.discordChannels.find(channel => channel.id === message.channelId) || null;
@@ -297,7 +294,7 @@ export class StaticMessageEditComponent implements OnInit {
 
     const value = this.form.value;
     const embedOverride = (value.embedOverride || '').trim();
-    const updateModel: StaticMessageUpdateWithActive = {
+    const updateModel: StaticMessageUpdateModel = {
       channelId: this.selectedChannel?.id || value.channelId || undefined,
       active: value.active ?? true,
       embedOverride: embedOverride || undefined,
