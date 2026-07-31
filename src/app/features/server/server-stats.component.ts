@@ -106,7 +106,9 @@ export function getDiscordUserId(token: string | null): string {
                 {{ card.title }}
               </p>
               <p class="mt-3 text-3xl font-bold break-words">{{ card.value }}</p>
-              <p class="mt-2 text-sm text-gray-400">{{ card.description }}</p>
+              @if (card.description) {
+                <p class="mt-2 text-sm text-gray-400">{{ card.description }}</p>
+              }
             </article>
           }
         </div>
@@ -146,6 +148,13 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         title: 'Total carries',
         value: formatCompactValue(this.stats.totalCarries),
         description: 'Completed by this server',
+      },
+      {
+        borderClass: 'border-cyan-500/40',
+        titleClass: 'text-cyan-400',
+        title: 'Total tickets',
+        value: 'Coming soon',
+        description: '',
       },
       {
         borderClass: 'border-amber-500/40',
