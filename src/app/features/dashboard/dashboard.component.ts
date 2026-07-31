@@ -7,6 +7,21 @@ import { DiscordGuildService, DiscordGuild } from '../../core/services/discord-g
 import { CdnService } from '../../core/services/cdn.service';
 import { DiscordServerControllerService } from '@dungeon-hub/api-client';
 
+export function categorizeGuilds(
+  allGuilds: DiscordGuild[],
+  adminServerIds: ReadonlySet<string>,
+  botServerIds: ReadonlySet<string>
+) {
+  const hasAdminAccess = (guild: DiscordGuild) => adminServerIds.has(guild.id.toString());
+  const hasBot = (guild: DiscordGuild) => botServerIds.has(guild.id.toString());
+
+  return {
+    editable: allGuilds.filter(guild => hasAdminAccess(guild) && hasBot(guild)),
+    needingInvite: allGuilds.filter(guild => hasAdminAccess(guild) && !hasBot(guild)),
+    viewOnly: allGuilds.filter(guild => !hasAdminAccess(guild) && hasBot(guild))
+  };
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -39,18 +54,15 @@ import { DiscordServerControllerService } from '@dungeon-hub/api-client';
         </div>
       }
 
-      <!-- Your Servers -->
+      <!-- Servers the user can manage -->
       @if (!loading && !error && guilds.length > 0) {
         <div class="mb-8">
-          <h2 class="text-2xl font-bold mb-4">Your Servers</h2>
+          <h2 class="text-2xl font-bold mb-4">Servers You Can Manage</h2>
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @for (guild of guilds; track guild.id) {
-              <a
-                [routerLink]="['/server', guild.id]"
-                class="card hover:border-blue-500 hover:shadow-xl transition-all cursor-pointer group"
-              >
+              <div class="card">
                 <div class="flex items-center gap-4">
-                  <div class="relative w-16 h-16 rounded-full overflow-hidden group-hover:scale-110 transition-transform">
+                  <div class="relative w-16 h-16 rounded-full overflow-hidden">
                     @if (guild.icon) {
                       <img
                         [src]="getIconUrl(guild)"
@@ -67,13 +79,27 @@ import { DiscordServerControllerService } from '@dungeon-hub/api-client';
                     }
                   </div>
                   <div class="flex-1 min-w-0">
-                    <h3 class="text-xl font-semibold group-hover:text-blue-400 transition-colors truncate">
+                    <h3 class="text-xl font-semibold truncate">
                       {{ getDisplayName(guild) }}
                     </h3>
                     <p class="text-gray-400 text-sm truncate">ID: {{ guild.id }}</p>
                   </div>
+                  <div class="flex flex-col gap-2">
+                    <a
+                      [routerLink]="['/server', guild.id, 'stats']"
+                      class="btn btn-secondary text-center whitespace-nowrap"
+                    >
+                      View
+                    </a>
+                    <a
+                      [routerLink]="['/server', guild.id]"
+                      class="btn btn-primary text-center whitespace-nowrap"
+                    >
+                      Edit
+                    </a>
+                  </div>
                 </div>
-              </a>
+              </div>
             }
           </div>
         </div>
@@ -124,8 +150,51 @@ import { DiscordServerControllerService } from '@dungeon-hub/api-client';
         </div>
       }
 
+      <!-- Servers shared by the user and bot without admin access -->
+      @if (!loading && !error && viewOnlyGuilds.length > 0) {
+        <div class="mb-8">
+          <h2 class="text-2xl font-bold mb-4">Other Servers You're In</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @for (guild of viewOnlyGuilds; track guild.id) {
+              <div class="card">
+                <div class="flex items-center gap-4">
+                  <div class="relative w-16 h-16 rounded-full overflow-hidden">
+                    @if (guild.icon) {
+                      <img
+                        [src]="getIconUrl(guild)"
+                        [alt]="guild.name"
+                        class="w-full h-full object-cover"
+                      />
+                    } @else {
+                      <div
+                        class="w-full h-full flex items-center justify-center text-2xl font-bold text-white"
+                        [style.background-color]="getGuildColor(guild)"
+                      >
+                        {{ guild.name[0].toUpperCase() }}
+                      </div>
+                    }
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="text-xl font-semibold truncate">
+                      {{ getDisplayName(guild) }}
+                    </h3>
+                    <p class="text-gray-400 text-sm truncate">ID: {{ guild.id }}</p>
+                  </div>
+                  <a
+                    [routerLink]="['/server', guild.id, 'stats']"
+                    class="btn btn-secondary text-center whitespace-nowrap"
+                  >
+                    View
+                  </a>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
       <!-- Empty State -->
-      @if (!loading && !error && guilds.length === 0 && guildsNeedingInvite.length === 0) {
+      @if (!loading && !error && guilds.length === 0 && viewOnlyGuilds.length === 0 && guildsNeedingInvite.length === 0) {
         <div class="card text-center py-12">
           <p class="text-gray-400 text-lg">No servers found.</p>
           <p class="text-gray-500 text-sm mt-2">
@@ -294,6 +363,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
 
   guilds: DiscordGuild[] = [];
+  viewOnlyGuilds: DiscordGuild[] = [];
   guildsNeedingInvite: DiscordGuild[] = [];
   userInfo: any;
   loading = true;
@@ -387,17 +457,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
         // Get server IDs where bot has access
         const serverIds = new Set(serverArray.map((s: any) => s.id?.toString()));
 
-        // Your Servers: Use servers from API and match with guild info
-        this.guilds = allGuilds.filter(guild => {
-          const guildId = guild.id?.toString();
-          return serverIds.has(guildId);
-        });
-
-        // Servers Needing Invite: Admin servers where bot doesn't have access
-        this.guildsNeedingInvite = allGuilds.filter(guild => {
-          const guildId = guild.id?.toString();
-          return adminServerIds.has(guildId) && !serverIds.has(guildId);
-        });
+        const categorizedGuilds = categorizeGuilds(allGuilds, adminServerIds, serverIds);
+        this.guilds = categorizedGuilds.editable;
+        this.viewOnlyGuilds = categorizedGuilds.viewOnly;
+        this.guildsNeedingInvite = categorizedGuilds.needingInvite;
 
         this.loading = false;
         this.cdr.detectChanges();

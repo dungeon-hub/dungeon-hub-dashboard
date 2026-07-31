@@ -32,6 +32,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent)
   },
   {
+    path: 'server/:serverId/stats',
+    canActivate: [authGuard],
+    loadComponent: () => import('./features/server/server-stats.component').then(m => m.ServerStatsComponent)
+  },
+  {
     path: 'server/:serverId',
     canActivate: [authGuard],
     loadComponent: () => import('./features/server/server-detail.component').then(m => m.ServerDetailComponent)
