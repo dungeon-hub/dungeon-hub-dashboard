@@ -1,6 +1,8 @@
-import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { OAuthService } from 'angular-oauth2-oidc';
+import { catchError, throwError } from 'rxjs';
+import { AuthService } from '../services/auth.service';
 import { environment } from '../../../environments/environment';
 
 // Allowed origins for bearer token attachment
@@ -32,6 +34,7 @@ function isAllowedUrl(url: string): boolean {
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const oauthService = inject(OAuthService);
+  const authService = inject(AuthService);
   const token = oauthService.getAccessToken();
 
   if (token && isAllowedUrl(req.url)) {
@@ -42,5 +45,12 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     });
   }
 
-  return next(req);
+  return next(req).pipe(
+    catchError((error: HttpErrorResponse) => {
+      if (error.status === 401 && isAllowedUrl(req.url)) {
+        authService.handleExpiredSession();
+      }
+      return throwError(() => error);
+    })
+  );
 };
