@@ -12,6 +12,44 @@ export interface ServerStats {
   userMoneyEarned: string;
 }
 
+const COMPACT_SUFFIXES = [
+  { threshold: 12, suffix: 't' },
+  { threshold: 9, suffix: 'b' },
+  { threshold: 6, suffix: 'm' },
+  { threshold: 3, suffix: 'k' },
+] as const;
+
+export function formatCompactValue(value: string): string {
+  const text = String(value ?? '0');
+  const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+  if (!match) return text;
+
+  const [, sign, rawInteger, fraction = ''] = match;
+  const integer = rawInteger.replace(/^0+(?=\d)/, '');
+  const compactUnit = COMPACT_SUFFIXES.find(({ threshold }) => integer.length > threshold);
+
+  if (!compactUnit) {
+    const groupedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `${sign}${groupedInteger}${fraction ? `.${fraction}` : ''}`;
+  }
+
+  // Do the rounding with BigInt so large API values never pass through a lossy Number.
+  const precision = 4;
+  const decimalScale = 10n ** BigInt(fraction.length);
+  const unitScale = 10n ** BigInt(compactUnit.threshold);
+  const precisionScale = 10n ** BigInt(precision);
+  const absoluteValue = BigInt(`${integer}${fraction}`);
+  const divisor = decimalScale * unitScale;
+  const rounded = (absoluteValue * precisionScale + divisor / 2n) / divisor;
+  const whole = rounded / precisionScale;
+  const decimals = (rounded % precisionScale)
+    .toString()
+    .padStart(precision, '0')
+    .replace(/0+$/, '');
+
+  return `${sign}${whole}${decimals ? `.${decimals}` : ''}${compactUnit.suffix}`;
+}
+
 export function getDiscordUserId(token: string | null): string {
   if (!token) return '';
 
@@ -171,11 +209,6 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   }
 
   protected formatValue(value: string): string {
-    const text = String(value ?? '0');
-    const match = text.match(/^(-?)(\d+)(\.\d+)?$/);
-    if (!match) return text;
-
-    const [, sign, integer, fraction = ''] = match;
-    return `${sign}${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}${fraction}`;
+    return formatCompactValue(value);
   }
 }
