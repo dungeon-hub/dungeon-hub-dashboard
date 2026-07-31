@@ -1,6 +1,6 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { OAuthService } from 'angular-oauth2-oidc';
 
 @Component({
   selector: 'app-auth-callback',
@@ -16,13 +16,20 @@ import { OAuthService } from 'angular-oauth2-oidc';
 })
 export class AuthCallbackComponent implements OnInit {
   private authService = inject(AuthService);
-  private oauthService = inject(OAuthService);
+  private router = inject(Router);
 
   async ngOnInit() {
-    // Load user profile from userinfo endpoint after callback
-    if (this.oauthService.hasValidAccessToken()) {
-      await this.oauthService.loadUserProfile();
+    try {
+      const completedLogin = await this.authService.completeLogin();
+
+      if (completedLogin) {
+        this.authService.handleAuthCallback();
+      } else {
+        this.router.navigate(['/login']);
+      }
+    } catch (err) {
+      console.error('[OAuth] Failed to complete authentication callback:', err);
+      this.router.navigate(['/login']);
     }
-    this.authService.handleAuthCallback();
   }
 }

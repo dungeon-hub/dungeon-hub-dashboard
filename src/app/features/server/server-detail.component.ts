@@ -167,6 +167,25 @@ import {
         }
       </div>
 
+
+      <!-- Static Messages Section -->
+      <div class="card mb-8">
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-2xl font-semibold">Static Messages</h3>
+        </div>
+
+        <p class="text-gray-400 mb-4">
+          Edit static message channels, embed overrides, and active state.
+        </p>
+
+        <a
+          [routerLink]="['/server', serverId, 'static-messages']"
+          class="btn btn-primary"
+        >
+          Manage Static Messages
+        </a>
+      </div>
+
       <!-- CNT Requests Section -->
       <div class="card">
         <div class="flex justify-between items-center mb-6">
