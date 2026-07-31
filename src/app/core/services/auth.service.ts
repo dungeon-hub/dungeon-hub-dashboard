@@ -151,6 +151,10 @@ export class AuthService {
     return this.oauthService.getAccessToken();
   }
 
+  getIdToken(): string | null {
+    return this.oauthService.getIdToken();
+  }
+
   isAuthenticated(): boolean {
     return this.oauthService.hasValidAccessToken();
   }

@@ -12,11 +12,25 @@ export interface ServerStats {
   userMoneyEarned: string;
 }
 
-export function getDiscordUserId(claims: Record<string, unknown> | null): string {
-  if (!claims) return '';
+export function getDiscordUserId(token: string | null): string {
+  if (!token) return '';
 
-  const id = claims['discord-id'];
-  return typeof id === 'string' ? id : '';
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return '';
+
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((character) => `%${character.charCodeAt(0).toString(16).padStart(2, '0')}`)
+        .join(''),
+    );
+    const match = json.match(/"discord-id"\s*:\s*(?:"(\d+)"|(\d+))/);
+    return match?.[1] ?? match?.[2] ?? '';
+  } catch {
+    return '';
+  }
 }
 
 @Component({
@@ -113,7 +127,9 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   }
 
   protected loadStats(): void {
-    const userId = getDiscordUserId(this.authService.getUserInfo());
+    // Read the claim directly from the encoded JWT. Parsing the payload as JSON first would
+    // round Discord snowflakes because they are larger than Number.MAX_SAFE_INTEGER.
+    const userId = getDiscordUserId(this.authService.getIdToken());
     if (!this.serverId || !userId) {
       this.loading = false;
       this.error = 'Your server or Discord user could not be identified.';
