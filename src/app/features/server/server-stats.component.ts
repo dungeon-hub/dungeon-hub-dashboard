@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DiscordServerControllerService } from '@dungeon-hub/api-client';
 import { Subscription, forkJoin } from 'rxjs';
@@ -107,6 +107,7 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private discordGuildService = inject(DiscordGuildService);
   private discordServerService = inject(DiscordServerControllerService);
+  private cdr = inject(ChangeDetectorRef);
   private statsSubscription?: Subscription;
 
   protected serverId = '';
@@ -158,11 +159,13 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
       next: (stats) => {
         this.stats = stats;
         this.loading = false;
+        this.cdr.detectChanges();
       },
       error: () => {
         this.stats = null;
         this.loading = false;
         this.error = 'The statistics service did not return a result. Please try again.';
+        this.cdr.detectChanges();
       },
     });
   }
