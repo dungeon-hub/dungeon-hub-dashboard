@@ -100,41 +100,15 @@ export function getDiscordUserId(token: string | null): string {
         </div>
       } @else if (stats) {
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-          <article class="card border-blue-500/40">
-            <p class="text-sm font-medium uppercase tracking-wide text-blue-400">
-              Total money spent
-            </p>
-            <p class="mt-3 text-3xl font-bold break-words">
-              {{ formatValue(stats.totalMoneySpent) }}
-            </p>
-            <p class="mt-2 text-sm text-gray-400">Across all completed services</p>
-          </article>
-
-          <article class="card border-purple-500/40">
-            <p class="text-sm font-medium uppercase tracking-wide text-purple-400">Total carries</p>
-            <p class="mt-3 text-3xl font-bold break-words">{{ formatValue(stats.totalCarries) }}</p>
-            <p class="mt-2 text-sm text-gray-400">Completed by this server</p>
-          </article>
-
-          <article class="card border-amber-500/40">
-            <p class="text-sm font-medium uppercase tracking-wide text-amber-400">
-              Your money spent
-            </p>
-            <p class="mt-3 text-3xl font-bold break-words">
-              {{ formatValue(stats.userMoneySpent) }}
-            </p>
-            <p class="mt-2 text-sm text-gray-400">As the user receiving a service</p>
-          </article>
-
-          <article class="card border-emerald-500/40">
-            <p class="text-sm font-medium uppercase tracking-wide text-emerald-400">
-              Your money earned
-            </p>
-            <p class="mt-3 text-3xl font-bold break-words">
-              {{ formatValue(stats.userMoneyEarned) }}
-            </p>
-            <p class="mt-2 text-sm text-gray-400">As the carrier providing a service</p>
-          </article>
+          @for (card of statCards; track card.title) {
+            <article class="card {{ card.borderClass }}">
+              <p class="text-sm font-medium uppercase tracking-wide {{ card.titleClass }}">
+                {{ card.title }}
+              </p>
+              <p class="mt-3 text-3xl font-bold break-words">{{ card.value }}</p>
+              <p class="mt-2 text-sm text-gray-400">{{ card.description }}</p>
+            </article>
+          }
         </div>
       }
     </div>
@@ -146,6 +120,7 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   private discordGuildService = inject(DiscordGuildService);
   private discordServerService = inject(DiscordServerControllerService);
   private cdr = inject(ChangeDetectorRef);
+  private routeSubscription?: Subscription;
   private statsSubscription?: Subscription;
 
   protected serverId = '';
@@ -154,14 +129,52 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   protected loading = true;
   protected error = '';
 
+  protected get statCards() {
+    if (!this.stats) return [];
+
+    return [
+      {
+        borderClass: 'border-blue-500/40',
+        titleClass: 'text-blue-400',
+        title: 'Total money spent',
+        value: formatCompactValue(this.stats.totalMoneySpent),
+        description: 'Across all completed services',
+      },
+      {
+        borderClass: 'border-purple-500/40',
+        titleClass: 'text-purple-400',
+        title: 'Total carries',
+        value: formatCompactValue(this.stats.totalCarries),
+        description: 'Completed by this server',
+      },
+      {
+        borderClass: 'border-amber-500/40',
+        titleClass: 'text-amber-400',
+        title: 'Your money spent',
+        value: formatCompactValue(this.stats.userMoneySpent),
+        description: 'As the user receiving a service',
+      },
+      {
+        borderClass: 'border-emerald-500/40',
+        titleClass: 'text-emerald-400',
+        title: 'Your money earned',
+        value: formatCompactValue(this.stats.userMoneyEarned),
+        description: 'As the carrier providing a service',
+      },
+    ];
+  }
+
   ngOnInit(): void {
-    this.serverId = this.route.snapshot.paramMap.get('serverId') ?? '';
-    const guild = this.discordGuildService.getGuildById(this.serverId);
-    this.serverName = guild ? this.discordGuildService.getDisplayName(guild) : 'Server';
-    this.loadStats();
+    this.routeSubscription = this.route.paramMap.subscribe((paramMap) => {
+      this.serverId = paramMap.get('serverId') ?? '';
+      const guild = this.discordGuildService.getGuildById(this.serverId);
+      this.serverName = guild ? this.discordGuildService.getDisplayName(guild) : 'Server';
+      this.loadStats();
+    });
   }
 
   ngOnDestroy(): void {
+    this.routeSubscription?.unsubscribe();
     this.statsSubscription?.unsubscribe();
   }
 
@@ -206,9 +219,5 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
     });
-  }
-
-  protected formatValue(value: string): string {
-    return formatCompactValue(value);
   }
 }
