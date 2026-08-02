@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { formatCompactValue, getDiscordUserId } from './server-stats.component';
+import { TestBed } from '@angular/core/testing';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { DiscordServerControllerService, DiscordUserControllerService } from '@dungeon-hub/api-client';
+import { of } from 'rxjs';
+import { describe, expect, it, vi } from 'vitest';
+import { AuthService } from '../../core/services/auth.service';
+import { DiscordGuildService } from '../../core/services/discord-guild.service';
+import { ServerStatsComponent, formatCompactValue, getDiscordUserId } from './server-stats.component';
 
 function tokenWithPayload(payload: string): string {
   const encodedPayload = btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -39,5 +45,43 @@ describe('formatCompactValue', () => {
 
   it('formats numeric API results', () => {
     expect(formatCompactValue(1250)).toBe('1.25k');
+  });
+
+  it('expands numeric exponent notation before applying compact suffixes', () => {
+    expect(formatCompactValue(1e21)).toBe('1000000000t');
+  });
+});
+
+describe('ServerStatsComponent carry count', () => {
+  it('requests and displays the current user carry count for the server', async () => {
+    const getCarryCount = vi.fn().mockReturnValue(of(1250));
+    const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
+
+    await TestBed.configureTestingModule({
+      imports: [ServerStatsComponent],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ serverId: 'server-1' })) } },
+        { provide: AuthService, useValue: { getIdToken: () => token } },
+        { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
+        {
+          provide: DiscordServerControllerService,
+          useValue: {
+            getTotalAmountOfMoneySpentOnServices: () => of('0'),
+            countCarries: () => of('0'),
+          },
+        },
+        { provide: DiscordUserControllerService, useValue: { getCarryCount } },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ServerStatsComponent);
+    fixture.detectChanges();
+
+    expect(getCarryCount).toHaveBeenCalledWith('356134481452597250', 'server-1');
+    expect((fixture.componentInstance as any).stats.userCarryCount).toBe(1250);
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Your completed carries');
+    expect(text).toContain('1.25k');
   });
 });

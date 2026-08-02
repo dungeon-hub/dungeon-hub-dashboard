@@ -21,7 +21,21 @@ const COMPACT_SUFFIXES = [
 ] as const;
 
 export function formatCompactValue(value: string | number): string {
-  const text = String(value ?? '0');
+  const rawText = String(value ?? '0');
+  const exponentMatch = rawText.match(/^(-?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
+  let text = rawText;
+
+  if (exponentMatch) {
+    const [, sign, whole, fraction = '', rawExponent] = exponentMatch;
+    const digits = `${whole}${fraction}`;
+    const decimalIndex = whole.length + Number(rawExponent);
+    text = decimalIndex <= 0
+      ? `${sign}0.${'0'.repeat(-decimalIndex)}${digits}`
+      : decimalIndex >= digits.length
+        ? `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
+        : `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
+  }
+
   const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
   if (!match) return text;
 
