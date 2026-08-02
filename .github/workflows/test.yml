@@ -1,4 +1,4 @@
-name: Tests
+name: Tests and lint
 
 on:
   push:
@@ -33,3 +33,17 @@ jobs:
 
       - name: Run tests
         run: npm test -- --watch=false
+
+  biome:
+    name: Biome linter
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Biome
+        uses: biomejs/setup-biome@v2
+
+      - name: Run linter
+        run: biome lint src
