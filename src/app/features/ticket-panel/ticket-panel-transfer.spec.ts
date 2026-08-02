@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { TicketPanelModel } from '@dungeon-hub/api-client';
 import {
   exportTicketPanel,
+  findImportConflict,
   hasDuplicatePanelName,
   parseTicketPanelExport,
   toTicketPanelCreation,
+  toTicketPanelUpdate,
 } from './ticket-panel-transfer';
 
 function panel(): TicketPanelModel {
@@ -50,12 +52,30 @@ describe('ticket panel transfer', () => {
     const snapshot = structuredClone(original);
     const imported = parseTicketPanelExport(JSON.stringify(exportTicketPanel(original)));
 
-    imported.name = 'imported-support';
-    imported.displayName = 'Imported Support';
-    imported.openCategories?.push('another-category');
+    imported.panel.name = 'imported-support';
+    imported.panel.displayName = 'Imported Support';
+    imported.panel.openCategories?.push('another-category');
 
     expect(original).toEqual(snapshot);
-    expect(imported.name).toBe('imported-support');
+    expect(imported.panel.name).toBe('imported-support');
+  });
+
+  it('only finds an overwrite conflict when both exported ID and name match', () => {
+    const existing = panel();
+    expect(findImportConflict([existing], { id: '1', name: 'support' })).toBe(existing);
+    expect(findImportConflict([existing], { id: '1', name: 'other' })).toBeUndefined();
+    expect(findImportConflict([existing], { id: '1' })).toBeUndefined();
+  });
+
+  it('builds a detached overwrite model and resets settings absent from the import', () => {
+    const original = panel();
+    const imported = toTicketPanelCreation(original);
+    delete imported.emoji;
+    const update = toTicketPanelUpdate(imported);
+    update.permissions!['Everyone']['Denied'] = '0';
+
+    expect(update.resetEmoji).toBe(true);
+    expect(original.permissions['Everyone']['Denied']).toBe('1024');
   });
 
   it('rejects duplicate internal or display names case-insensitively', () => {

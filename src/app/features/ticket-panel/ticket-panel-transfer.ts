@@ -1,9 +1,21 @@
-import { TicketPanelCreationModel, TicketPanelModel } from '@dungeon-hub/api-client';
+import {
+  TicketPanelCreationModel,
+  TicketPanelModel,
+  TicketPanelUpdateModel,
+} from '@dungeon-hub/api-client';
 
 export const TICKET_PANEL_EXPORT_VERSION = 1;
 
 export interface TicketPanelExport {
   version: number;
+  id?: string;
+  name?: string;
+  panel: TicketPanelCreationModel;
+}
+
+export interface TicketPanelImport {
+  id?: string;
+  name?: string;
   panel: TicketPanelCreationModel;
 }
 
@@ -37,15 +49,45 @@ export function toTicketPanelCreation(panel: TicketPanelModel): TicketPanelCreat
 }
 
 export function exportTicketPanel(panel: TicketPanelModel): TicketPanelExport {
-  return { version: TICKET_PANEL_EXPORT_VERSION, panel: toTicketPanelCreation(panel) };
+  return {
+    version: TICKET_PANEL_EXPORT_VERSION,
+    id: panel.id,
+    name: panel.name,
+    panel: toTicketPanelCreation(panel),
+  };
 }
 
-export function parseTicketPanelExport(contents: string): TicketPanelCreationModel {
+export function parseTicketPanelExport(contents: string): TicketPanelImport {
   const parsed = JSON.parse(contents) as TicketPanelExport;
   if (parsed?.version !== TICKET_PANEL_EXPORT_VERSION || !parsed.panel?.name) {
     throw new Error('This is not a supported ticket panel export.');
   }
-  return structuredClone(parsed.panel);
+  return structuredClone({ id: parsed.id, name: parsed.name, panel: parsed.panel });
+}
+
+export function findImportConflict(
+  panels: TicketPanelModel[],
+  imported: Pick<TicketPanelImport, 'id' | 'name'>,
+): TicketPanelModel | undefined {
+  if (!imported.id || !imported.name) return undefined;
+  return panels.find((panel) => panel.id === imported.id && panel.name === imported.name);
+}
+
+/** Converts every imported setting into an update, including resets for omitted optional values. */
+export function toTicketPanelUpdate(panel: TicketPanelCreationModel): TicketPanelUpdateModel {
+  return {
+    ...structuredClone(panel),
+    resetDisplayName: panel.displayName == null,
+    resetEmoji: panel.emoji == null,
+    resetOpenChannelName: panel.openChannelName == null,
+    resetClaimedChannelName: panel.claimedChannelName == null,
+    resetClosedChannelName: panel.closedChannelName == null,
+    resetTranscriptChannel: panel.transcriptChannel == null,
+    resetTicketMessage: panel.ticketMessage == null,
+    resetUserTranscriptDm: panel.userTranscriptDm == null,
+    resetRelatedCarryTier: panel.relatedCarryTier == null,
+    resetRelatedCarryDifficulty: panel.relatedCarryDifficulty == null,
+  };
 }
 
 export function hasDuplicatePanelName(

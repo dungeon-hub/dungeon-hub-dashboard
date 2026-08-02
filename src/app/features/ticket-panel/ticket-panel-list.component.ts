@@ -9,9 +9,11 @@ import {
 } from '@dungeon-hub/api-client';
 import {
   exportTicketPanel,
+  findImportConflict,
   hasDuplicatePanelName,
   parseTicketPanelExport,
   toTicketPanelCreation,
+  toTicketPanelUpdate,
 } from './ticket-panel-transfer';
 
 @Component({
@@ -104,6 +106,38 @@ import {
           </p>
         }
       </div>
+
+      @if (importConflict) {
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="card max-w-lg w-full mx-4">
+            <h3 class="text-xl font-semibold mb-4">Existing Ticket Panel Found</h3>
+            <p class="text-gray-300 mb-2">
+              The imported ID and name match
+              <strong>{{ importConflict.displayName || importConflict.name }}</strong
+              >.
+            </p>
+            <p class="text-gray-400 mb-6">
+              Overwrite its settings, or create a separate panel from the imported settings?
+            </p>
+            @if (createError) {
+              <p class="text-red-400 text-sm mb-4">{{ createError }}</p>
+            }
+            <div class="flex flex-wrap gap-3">
+              <button (click)="cancelImport()" class="btn btn-secondary">Cancel</button>
+              <button (click)="createNewFromConflict()" class="btn btn-secondary flex-1">
+                Create New
+              </button>
+              <button
+                (click)="overwriteImport()"
+                [disabled]="isCreating"
+                class="btn btn-primary flex-1"
+              >
+                {{ isCreating ? 'Overwriting...' : 'Overwrite Existing' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      }
 
       @if (showCreateModal) {
         <div
@@ -203,6 +237,7 @@ export class TicketPanelListComponent implements OnInit {
     emoji: '',
   };
   pendingPanel: TicketPanelCreationModel | null = null;
+  importConflict: TicketPanelModel | null = null;
   modalTitle = '';
 
   get canCreate(): boolean {
@@ -236,15 +271,58 @@ export class TicketPanelListComponent implements OnInit {
     input.value = '';
     if (!file) return;
     try {
-      this.pendingPanel = parseTicketPanelExport(await file.text());
-      this.modalTitle = 'Import Ticket Panel';
-      this.newPanel = { name: '', displayName: '', emoji: this.pendingPanel.emoji || '' };
+      const imported = parseTicketPanelExport(await file.text());
+      this.pendingPanel = imported.panel;
       this.createError = null;
-      this.showCreateModal = true;
+      this.importConflict = findImportConflict(this.ticketPanels, imported) || null;
+      if (!this.importConflict) this.openImportedNameModal();
     } catch (error) {
       this.loadError =
         error instanceof Error ? error.message : 'Could not read ticket panel export.';
     }
+  }
+
+  createNewFromConflict() {
+    this.importConflict = null;
+    this.openImportedNameModal();
+  }
+
+  overwriteImport() {
+    if (!this.importConflict || !this.pendingPanel || this.isCreating) return;
+    this.isCreating = true;
+    this.createError = null;
+    this.ticketPanelService
+      .updateTicketPanel(
+        this.serverId,
+        this.importConflict.id,
+        toTicketPanelUpdate(this.pendingPanel),
+      )
+      .subscribe({
+        next: () => {
+          this.isCreating = false;
+          this.importConflict = null;
+          this.pendingPanel = null;
+          this.loadTicketPanels();
+        },
+        error: (err) => {
+          this.isCreating = false;
+          this.createError = err.error?.message || 'Failed to overwrite ticket panel';
+          this.cdr.detectChanges();
+        },
+      });
+  }
+
+  cancelImport() {
+    this.importConflict = null;
+    this.pendingPanel = null;
+    this.createError = null;
+  }
+
+  private openImportedNameModal() {
+    if (!this.pendingPanel) return;
+    this.modalTitle = 'Import Ticket Panel';
+    this.newPanel = { name: '', displayName: '', emoji: this.pendingPanel.emoji || '' };
+    this.showCreateModal = true;
   }
 
   exportPanel(panel: TicketPanelModel) {
