@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { DiscordGuild } from '../../core/services/discord-guild.service';
-import { categorizeGuilds } from './dashboard.component';
+import { categorizeGuilds, formatLinkedUserCount } from './dashboard.component';
+
+describe('formatLinkedUserCount', () => {
+  it('groups linked user counts without converting them to a number', () => {
+    expect(formatLinkedUserCount('123456789012345678')).toBe('123,456,789,012,345,678');
+  });
+});
 
 describe('categorizeGuilds', () => {
   it('separates editable, inviteable, and view-only guilds', () => {

@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { DiscordServerControllerService, DiscordUserControllerService } from '@dungeon-hub/api-client';
 import { Subscription, forkJoin } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
@@ -10,6 +10,7 @@ export interface ServerStats {
   totalCarries: string;
   userMoneySpent: string;
   userMoneyEarned: string;
+  userCarryCount: number;
 }
 
 const COMPACT_SUFFIXES = [
@@ -19,7 +20,7 @@ const COMPACT_SUFFIXES = [
   { threshold: 3, suffix: 'k' },
 ] as const;
 
-export function formatCompactValue(value: string): string {
+export function formatCompactValue(value: string | number): string {
   const text = String(value ?? '0');
   const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
   if (!match) return text;
@@ -121,6 +122,7 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private discordGuildService = inject(DiscordGuildService);
   private discordServerService = inject(DiscordServerControllerService);
+  private discordUserService = inject(DiscordUserControllerService);
   private cdr = inject(ChangeDetectorRef);
   private routeSubscription?: Subscription;
   private statsSubscription?: Subscription;
@@ -170,6 +172,13 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         value: formatCompactValue(this.stats.userMoneyEarned),
         description: 'As the carrier providing a service',
       },
+      {
+        borderClass: 'border-pink-500/40',
+        titleClass: 'text-pink-400',
+        title: 'Your completed carries',
+        value: formatCompactValue(this.stats.userCarryCount),
+        description: 'Completed as a carrier on this server',
+      },
     ];
   }
 
@@ -215,6 +224,7 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         undefined,
         userId,
       ),
+      userCarryCount: this.discordUserService.getCarryCount(userId, this.serverId),
     }).subscribe({
       next: (stats) => {
         this.stats = stats;

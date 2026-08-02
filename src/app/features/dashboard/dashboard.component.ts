@@ -5,7 +5,12 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService, DiscordGuild } from '../../core/services/discord-guild.service';
 import { CdnService } from '../../core/services/cdn.service';
-import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { DiscordServerControllerService, DiscordUserControllerService } from '@dungeon-hub/api-client';
+import { Subscription } from 'rxjs';
+
+export function formatLinkedUserCount(value: string): string {
+  return String(value ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
 
 export function categorizeGuilds(
   allGuilds: DiscordGuild[],
@@ -203,6 +208,30 @@ export function categorizeGuilds(
         </div>
       }
 
+      <!-- Global bot statistics -->
+      <section class="mt-8" aria-labelledby="global-stats-heading">
+        <h2 id="global-stats-heading" class="text-2xl font-bold mb-4">Global Stats</h2>
+        @if (globalStatsLoading) {
+          <div class="card text-center py-8" aria-live="polite">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <p class="mt-3 text-gray-400">Loading global stats...</p>
+          </div>
+        } @else if (globalStatsError) {
+          <div class="card bg-red-900/20 border-red-500 text-center py-8" role="alert">
+            <p class="text-red-400 font-semibold">Unable to load global stats</p>
+            <button type="button" (click)="loadGlobalStats()" class="btn btn-secondary mt-4">Retry</button>
+          </div>
+        } @else {
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+            <article class="card border-blue-500/40">
+              <p class="text-sm font-medium uppercase tracking-wide text-blue-400">Linked users</p>
+              <p class="mt-3 text-3xl font-bold">{{ linkedUsers }}</p>
+              <p class="mt-2 text-sm text-gray-400">Discord users linked to Dungeon Hub</p>
+            </article>
+          </div>
+        }
+      </section>
+
       <!-- CDN Upload Section (only for users with CDN permission) -->
       @if (hasCdnPermission) {
         <div class="card mt-8">
@@ -358,6 +387,7 @@ export function categorizeGuilds(
 export class DashboardComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private discordServerService = inject(DiscordServerControllerService);
+  private discordUserService = inject(DiscordUserControllerService);
   private discordGuildService = inject(DiscordGuildService);
   private cdnService = inject(CdnService);
   private cdr = inject(ChangeDetectorRef);
@@ -368,6 +398,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   userInfo: any;
   loading = true;
   error: string | null = null;
+  linkedUsers = '0';
+  globalStatsLoading = true;
+  globalStatsError = false;
+  private globalStatsSubscription?: Subscription;
 
   // CDN Upload
   hasCdnPermission = false;
@@ -383,11 +417,32 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.userInfo = this.authService.getUserInfo();
     this.checkCdnPermission();
     this.loadGuilds();
+    this.loadGlobalStats();
     this.setupPasteListener();
   }
 
   ngOnDestroy() {
     this.removePasteListener();
+    this.globalStatsSubscription?.unsubscribe();
+  }
+
+  loadGlobalStats() {
+    this.globalStatsSubscription?.unsubscribe();
+    this.globalStatsLoading = true;
+    this.globalStatsError = false;
+
+    this.globalStatsSubscription = this.discordUserService.countLinkedUsers().subscribe({
+      next: (count) => {
+        this.linkedUsers = formatLinkedUserCount(count);
+        this.globalStatsLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.globalStatsLoading = false;
+        this.globalStatsError = true;
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   private pasteHandler = (event: ClipboardEvent) => {

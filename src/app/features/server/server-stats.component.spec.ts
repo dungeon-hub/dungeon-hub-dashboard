@@ -36,4 +36,8 @@ describe('formatCompactValue', () => {
     expect(formatCompactValue('356134481452597250')).toBe('356134.4815t');
     expect(formatCompactValue('1500.25')).toBe('1.5003k');
   });
+
+  it('formats numeric API results', () => {
+    expect(formatCompactValue(1250)).toBe('1.25k');
+  });
 });
