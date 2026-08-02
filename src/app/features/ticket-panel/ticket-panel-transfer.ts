@@ -57,9 +57,40 @@ export function exportTicketPanel(panel: TicketPanelModel): TicketPanelExport {
   };
 }
 
+export function serializeTicketPanel(panel: TicketPanelModel): string {
+  return JSON.stringify(exportTicketPanel(panel), null, 2);
+}
+
+export function isTicketPanelExport(contents: string): boolean {
+  try {
+    parseTicketPanelExport(contents);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function parseTicketPanelExport(contents: string): TicketPanelImport {
   const parsed = JSON.parse(contents) as TicketPanelExport;
-  if (parsed?.version !== TICKET_PANEL_EXPORT_VERSION || !parsed.panel?.name) {
+  const panel = parsed?.panel;
+  const invalidPermissions =
+    panel?.permissions != null &&
+    (typeof panel.permissions !== 'object' || Array.isArray(panel.permissions));
+  if (
+    parsed?.version !== TICKET_PANEL_EXPORT_VERSION ||
+    typeof panel?.name !== 'string' ||
+    !panel.name.trim() ||
+    typeof panel.closeable !== 'boolean' ||
+    typeof panel.closeConfirmation !== 'boolean' ||
+    typeof panel.claimable !== 'boolean' ||
+    typeof panel.requiresLinking !== 'boolean' ||
+    (panel.formQuestions != null && !Array.isArray(panel.formQuestions)) ||
+    (panel.supportRoles != null && !Array.isArray(panel.supportRoles)) ||
+    (panel.additionalRoles != null && !Array.isArray(panel.additionalRoles)) ||
+    (panel.openCategories != null && !Array.isArray(panel.openCategories)) ||
+    (panel.closedCategories != null && !Array.isArray(panel.closedCategories)) ||
+    invalidPermissions
+  ) {
     throw new Error('This is not a supported ticket panel export.');
   }
   return structuredClone({ id: parsed.id, name: parsed.name, panel: parsed.panel });

@@ -8,10 +8,11 @@ import {
   TicketPanelModel,
 } from '@dungeon-hub/api-client';
 import {
-  exportTicketPanel,
   findImportConflict,
   hasDuplicatePanelName,
+  isTicketPanelExport,
   parseTicketPanelExport,
+  serializeTicketPanel,
   toTicketPanelCreation,
   toTicketPanelUpdate,
 } from './ticket-panel-transfer';
@@ -42,14 +43,7 @@ import {
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-2xl font-semibold">Ticket Panels</h3>
           <div class="flex gap-2">
-            <button (click)="importInput.click()" class="btn btn-secondary">⇧ Import</button>
-            <input
-              #importInput
-              type="file"
-              accept="application/json,.json"
-              class="hidden"
-              (change)="importPanel($event)"
-            />
+            <button (click)="openImportSourceModal()" class="btn btn-secondary">⇧ Import</button>
             <button (click)="openCreateModal()" class="btn btn-primary">＋ New Panel</button>
           </div>
         </div>
@@ -76,7 +70,7 @@ import {
                 </a>
                 <div class="flex gap-2 ml-4">
                   <button
-                    (click)="exportPanel(panel)"
+                    (click)="openExportModal(panel)"
                     class="btn btn-secondary"
                     title="Export panel"
                   >
@@ -106,6 +100,86 @@ import {
           </p>
         }
       </div>
+
+      @if (showExportModal && exportTarget) {
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="card max-w-md w-full mx-4">
+            <h3 class="text-xl font-semibold mb-3">Export Ticket Panel</h3>
+            <p class="text-gray-400 mb-6">Where should the panel data be sent?</p>
+            <div class="flex gap-3">
+              <button (click)="closeExportModal()" class="btn btn-secondary">Cancel</button>
+              <button (click)="copyExportToClipboard()" class="btn btn-secondary flex-1">
+                Copy to Clipboard
+              </button>
+              <button (click)="downloadExport()" class="btn btn-primary flex-1">
+                Download JSON
+              </button>
+            </div>
+            @if (transferMessage) {
+              <p
+                class="text-sm mt-4"
+                [class.text-red-400]="transferError"
+                [class.text-green-400]="!transferError"
+              >
+                {{ transferMessage }}
+              </p>
+            }
+          </div>
+        </div>
+      }
+
+      @if (showImportSourceModal) {
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="card max-w-lg w-full mx-4">
+            <h3 class="text-xl font-semibold mb-3">Import Ticket Panel</h3>
+            <p class="text-gray-400 mb-4">
+              Choose a JSON file or use valid ticket panel data from your clipboard.
+            </p>
+            <button
+              class="w-full border-2 border-dashed rounded-lg p-8 text-center transition-colors"
+              [class.border-blue-400]="isDragging"
+              [class.bg-blue-900]="isDragging"
+              [class.border-gray-500]="!isDragging"
+              (click)="importInput.click()"
+              (dragover)="onDragOver($event)"
+              (dragleave)="onDragLeave($event)"
+              (drop)="onFileDrop($event)"
+            >
+              <span class="block text-lg">Drop a ticket panel JSON file here</span>
+              <span class="block text-gray-400 text-sm mt-1">or click to select a file</span>
+            </button>
+            <input
+              #importInput
+              type="file"
+              accept="application/json,.json"
+              class="hidden"
+              (change)="importPanel($event)"
+            />
+            <button
+              (click)="importFromClipboard()"
+              [disabled]="!clipboardHasValidPanel"
+              class="btn w-full mt-3"
+              [class.btn-primary]="clipboardHasValidPanel"
+              [class.btn-secondary]="!clipboardHasValidPanel"
+            >
+              Use Clipboard
+            </button>
+            <small class="block text-gray-400 mt-2">
+              {{
+                clipboardHasValidPanel
+                  ? 'Valid ticket panel data found in clipboard.'
+                  : 'Clipboard does not contain valid ticket panel JSON.'
+              }}
+            </small>
+            @if (transferMessage) {
+              <p class="text-red-400 text-sm mt-3">{{ transferMessage }}</p>
+            }
+            <button (click)="closeImportSourceModal()" class="btn btn-secondary w-full mt-4">
+              Cancel
+            </button>
+          </div>
+        </div>
+      }
 
       @if (importConflict) {
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -239,6 +313,14 @@ export class TicketPanelListComponent implements OnInit {
   pendingPanel: TicketPanelCreationModel | null = null;
   importConflict: TicketPanelModel | null = null;
   modalTitle = '';
+  showExportModal = false;
+  showImportSourceModal = false;
+  exportTarget: TicketPanelModel | null = null;
+  clipboardContents = '';
+  clipboardHasValidPanel = false;
+  isDragging = false;
+  transferMessage: string | null = null;
+  transferError = false;
 
   get canCreate(): boolean {
     const name = this.newPanel.name.trim();
@@ -270,14 +352,60 @@ export class TicketPanelListComponent implements OnInit {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
+    await this.processImport(await file.text());
+  }
+
+  async openImportSourceModal() {
+    this.showImportSourceModal = true;
+    this.transferMessage = null;
+    this.clipboardContents = '';
+    this.clipboardHasValidPanel = false;
     try {
-      const imported = parseTicketPanelExport(await file.text());
+      this.clipboardContents = await navigator.clipboard.readText();
+      this.clipboardHasValidPanel = isTicketPanelExport(this.clipboardContents);
+    } catch {
+      // Clipboard permission can be unavailable; file import remains fully functional.
+    }
+    this.cdr.detectChanges();
+  }
+
+  closeImportSourceModal() {
+    this.showImportSourceModal = false;
+    this.isDragging = false;
+    this.transferMessage = null;
+  }
+
+  importFromClipboard() {
+    if (this.clipboardHasValidPanel) void this.processImport(this.clipboardContents);
+  }
+
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    this.isDragging = true;
+  }
+
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    this.isDragging = false;
+  }
+
+  async onFileDrop(event: DragEvent) {
+    event.preventDefault();
+    this.isDragging = false;
+    const file = event.dataTransfer?.files?.[0];
+    if (file) await this.processImport(await file.text());
+  }
+
+  private async processImport(contents: string) {
+    try {
+      const imported = parseTicketPanelExport(contents);
       this.pendingPanel = imported.panel;
       this.createError = null;
+      this.showImportSourceModal = false;
       this.importConflict = findImportConflict(this.ticketPanels, imported) || null;
       if (!this.importConflict) this.openImportedNameModal();
     } catch (error) {
-      this.loadError =
+      this.transferMessage =
         error instanceof Error ? error.message : 'Could not read ticket panel export.';
     }
   }
@@ -325,8 +453,36 @@ export class TicketPanelListComponent implements OnInit {
     this.showCreateModal = true;
   }
 
-  exportPanel(panel: TicketPanelModel) {
-    const blob = new Blob([JSON.stringify(exportTicketPanel(panel), null, 2)], {
+  openExportModal(panel: TicketPanelModel) {
+    this.exportTarget = panel;
+    this.showExportModal = true;
+    this.transferMessage = null;
+    this.transferError = false;
+  }
+
+  closeExportModal() {
+    this.showExportModal = false;
+    this.exportTarget = null;
+    this.transferMessage = null;
+  }
+
+  async copyExportToClipboard() {
+    if (!this.exportTarget) return;
+    try {
+      await navigator.clipboard.writeText(serializeTicketPanel(this.exportTarget));
+      this.transferMessage = 'Ticket panel data copied to the clipboard.';
+      this.transferError = false;
+    } catch {
+      this.transferMessage = 'Clipboard access was denied. Please download the JSON file instead.';
+      this.transferError = true;
+    }
+    this.cdr.detectChanges();
+  }
+
+  downloadExport() {
+    if (!this.exportTarget) return;
+    const panel = this.exportTarget;
+    const blob = new Blob([serializeTicketPanel(panel)], {
       type: 'application/json',
     });
     const url = URL.createObjectURL(blob);
@@ -335,6 +491,7 @@ export class TicketPanelListComponent implements OnInit {
     link.download = `${panel.name}.ticket-panel.json`;
     link.click();
     URL.revokeObjectURL(url);
+    this.closeExportModal();
   }
 
   ngOnInit() {
