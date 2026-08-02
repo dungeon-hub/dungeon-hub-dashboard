@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -86,6 +86,7 @@ import {
                   <a
                     [routerLink]="['/server', serverId, 'ticket-panel', panel.id]"
                     class="text-gray-400 p-2"
+                    [attr.aria-label]="'Open ' + (panel.displayName || panel.name)"
                     >→</a
                   >
                 </div>
@@ -168,7 +169,9 @@ import {
               {{
                 clipboardHasValidPanel
                   ? 'Valid ticket panel data found in clipboard.'
-                  : 'Clipboard does not contain valid ticket panel JSON.'
+                  : clipboardAccessDenied
+                    ? 'Clipboard access was denied. Select a JSON file instead.'
+                    : 'Clipboard does not contain valid ticket panel JSON.'
               }}
             </small>
             @if (transferMessage) {
@@ -197,8 +200,14 @@ import {
               <p class="text-red-400 text-sm mb-4">{{ createError }}</p>
             }
             <div class="flex flex-wrap gap-3">
-              <button (click)="cancelImport()" class="btn btn-secondary">Cancel</button>
-              <button (click)="createNewFromConflict()" class="btn btn-secondary flex-1">
+              <button (click)="cancelImport()" [disabled]="isCreating" class="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                (click)="createNewFromConflict()"
+                [disabled]="isCreating"
+                class="btn btn-secondary flex-1"
+              >
                 Create New
               </button>
               <button
@@ -297,6 +306,7 @@ export class TicketPanelListComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private ticketPanelService = inject(TicketPanelControllerService);
   private cdr = inject(ChangeDetectorRef);
+  private destroyRef = inject(DestroyRef);
 
   serverId!: string;
   ticketPanels: TicketPanelModel[] = [];
@@ -318,6 +328,7 @@ export class TicketPanelListComponent implements OnInit {
   exportTarget: TicketPanelModel | null = null;
   clipboardContents = '';
   clipboardHasValidPanel = false;
+  clipboardAccessDenied = false;
   isDragging = false;
   transferMessage: string | null = null;
   transferError = false;
@@ -360,13 +371,14 @@ export class TicketPanelListComponent implements OnInit {
     this.transferMessage = null;
     this.clipboardContents = '';
     this.clipboardHasValidPanel = false;
+    this.clipboardAccessDenied = false;
     try {
       this.clipboardContents = await navigator.clipboard.readText();
       this.clipboardHasValidPanel = isTicketPanelExport(this.clipboardContents);
     } catch {
-      // Clipboard permission can be unavailable; file import remains fully functional.
+      this.clipboardAccessDenied = true;
     }
-    this.cdr.detectChanges();
+    if (!this.destroyRef.destroyed) this.cdr.detectChanges();
   }
 
   closeImportSourceModal() {
@@ -404,14 +416,16 @@ export class TicketPanelListComponent implements OnInit {
       this.showImportSourceModal = false;
       this.importConflict = findImportConflict(this.ticketPanels, imported) || null;
       if (!this.importConflict) this.openImportedNameModal();
-    } catch (error) {
+    } catch {
       this.transferMessage =
-        error instanceof Error ? error.message : 'Could not read ticket panel export.';
+        'Could not read ticket panel export. Choose a valid ticket panel JSON file.';
     }
   }
 
   createNewFromConflict() {
+    if (this.isCreating) return;
     this.importConflict = null;
+    this.createError = null;
     this.openImportedNameModal();
   }
 
@@ -490,7 +504,7 @@ export class TicketPanelListComponent implements OnInit {
     link.href = url;
     link.download = `${panel.name}.ticket-panel.json`;
     link.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
     this.closeExportModal();
   }
 
@@ -516,7 +530,12 @@ export class TicketPanelListComponent implements OnInit {
 
   createPanel() {
     const trimmedName = this.newPanel.name.trim();
-    if (!this.canCreate || this.isCreating) {
+    if (this.isCreating) return;
+    if (this.pendingPanel && !this.newPanel.displayName.trim()) {
+      this.createError = 'A display name is required for cloned and imported ticket panels.';
+      return;
+    }
+    if (!this.canCreate) {
       this.createError = 'Internal and display names must be unique.';
       return;
     }

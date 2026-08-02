@@ -116,7 +116,10 @@ describe('ticket panel transfer', () => {
     '{"version":1}',
     '{"version":1,"panel":{}}',
     '{"version":1,"panel":{"name":"support"}}',
+    '{"version":1,"panel":{"name":"   ","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false}}',
     '{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"supportRoles":"not-an-array"}}',
+    '{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"permissions":[]}}',
+    '{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"permissions":"invalid"}}',
     '{"version":2,"panel":{"name":"support"}}',
   ])('does not enable clipboard import for invalid data: %s', (contents) => {
     expect(isTicketPanelExport(contents)).toBe(false);
@@ -168,5 +171,14 @@ describe('ticket panel transfer', () => {
     expect(() => parseTicketPanelExport('{"version":999,"panel":{"name":"x"}}')).toThrow(
       'not a supported ticket panel export',
     );
+  });
+
+  it('drops unknown imported properties from accepted panel data', () => {
+    const exported = exportTicketPanel(panel()) as any;
+    exported.panel.unknownSetting = 'must not reach the API';
+
+    const imported = parseTicketPanelExport(JSON.stringify(exported));
+
+    expect(imported.panel).not.toHaveProperty('unknownSetting');
   });
 });

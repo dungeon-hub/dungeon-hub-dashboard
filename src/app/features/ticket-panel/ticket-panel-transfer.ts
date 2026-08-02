@@ -19,6 +19,34 @@ export interface TicketPanelImport {
   panel: TicketPanelCreationModel;
 }
 
+function copyTicketPanelCreation(panel: TicketPanelCreationModel): TicketPanelCreationModel {
+  return structuredClone({
+    name: panel.name,
+    displayName: panel.displayName,
+    emoji: panel.emoji,
+    closeable: panel.closeable,
+    closeConfirmation: panel.closeConfirmation,
+    claimable: panel.claimable,
+    openChannelName: panel.openChannelName,
+    claimedChannelName: panel.claimedChannelName,
+    closedChannelName: panel.closedChannelName,
+    transcriptChannel: panel.transcriptChannel,
+    ticketMessage: panel.ticketMessage,
+    requiresLinking: panel.requiresLinking,
+    closeTranscriptTarget: panel.closeTranscriptTarget,
+    deleteTranscriptTarget: panel.deleteTranscriptTarget,
+    userTranscriptDm: panel.userTranscriptDm,
+    formQuestions: panel.formQuestions,
+    relatedCarryTier: panel.relatedCarryTier,
+    relatedCarryDifficulty: panel.relatedCarryDifficulty,
+    supportRoles: panel.supportRoles,
+    additionalRoles: panel.additionalRoles,
+    openCategories: panel.openCategories,
+    closedCategories: panel.closedCategories,
+    permissions: panel.permissions,
+  });
+}
+
 /** Builds a detached creation model so transfer operations can never mutate the source panel. */
 export function toTicketPanelCreation(panel: TicketPanelModel): TicketPanelCreationModel {
   return structuredClone({
@@ -93,7 +121,11 @@ export function parseTicketPanelExport(contents: string): TicketPanelImport {
   ) {
     throw new Error('This is not a supported ticket panel export.');
   }
-  return structuredClone({ id: parsed.id, name: parsed.name, panel: parsed.panel });
+  return {
+    id: parsed.id,
+    name: parsed.name,
+    panel: copyTicketPanelCreation(panel),
+  };
 }
 
 export function findImportConflict(
