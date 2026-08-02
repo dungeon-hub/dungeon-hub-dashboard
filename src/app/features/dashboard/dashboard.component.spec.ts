@@ -43,6 +43,22 @@ describe('DashboardComponent global stats', () => {
     expect(fixture.componentInstance.globalStatsLoading).toBe(false);
     expect(fixture.componentInstance.linkedUsers).toBe('12,345');
     expect(fixture.nativeElement.textContent).toContain('12,345');
+    expect(fixture.nativeElement.textContent).toContain('Discord users linked to their Minecraft account');
+  });
+
+  it('shows placeholders for carry and ticket time spans and trends', () => {
+    countLinkedUsers.mockReturnValue(of('12345'));
+    const fixture = TestBed.createComponent(DashboardComponent);
+
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Completed carries');
+    expect(text).toContain('Total created tickets');
+    expect(text).toContain('Lifetime');
+    expect(text).toContain('Last 30 days');
+    expect(text).toContain('Last 7 days');
+    expect(text).toContain('Trend comparisons are not implemented yet and are coming soon.');
   });
 
   it('shows request errors and retries the request', () => {

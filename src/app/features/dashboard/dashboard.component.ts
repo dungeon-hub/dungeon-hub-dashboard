@@ -226,7 +226,43 @@ export function categorizeGuilds(
             <article class="card border-blue-500/40">
               <p class="text-sm font-medium uppercase tracking-wide text-blue-400">Linked users</p>
               <p class="mt-3 text-3xl font-bold">{{ linkedUsers }}</p>
-              <p class="mt-2 text-sm text-gray-400">Discord users linked to Dungeon Hub</p>
+              <p class="mt-2 text-sm text-gray-400">Discord users linked to their Minecraft account</p>
+            </article>
+            <article class="card border-purple-500/40">
+              <p class="text-sm font-medium uppercase tracking-wide text-purple-400">Completed carries</p>
+              <dl class="mt-3 space-y-3">
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Lifetime</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Last 30 days</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Last 7 days</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+              </dl>
+              <p class="mt-4 text-sm text-gray-500">Trend comparisons are not implemented yet and are coming soon.</p>
+            </article>
+            <article class="card border-cyan-500/40">
+              <p class="text-sm font-medium uppercase tracking-wide text-cyan-400">Total created tickets</p>
+              <dl class="mt-3 space-y-3">
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Lifetime</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Last 30 days</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Last 7 days</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+              </dl>
+              <p class="mt-4 text-sm text-gray-500">Trend comparisons are not implemented yet and are coming soon.</p>
             </article>
           </div>
         }
@@ -402,6 +438,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   globalStatsLoading = true;
   globalStatsError = false;
   private globalStatsSubscription?: Subscription;
+
+  // TODO: Remove this comment when global trend statistics are implemented. Request twice
+  // the displayed period (60 days for a 30-day trend, or 14 days for a 7-day trend), subtract
+  // the current period from that total to obtain the preceding period, then calculate the
+  // percentage change as (current - preceding) / preceding * 100. The zero-preceding-period
+  // case needs an explicit new-activity state rather than an infinite percentage.
 
   // CDN Upload
   hasCdnPermission = false;
