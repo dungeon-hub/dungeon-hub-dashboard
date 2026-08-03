@@ -1,4 +1,4 @@
-import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
+import { type HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
@@ -40,13 +40,13 @@ export const jsonReviverInterceptor: HttpInterceptorFn = (req, next) => {
               // This regex finds numbers that exceed JavaScript's safe integer range (> 2^53 - 1)
               // and wraps them in quotes so they're parsed as strings
               // Matches both object values (after :) and array values (after [ or a comma)
-              let modifiedJson = event.body
+              const modifiedJson = event.body
                 .replace(
                   /:\s*(\d{16,})(?=\s*[,}\]])/g,  // Match big numbers in objects (after colon)
                   ': "$1"'
                 )
                 .replace(
-                  /([\[,])\s*(\d{16,})(?=\s*[,\]])/g,  // Match big numbers in arrays (after [ or a comma)
+                  /([[,])\s*(\d{16,})(?=\s*[,\]])/g,  // Match big numbers in arrays (after [ or a comma)
                   '$1"$2"'
                 );
 

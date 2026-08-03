@@ -1,4 +1,4 @@
-import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
+import type { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { OAuthService } from 'angular-oauth2-oidc';
 import { catchError, throwError } from 'rxjs';
@@ -23,7 +23,7 @@ function isAllowedUrl(url: string): boolean {
 
     // Also check if URL starts with the configured API URL
     return url.startsWith(environment.apiUrl);
-  } catch (error) {
+  } catch {
     // URL parsing failed, don't attach token
     if (!environment.production) {
       console.warn('[Auth Interceptor] Failed to parse URL:', url);
