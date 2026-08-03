@@ -2,9 +2,10 @@ import {CommonModule} from '@angular/common';
 import {ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Input, type OnChanges, type OnInit, Output, type SimpleChanges, inject} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 
-// Items deliberately have a dynamic shape because callers configure nested display and value paths.
-// biome-ignore lint/suspicious/noExplicitAny: preserving the reusable component's caller-specific item type
-type AutocompleteItem = any;
+export interface AutocompleteItem {
+  id: unknown;
+  name: unknown;
+}
 
 @Component({
   selector: 'app-multi-select-autocomplete',
@@ -120,7 +121,8 @@ export class MultiSelectAutocompleteComponent implements OnInit, OnChanges {
     }
 
     if (this.selectedItems.length === 1) {
-      return this.getNestedProperty(this.selectedItems[0], this.displayKey) || this.nullLabel;
+      const displayValue = this.getNestedProperty(this.selectedItems[0], this.displayKey);
+      return typeof displayValue === 'string' && displayValue ? displayValue : this.nullLabel;
     }
 
     return `${this.selectedItems.length} selected`;
@@ -139,8 +141,11 @@ export class MultiSelectAutocompleteComponent implements OnInit, OnChanges {
     });
   }
 
-  getNestedProperty(obj: AutocompleteItem, path: string): AutocompleteItem {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
+  getNestedProperty(obj: AutocompleteItem, path: string): unknown {
+    return path.split('.').reduce<unknown>((current, key) => {
+      if (typeof current !== 'object' || current === null) return undefined;
+      return Reflect.get(current, key);
+    }, obj);
   }
 
   @HostListener('document:click', ['$event'])

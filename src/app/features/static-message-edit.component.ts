@@ -14,7 +14,7 @@ import {
   TicketPanelControllerService
 } from '@dungeon-hub/api-client';
 import {AutocompleteComponent} from '../shared/components/autocomplete/autocomplete.component';
-import {MultiSelectAutocompleteComponent} from '../shared/components/multi-select-autocomplete/multi-select-autocomplete.component';
+import {type AutocompleteItem, MultiSelectAutocompleteComponent} from '../shared/components/multi-select-autocomplete/multi-select-autocomplete.component';
 import {getStaticMessageTypeLabel, StaticMessageType} from './static-message/static-message-labels';
 import {
   StaticMessageObjectOption,
@@ -282,8 +282,11 @@ export class StaticMessageEditComponent implements OnInit {
     this.form.patchValue({channelId: channel?.id || ''});
   }
 
-  onObjectOptionsSelected(options: StaticMessageObjectOption[]): void {
-    this.selectedObjectOptions = options;
+  onObjectOptionsSelected(options: AutocompleteItem[]): void {
+    this.selectedObjectOptions = options.filter(
+      (option): option is StaticMessageObjectOption =>
+        typeof option.id === 'string' && typeof option.name === 'string',
+    );
   }
 
   save(): void {
