@@ -264,6 +264,25 @@ export function categorizeGuilds(
               </dl>
               <p class="mt-4 text-sm text-gray-500">Trend comparisons are not implemented yet and are coming soon.</p>
             </article>
+            <article class="card border-emerald-500/40">
+              <p class="text-sm font-medium uppercase tracking-wide text-emerald-400">Unique carriers</p>
+              <dl class="mt-3 space-y-3">
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Lifetime</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Last 30 days</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <dt class="text-gray-400">Last 7 days</dt>
+                  <dd class="font-semibold">Coming soon</dd>
+                </div>
+              </dl>
+              <p class="mt-4 text-sm text-gray-500">People who gained score by completing at least one carry.</p>
+              <p class="mt-2 text-sm text-gray-500">Trend comparisons are not implemented yet and are coming soon.</p>
+            </article>
           </div>
         }
       </section>

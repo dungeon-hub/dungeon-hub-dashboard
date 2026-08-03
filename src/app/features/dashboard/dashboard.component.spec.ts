@@ -55,6 +55,8 @@ describe('DashboardComponent global stats', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Completed carries');
     expect(text).toContain('Total created tickets');
+    expect(text).toContain('Unique carriers');
+    expect(text).toContain('People who gained score by completing at least one carry.');
     expect(text).toContain('Lifetime');
     expect(text).toContain('Last 30 days');
     expect(text).toContain('Last 7 days');
