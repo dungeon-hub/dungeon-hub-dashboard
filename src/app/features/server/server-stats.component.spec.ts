@@ -87,6 +87,8 @@ describe('ServerStatsComponent carry count', () => {
     expect(text).toContain('1.25k');
     expect(text).toContain('Total carriers');
     expect(text).toContain('People who gained score by completing at least one carry');
+    expect(text).toContain('Total score');
+    expect(text).toContain('Points earned by carriers based on carry difficulty');
     expect(text).toContain('Your bought carries');
     expect(text).toContain('Received as a customer on this server');
   });
