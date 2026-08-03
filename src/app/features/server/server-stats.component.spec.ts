@@ -49,6 +49,8 @@ describe('formatCompactValue', () => {
 
   it('expands numeric exponent notation before applying compact suffixes', () => {
     expect(formatCompactValue(1e21)).toBe('1000000000t');
+    expect(formatCompactValue(1e-7)).toBe('0.0000001');
+    expect(formatCompactValue(-1.25e4)).toBe('-12.5k');
   });
 });
 
@@ -129,5 +131,60 @@ describe('ServerStatsComponent carry count', () => {
     expect(text).toContain('1k');
     expect(text).toContain('Your completed carries');
     expect(text).toContain('Coming soon');
+  });
+
+  it('keeps the page-level error when a primary server stats request fails', async () => {
+    const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
+
+    await TestBed.configureTestingModule({
+      imports: [ServerStatsComponent],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ serverId: 'server-1' })) } },
+        { provide: AuthService, useValue: { getIdToken: () => token } },
+        { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
+        {
+          provide: DiscordServerControllerService,
+          useValue: {
+            getTotalAmountOfMoneySpentOnServices: () => throwError(() => new Error('unavailable')),
+            countCarries: () => of('4'),
+          },
+        },
+        { provide: DiscordUserControllerService, useValue: { getCarryCount: () => of(2) } },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ServerStatsComponent);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as any;
+    expect(component.stats).toBeNull();
+    expect(component.error).toBe('The statistics service did not return a result. Please try again.');
+    expect(fixture.nativeElement.textContent).toContain('Unable to load stats');
+  });
+
+  it('does not request stats when the Discord user cannot be identified', async () => {
+    const countCarries = vi.fn();
+
+    await TestBed.configureTestingModule({
+      imports: [ServerStatsComponent],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ serverId: 'server-1' })) } },
+        { provide: AuthService, useValue: { getIdToken: () => null } },
+        { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
+        { provide: DiscordServerControllerService, useValue: { countCarries } },
+        { provide: DiscordUserControllerService, useValue: {} },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ServerStatsComponent);
+    fixture.detectChanges();
+
+    expect(countCarries).not.toHaveBeenCalled();
+    expect((fixture.componentInstance as any).error).toBe(
+      'Your server or Discord user could not be identified.',
+    );
+    expect(fixture.nativeElement.textContent).toContain('Unable to load stats');
   });
 });

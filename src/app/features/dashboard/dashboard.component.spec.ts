@@ -68,14 +68,26 @@ describe('DashboardComponent global stats', () => {
     countLinkedUsers.mockReturnValueOnce(firstRequest).mockReturnValueOnce(of('42'));
     const fixture = TestBed.createComponent(DashboardComponent);
 
-    fixture.componentInstance.loadGlobalStats();
+    fixture.detectChanges();
     firstRequest.error(new Error('unavailable'));
     expect(fixture.componentInstance.globalStatsError).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Unable to load global stats');
 
-    fixture.componentInstance.loadGlobalStats();
+    const retryButton = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    retryButton.click();
     expect(countLinkedUsers).toHaveBeenCalledTimes(2);
     expect(fixture.componentInstance.globalStatsError).toBe(false);
     expect(fixture.componentInstance.linkedUsers).toBe('42');
+  });
+
+  it('renders the global stats loading state while the request is pending', () => {
+    countLinkedUsers.mockReturnValue(new Subject<string>());
+    const fixture = TestBed.createComponent(DashboardComponent);
+
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.globalStatsLoading).toBe(true);
+    expect(fixture.nativeElement.textContent).toContain('Loading global stats...');
   });
 
   it('cancels an outstanding request when destroyed', () => {
