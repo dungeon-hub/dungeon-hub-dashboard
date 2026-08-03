@@ -1,6 +1,10 @@
 import {CommonModule} from '@angular/common';
-import {ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnInit, Output, SimpleChanges, inject} from '@angular/core';
+import {ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Input, type OnChanges, type OnInit, Output, type SimpleChanges, inject} from '@angular/core';
 import {FormsModule} from '@angular/forms';
+
+// Items deliberately have a dynamic shape because callers configure nested display and value paths.
+// biome-ignore lint/suspicious/noExplicitAny: preserving the reusable component's caller-specific item type
+type AutocompleteItem = any;
 
 @Component({
   selector: 'app-multi-select-autocomplete',
@@ -56,17 +60,17 @@ export class MultiSelectAutocompleteComponent implements OnInit, OnChanges {
   private elementRef = inject(ElementRef);
   private cdr = inject(ChangeDetectorRef);
 
-  @Input() items: any[] = [];
-  @Input() selectedItems: any[] = [];
+  @Input() items: AutocompleteItem[] = [];
+  @Input() selectedItems: AutocompleteItem[] = [];
   @Input() displayKey = 'name';
   @Input() valueKey = 'id';
   @Input() placeholder = 'Search...';
   @Input() nullLabel = 'None selected';
-  @Output() selectedItemsChange = new EventEmitter<any[]>();
+  @Output() selectedItemsChange = new EventEmitter<AutocompleteItem[]>();
 
   isOpen = false;
   searchQuery = '';
-  filteredItems: any[] = [];
+  filteredItems: AutocompleteItem[] = [];
 
   ngOnInit(): void {
     this.filterItems();
@@ -87,7 +91,7 @@ export class MultiSelectAutocompleteComponent implements OnInit, OnChanges {
     }
   }
 
-  toggleItem(item: any): void {
+  toggleItem(item: AutocompleteItem): void {
     if (this.isItemSelected(item)) {
       this.removeItem(item);
       return;
@@ -98,14 +102,14 @@ export class MultiSelectAutocompleteComponent implements OnInit, OnChanges {
     this.cdr.detectChanges();
   }
 
-  removeItem(item: any): void {
+  removeItem(item: AutocompleteItem): void {
     const value = this.getNestedProperty(item, this.valueKey);
     this.selectedItems = this.selectedItems.filter(selected => this.getNestedProperty(selected, this.valueKey) !== value);
     this.selectedItemsChange.emit(this.selectedItems);
     this.cdr.detectChanges();
   }
 
-  isItemSelected(item: any): boolean {
+  isItemSelected(item: AutocompleteItem): boolean {
     const value = this.getNestedProperty(item, this.valueKey);
     return this.selectedItems.some(selected => this.getNestedProperty(selected, this.valueKey) === value);
   }
@@ -135,7 +139,7 @@ export class MultiSelectAutocompleteComponent implements OnInit, OnChanges {
     });
   }
 
-  getNestedProperty(obj: any, path: string): any {
+  getNestedProperty(obj: AutocompleteItem, path: string): AutocompleteItem {
     return path.split('.').reduce((current, key) => current?.[key], obj);
   }
 

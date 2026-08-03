@@ -254,7 +254,7 @@ export class ServerDetailComponent implements OnInit {
         this.ticketPanels = panels || [];
         this.cdr.detectChanges();
       },
-      error: (err) => {
+      error: () => {
         this.loadError = 'Failed to load ticket panels. Please try again.';
         this.cdr.detectChanges();
       }
@@ -278,7 +278,7 @@ export class ServerDetailComponent implements OnInit {
         this.totalCntRequests = Number(page.totalElements || 0);
         this.cdr.detectChanges();
       },
-      error: (err) => {
+      error: () => {
         this.loadError = 'Failed to load CNT requests. Please try again.';
         this.cdr.detectChanges();
       },

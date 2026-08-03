@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import type { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 
@@ -19,7 +19,7 @@ export class CdnService {
   uploadFile(filename: string, file: File): Observable<string> {
     // Build URL: {cdn_url}/{file_name} (filename is optional)
     let url = environment.cdnUrl;
-    if (filename && filename.trim()) {
+    if (filename?.trim()) {
       url += filename.trim();
     }
 

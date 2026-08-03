@@ -25,8 +25,8 @@ export class DiscordGuildService {
   getAllGuilds(): DiscordGuild[] {
     const claims = this.authService.getUserInfo() ?? {};
     return claims['discord-guilds']
-      || claims['guilds']
-      || claims['discord_guilds']
+      || claims.guilds
+      || claims.discord_guilds
       || [];
   }
 
@@ -48,7 +48,7 @@ export class DiscordGuildService {
     displayName = displayName.replace(/<a?:[a-zA-Z0-9_]+:\d+>/g, '');
 
     // Convert emoji shortcodes to Unicode emojis, or remove them if not found
-    displayName = displayName.replace(/:([a-zA-Z0-9_+-]+):/g, (match, name) => {
+    displayName = displayName.replace(/:([a-zA-Z0-9_+-]+):/g, (_match, name) => {
       // Some emojies are named differently on discord... There's no better way other than replacing those.
       if (name === "steam_locomotive") name = "locomotive"
       if (name === "tm") name = "trade_mark"

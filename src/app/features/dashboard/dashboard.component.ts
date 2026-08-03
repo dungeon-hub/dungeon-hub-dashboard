@@ -404,7 +404,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.selectedFile = file;
 
           // Always populate filename for pasted images
-          const extension = file.type.split('/')[1];
           this.uploadFilename = `pasted-image-${Date.now()}`;
 
           this.cdr.detectChanges();
