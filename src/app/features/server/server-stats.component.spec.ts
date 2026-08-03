@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { DiscordServerControllerService, DiscordUserControllerService } from '@dungeon-hub/api-client';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
@@ -85,5 +85,49 @@ describe('ServerStatsComponent carry count', () => {
     expect(text).toContain('1.25k');
     expect(text).toContain('Total carriers');
     expect(text).toContain('People who gained score by completing at least one carry');
+  });
+
+  it('preserves the other stats when the user carry count request fails', async () => {
+    const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
+
+    await TestBed.configureTestingModule({
+      imports: [ServerStatsComponent],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ serverId: 'server-1' })) } },
+        { provide: AuthService, useValue: { getIdToken: () => token } },
+        { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
+        {
+          provide: DiscordServerControllerService,
+          useValue: {
+            getTotalAmountOfMoneySpentOnServices: (_server: string, user?: string, carrier?: string) =>
+              of(user ? '2000' : carrier ? '3000' : '1000'),
+            countCarries: () => of('4'),
+          },
+        },
+        {
+          provide: DiscordUserControllerService,
+          useValue: { getCarryCount: () => throwError(() => new Error('unavailable')) },
+        },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ServerStatsComponent);
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance as any;
+    expect(component.error).toBe('');
+    expect(component.stats).toEqual({
+      totalMoneySpent: '1000',
+      totalCarries: '4',
+      userMoneySpent: '2000',
+      userMoneyEarned: '3000',
+      userCarryCount: null,
+    });
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Total money spent');
+    expect(text).toContain('1k');
+    expect(text).toContain('Your completed carries');
+    expect(text).toContain('Coming soon');
   });
 });

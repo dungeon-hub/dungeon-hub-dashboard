@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DiscordServerControllerService, DiscordUserControllerService } from '@dungeon-hub/api-client';
-import { Subscription, forkJoin } from 'rxjs';
+import { Subscription, catchError, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
 
@@ -10,7 +10,7 @@ export interface ServerStats {
   totalCarries: string;
   userMoneySpent: string;
   userMoneyEarned: string;
-  userCarryCount: number;
+  userCarryCount: number | null;
 }
 
 const COMPACT_SUFFIXES = [
@@ -197,7 +197,9 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         borderClass: 'border-pink-500/40',
         titleClass: 'text-pink-400',
         title: 'Your completed carries',
-        value: formatCompactValue(this.stats.userCarryCount),
+        value: this.stats.userCarryCount === null
+          ? 'Coming soon'
+          : formatCompactValue(this.stats.userCarryCount),
         description: 'Completed as a carrier on this server',
       },
     ];
@@ -245,7 +247,9 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         undefined,
         userId,
       ),
-      userCarryCount: this.discordUserService.getCarryCount(userId, this.serverId),
+      userCarryCount: this.discordUserService.getCarryCount(userId, this.serverId).pipe(
+        catchError(() => of(null)),
+      ),
     }).subscribe({
       next: (stats) => {
         this.stats = stats;
