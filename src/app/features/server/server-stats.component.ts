@@ -173,6 +173,13 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         description: '',
       },
       {
+        borderClass: 'border-teal-500/40',
+        titleClass: 'text-teal-400',
+        title: 'Total carriers',
+        value: 'Coming soon',
+        description: 'People who gained score by completing at least one carry',
+      },
+      {
         borderClass: 'border-amber-500/40',
         titleClass: 'text-amber-400',
         title: 'Your money spent',

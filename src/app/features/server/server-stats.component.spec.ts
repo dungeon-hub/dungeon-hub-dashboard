@@ -83,5 +83,7 @@ describe('ServerStatsComponent carry count', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Your completed carries');
     expect(text).toContain('1.25k');
+    expect(text).toContain('Total carriers');
+    expect(text).toContain('People who gained score by completing at least one carry');
   });
 });
