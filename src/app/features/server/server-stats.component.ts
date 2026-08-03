@@ -202,6 +202,13 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
           : formatCompactValue(this.stats.userCarryCount),
         description: 'Completed as a carrier on this server',
       },
+      {
+        borderClass: 'border-indigo-500/40',
+        titleClass: 'text-indigo-400',
+        title: 'Your bought carries',
+        value: 'Coming soon',
+        description: 'Received as a customer on this server',
+      },
     ];
   }
 
