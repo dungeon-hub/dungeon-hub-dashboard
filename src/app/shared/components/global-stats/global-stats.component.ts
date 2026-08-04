@@ -125,9 +125,6 @@ function pickStatValue(stat: PeriodStat | null | undefined, key: PeriodKey): str
               @if (card.description) {
                 <p class="mt-4 text-sm text-gray-500">{{ card.description }}</p>
               }
-              <p class="mt-2 text-sm text-gray-500">
-                Trend comparisons are not implemented yet and are coming soon.
-              </p>
             </article>
           }
         </div>
