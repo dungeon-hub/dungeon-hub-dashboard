@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
+import { StatsControllerService } from '@dungeon-hub/api-client';
 import { Subject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { STATS_CONTROLLER_SERVICE } from '../../services/stats-controller.service';
 import { GlobalStatsComponent, formatLinkedUserCount } from './global-stats.component';
 
 describe('formatLinkedUserCount', () => {
@@ -17,7 +17,7 @@ describe('GlobalStatsComponent', () => {
     getGlobalStats.mockReset();
     await TestBed.configureTestingModule({
       imports: [GlobalStatsComponent],
-      providers: [{ provide: STATS_CONTROLLER_SERVICE, useValue: { getGlobalStats } }],
+      providers: [{ provide: StatsControllerService, useValue: { getGlobalStats } }],
     }).compileComponents();
   });
 

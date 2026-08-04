@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { Observable, Subscription, throwError } from 'rxjs';
-import { injectStatsControllerService } from '../../services/stats-controller.service';
+import { StatsControllerService } from '@dungeon-hub/api-client';
+import { Observable, Subscription } from 'rxjs';
 
 export function formatLinkedUserCount(value: string | number | null | undefined): string {
   return String(value ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -111,7 +111,7 @@ function pickStatValue(
   `,
 })
 export class GlobalStatsComponent implements OnInit, OnDestroy {
-  private statsService = injectStatsControllerService();
+  private statsService = inject(StatsControllerService);
   private cdr = inject(ChangeDetectorRef);
   private statsSubscription?: Subscription;
 
@@ -200,10 +200,6 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
   }
 
   private loadGlobalStats(): Observable<GlobalStatsApiResponse> {
-    if (!this.statsService) {
-      return throwError(() => new Error('StatsControllerService is unavailable.'));
-    }
-
     return this.statsService.getGlobalStats() as Observable<GlobalStatsApiResponse>;
   }
 }

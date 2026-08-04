@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { StatsControllerService } from '@dungeon-hub/api-client';
 import { of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
-import { STATS_CONTROLLER_SERVICE } from '../../shared/services/stats-controller.service';
 import {
   ServerStatsComponent,
   formatCompactValue,
@@ -86,7 +86,7 @@ describe('ServerStatsComponent carry count', () => {
         },
         { provide: AuthService, useValue: { getIdToken: () => token } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
-        { provide: STATS_CONTROLLER_SERVICE, useValue: { getServerStats } },
+        { provide: StatsControllerService, useValue: { getServerStats } },
       ],
     }).compileComponents();
 
@@ -129,7 +129,7 @@ describe('ServerStatsComponent carry count', () => {
         { provide: AuthService, useValue: { getIdToken: () => token } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
         {
-          provide: STATS_CONTROLLER_SERVICE,
+          provide: StatsControllerService,
           useValue: { getServerStats: () => throwError(() => new Error('unavailable')) },
         },
       ],
@@ -159,7 +159,7 @@ describe('ServerStatsComponent carry count', () => {
         },
         { provide: AuthService, useValue: { getIdToken: () => null } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
-        { provide: STATS_CONTROLLER_SERVICE, useValue: { getServerStats } },
+        { provide: StatsControllerService, useValue: { getServerStats } },
       ],
     }).compileComponents();
 
