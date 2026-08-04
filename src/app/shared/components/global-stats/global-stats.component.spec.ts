@@ -69,9 +69,31 @@ describe('GlobalStatsComponent', () => {
     expect(text).toContain('Users flagged for illegitimate or harmful activity');
     expect(text).toContain('Lifetime');
     expect(text).toContain('Last 30 days');
-    expect(text).toContain('0% vs previous 30 days');
+    expect(text).toContain('0%');
     expect(text).toContain('Last 7 days');
-    expect(text).toContain('0% vs previous 7 days');
+    expect(text).not.toContain('vs previous 30 days');
+    expect(text).not.toContain('vs previous 7 days');
+  });
+
+  it('formats trend text and class thresholds without extra labels', () => {
+    getGlobalStats.mockReturnValue(of({ linkedUsers: '0' }));
+    const fixture = TestBed.createComponent(GlobalStatsComponent);
+    const component = fixture.componentInstance as any;
+    const stat = {
+      lifetime: '0',
+      last60Days: '1252',
+      last30Days: '752',
+      last14Days: '763',
+      last7Days: '363',
+    };
+
+    expect(component.getTrendValue(stat, 'last30Days')).toBe('+50.4%');
+    expect(component.isPositiveTrend(stat, 'last30Days')).toBe(true);
+    expect(component.getTrendValue(stat, 'last7Days')).toBe('-9.2%');
+    expect(component.isNegativeTrend(stat, 'last7Days')).toBe(true);
+    expect(
+      component.isNeutralTrend({ ...stat, last60Days: '200', last30Days: '101' }, 'last30Days'),
+    ).toBe(true);
   });
 
   it('shows errors and retries through the rendered button', () => {

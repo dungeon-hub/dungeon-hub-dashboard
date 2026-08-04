@@ -40,13 +40,19 @@ function numericValue(value: string | number | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatTrend(currentValue: string | number, doublePeriodValue: string | number): string {
+function trendPercentage(
+  currentValue: string | number,
+  doublePeriodValue: string | number,
+): number {
   const current = numericValue(currentValue);
   const previous = Math.max(numericValue(doublePeriodValue) - current, 0);
 
-  if (previous === 0) return current > 0 ? 'New activity' : 'No change';
+  if (previous === 0) return current > 0 ? 100 : 0;
 
-  const percentage = ((current - previous) / previous) * 100;
+  return ((current - previous) / previous) * 100;
+}
+
+function formatTrend(percentage: number): string {
   const formatted = Math.abs(percentage).toFixed(1).replace(/\.0$/, '');
   const prefix = percentage > 0 ? '+' : percentage < 0 ? '-' : '';
   return `${prefix}${formatted}%`;
@@ -102,7 +108,14 @@ function pickStatValue(stat: PeriodStat | null | undefined, key: PeriodKey): str
                       <dd class="text-right">
                         <p class="font-semibold">{{ getPeriodValue(card.stat, period.key) }}</p>
                         @if (getTrendValue(card.stat, period.key); as trend) {
-                          <p class="text-xs text-gray-500">{{ trend }}</p>
+                          <p
+                            class="text-xs"
+                            [class.text-green-400]="isPositiveTrend(card.stat, period.key)"
+                            [class.text-red-400]="isNegativeTrend(card.stat, period.key)"
+                            [class.text-gray-500]="isNeutralTrend(card.stat, period.key)"
+                          >
+                            {{ trend }}
+                          </p>
                         }
                       </dd>
                     </div>
@@ -189,13 +202,31 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
   }
 
   protected getTrendValue(stat: PeriodStat | null | undefined, key: PeriodKey): string | null {
+    const trend = this.getTrendPercentage(stat, key);
+    return trend === null ? null : formatTrend(trend);
+  }
+
+  protected isPositiveTrend(stat: PeriodStat | null | undefined, key: PeriodKey): boolean {
+    const trend = this.getTrendPercentage(stat, key);
+    return trend !== null && trend >= 2;
+  }
+
+  protected isNegativeTrend(stat: PeriodStat | null | undefined, key: PeriodKey): boolean {
+    const trend = this.getTrendPercentage(stat, key);
+    return trend !== null && trend <= -2;
+  }
+
+  protected isNeutralTrend(stat: PeriodStat | null | undefined, key: PeriodKey): boolean {
+    const trend = this.getTrendPercentage(stat, key);
+    return trend !== null && trend > -2 && trend < 2;
+  }
+
+  private getTrendPercentage(stat: PeriodStat | null | undefined, key: PeriodKey): number | null {
     if (!stat || key === 'lifetime') return null;
 
-    if (key === 'last30Days') {
-      return `${formatTrend(stat.last30Days, stat.last60Days)} vs previous 30 days`;
-    }
-
-    return `${formatTrend(stat.last7Days, stat.last14Days)} vs previous 7 days`;
+    return key === 'last30Days'
+      ? trendPercentage(stat.last30Days, stat.last60Days)
+      : trendPercentage(stat.last7Days, stat.last14Days);
   }
 
   protected formatStatValue(value: string | number | null | undefined): string {
