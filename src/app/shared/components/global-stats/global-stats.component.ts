@@ -9,23 +9,19 @@ export function formatLinkedUserCount(value: string | number | null | undefined)
 type PeriodKey = 'lifetime' | 'last30Days' | 'last7Days';
 
 interface PeriodStat {
-  lifetime?: string | number | null;
-  total?: string | number | null;
-  allTime?: string | number | null;
-  last30Days?: string | number | null;
-  thirtyDays?: string | number | null;
-  last7Days?: string | number | null;
-  sevenDays?: string | number | null;
+  lifetime: string | number;
+  last60Days: string | number;
+  last30Days: string | number;
+  last14Days: string | number;
+  last7Days: string | number;
 }
 
 interface GlobalStatsApiResponse {
-  linkedUsers?: string | number | null;
-  completedCarries?: PeriodStat | string | number | null;
-  totalCreatedTickets?: PeriodStat | string | number | null;
-  createdTickets?: PeriodStat | string | number | null;
-  uniqueCarriers?: PeriodStat | string | number | null;
-  totalFlaggedUsers?: PeriodStat | string | number | null;
-  flaggedUsers?: PeriodStat | string | number | null;
+  linkedUsers: string | number;
+  carryStats: PeriodStat;
+  ticketStatsModel: PeriodStat;
+  carrierStatsModel: PeriodStat;
+  totalFlaggedUsers: string | number;
 }
 
 interface GlobalStatCard {
@@ -33,26 +29,16 @@ interface GlobalStatCard {
   titleClass: string;
   title: string;
   description: string;
-  stat: PeriodStat | string | number | null | undefined;
+  stat?: PeriodStat | null;
+  singleValue?: string | number | null;
 }
 
 const COMING_SOON = 'Coming soon';
 
-function pickStatValue(
-  stat: PeriodStat | string | number | null | undefined,
-  key: PeriodKey,
-): string {
+function pickStatValue(stat: PeriodStat | null | undefined, key: PeriodKey): string {
   if (stat === null || stat === undefined) return COMING_SOON;
-  if (typeof stat === 'string' || typeof stat === 'number') {
-    return key === 'lifetime' ? formatLinkedUserCount(stat) : COMING_SOON;
-  }
 
-  const value =
-    key === 'lifetime'
-      ? (stat.lifetime ?? stat.total ?? stat.allTime)
-      : key === 'last30Days'
-        ? (stat.last30Days ?? stat.thirtyDays)
-        : (stat.last7Days ?? stat.sevenDays);
+  const value = stat[key];
 
   return value === null || value === undefined ? COMING_SOON : formatLinkedUserCount(value);
 }
@@ -89,14 +75,18 @@ function pickStatValue(
               <p class="text-sm font-medium uppercase tracking-wide {{ card.titleClass }}">
                 {{ card.title }}
               </p>
-              <dl class="mt-3 space-y-3">
-                @for (period of periods; track period.key) {
-                  <div class="flex items-center justify-between gap-4">
-                    <dt class="text-gray-400">{{ period.label }}</dt>
-                    <dd class="font-semibold">{{ getPeriodValue(card.stat, period.key) }}</dd>
-                  </div>
-                }
-              </dl>
+              @if (card.singleValue !== undefined) {
+                <p class="mt-3 text-3xl font-bold">{{ formatStatValue(card.singleValue) }}</p>
+              } @else {
+                <dl class="mt-3 space-y-3">
+                  @for (period of periods; track period.key) {
+                    <div class="flex items-center justify-between gap-4">
+                      <dt class="text-gray-400">{{ period.label }}</dt>
+                      <dd class="font-semibold">{{ getPeriodValue(card.stat, period.key) }}</dd>
+                    </div>
+                  }
+                </dl>
+              }
               @if (card.description) {
                 <p class="mt-4 text-sm text-gray-500">{{ card.description }}</p>
               }
@@ -132,28 +122,28 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
         titleClass: 'text-purple-400',
         title: 'Completed carries',
         description: '',
-        stat: this.stats?.completedCarries,
+        stat: this.stats?.carryStats,
       },
       {
         borderClass: 'border-cyan-500/40',
         titleClass: 'text-cyan-400',
         title: 'Total created tickets',
         description: '',
-        stat: this.stats?.totalCreatedTickets ?? this.stats?.createdTickets,
+        stat: this.stats?.ticketStatsModel,
       },
       {
         borderClass: 'border-emerald-500/40',
         titleClass: 'text-emerald-400',
         title: 'Unique carriers',
         description: 'People who gained score by completing at least one carry.',
-        stat: this.stats?.uniqueCarriers,
+        stat: this.stats?.carrierStatsModel,
       },
       {
         borderClass: 'border-rose-500/40',
         titleClass: 'text-rose-400',
         title: 'Total flagged users',
         description: 'Users flagged for illegitimate or harmful activity',
-        stat: this.stats?.totalFlaggedUsers ?? this.stats?.flaggedUsers,
+        singleValue: this.stats?.totalFlaggedUsers,
       },
     ];
   }
@@ -172,11 +162,12 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
     this.statsSubscription?.unsubscribe();
   }
 
-  protected getPeriodValue(
-    stat: PeriodStat | string | number | null | undefined,
-    key: PeriodKey,
-  ): string {
+  protected getPeriodValue(stat: PeriodStat | null | undefined, key: PeriodKey): string {
     return pickStatValue(stat, key);
+  }
+
+  protected formatStatValue(value: string | number | null | undefined): string {
+    return value === null || value === undefined ? COMING_SOON : formatLinkedUserCount(value);
   }
 
   protected loadStats(): void {

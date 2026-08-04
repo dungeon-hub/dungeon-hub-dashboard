@@ -40,14 +40,15 @@ describe('ServerStatsComponent carry count', () => {
       of({
         totalMoneySpent: '1000',
         totalCarries: '2000',
-        totalScore: '3000',
         totalTickets: '4000',
         totalCarriers: '50',
-        userMoneySpent: '6000',
-        userMoneyEarned: '7000',
-        userCarryCount: 1250,
-        userBoughtCarries: '9',
-        totalWarnsGiven: { active: 2, total: 10 },
+        totalScore: '3000',
+        activeWarns: 2,
+        totalWarns: 10,
+        yourMoneySpent: '6000',
+        yourMoneyEarned: '7000',
+        yourCompletedCarries: 1250,
+        yourBoughtCarries: '9',
       }),
     );
     await TestBed.configureTestingModule({
@@ -70,7 +71,7 @@ describe('ServerStatsComponent carry count', () => {
       true,
     );
     expect(getServerStats).toHaveBeenCalledWith('server-1');
-    expect((fixture.componentInstance as any).stats.userCarryCount).toBe(1250);
+    expect((fixture.componentInstance as any).stats.yourCompletedCarries).toBe(1250);
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Your completed carries');
     expect(text).toContain('1.25k');

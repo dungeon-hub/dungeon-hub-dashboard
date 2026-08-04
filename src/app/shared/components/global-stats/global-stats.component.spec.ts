@@ -25,10 +25,28 @@ describe('GlobalStatsComponent', () => {
     getGlobalStats.mockReturnValue(
       of({
         linkedUsers: '12345',
-        completedCarries: { lifetime: '1000000', last30Days: '300', last7Days: '70' },
-        totalCreatedTickets: { lifetime: '500', last30Days: '50', last7Days: '7' },
-        uniqueCarriers: { lifetime: '42', last30Days: '10', last7Days: '3' },
-        totalFlaggedUsers: { lifetime: '4', last30Days: '2', last7Days: '1' },
+        carryStats: {
+          lifetime: '1000000',
+          last60Days: '600',
+          last30Days: '300',
+          last14Days: '140',
+          last7Days: '70',
+        },
+        ticketStatsModel: {
+          lifetime: '500',
+          last60Days: '100',
+          last30Days: '50',
+          last14Days: '14',
+          last7Days: '7',
+        },
+        carrierStatsModel: {
+          lifetime: '42',
+          last60Days: '20',
+          last30Days: '10',
+          last14Days: '5',
+          last7Days: '3',
+        },
+        totalFlaggedUsers: '4',
       }),
     );
     const fixture = TestBed.createComponent(GlobalStatsComponent);

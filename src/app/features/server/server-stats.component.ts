@@ -4,22 +4,18 @@ import { StatsControllerService } from '@dungeon-hub/api-client';
 import { Observable, Subscription } from 'rxjs';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
 
-export interface WarnStats {
-  active?: string | number | null;
-  total?: string | number | null;
-}
-
 export interface ServerStats {
   totalMoneySpent: string | number;
   totalCarries: string | number;
-  totalScore?: string | number | null;
-  totalTickets?: string | number | null;
-  totalCarriers?: string | number | null;
-  userMoneySpent: string | number;
-  userMoneyEarned: string | number;
-  userCarryCount: string | number | null;
-  userBoughtCarries?: string | number | null;
-  totalWarnsGiven?: WarnStats | string | number | null;
+  totalTickets: string | number;
+  totalCarriers: string | number;
+  totalScore: string | number;
+  activeWarns: string | number;
+  totalWarns: string | number;
+  yourMoneySpent?: string | number | null;
+  yourMoneyEarned?: string | number | null;
+  yourCompletedCarries?: string | number | null;
+  yourBoughtCarries?: string | number | null;
 }
 
 const COMPACT_SUFFIXES = [
@@ -79,11 +75,8 @@ function formatStatValue(value: string | number | null | undefined): string {
   return value === null || value === undefined ? 'Coming soon' : formatCompactValue(value);
 }
 
-function formatWarnValue(value: WarnStats | string | number | null | undefined): string {
-  if (value === null || value === undefined) return 'Total (active) coming soon';
-  if (typeof value === 'string' || typeof value === 'number') return formatCompactValue(value);
-
-  return `${formatStatValue(value.total)} (${formatStatValue(value.active)} active)`;
+function formatWarnValue(total: string | number, active: string | number): string {
+  return `${formatCompactValue(total)} (${formatCompactValue(active)} active)`;
 }
 
 @Component({
@@ -188,35 +181,35 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         borderClass: 'border-amber-500/40',
         titleClass: 'text-amber-400',
         title: 'Your money spent',
-        value: formatCompactValue(this.stats.userMoneySpent),
+        value: formatStatValue(this.stats.yourMoneySpent),
         description: 'As the user receiving a service',
       },
       {
         borderClass: 'border-emerald-500/40',
         titleClass: 'text-emerald-400',
         title: 'Your money earned',
-        value: formatCompactValue(this.stats.userMoneyEarned),
+        value: formatStatValue(this.stats.yourMoneyEarned),
         description: 'As the carrier providing a service',
       },
       {
         borderClass: 'border-pink-500/40',
         titleClass: 'text-pink-400',
         title: 'Your completed carries',
-        value: formatStatValue(this.stats.userCarryCount),
+        value: formatStatValue(this.stats.yourCompletedCarries),
         description: 'Completed as a carrier on this server',
       },
       {
         borderClass: 'border-indigo-500/40',
         titleClass: 'text-indigo-400',
         title: 'Your bought carries',
-        value: formatStatValue(this.stats.userBoughtCarries),
+        value: formatStatValue(this.stats.yourBoughtCarries),
         description: 'Received as a customer on this server',
       },
       {
         borderClass: 'border-red-500/40',
         titleClass: 'text-red-400',
         title: 'Total warns given',
-        value: formatWarnValue(this.stats.totalWarnsGiven),
+        value: formatWarnValue(this.stats.totalWarns, this.stats.activeWarns),
         description: 'Warnings issued on this server',
       },
     ];
