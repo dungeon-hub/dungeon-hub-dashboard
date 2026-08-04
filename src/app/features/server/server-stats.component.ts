@@ -114,7 +114,7 @@ export function getDiscordUserId(token: string | null): string {
           <button type="button" (click)="loadStats()" class="btn btn-secondary mt-4">Retry</button>
         </div>
       } @else if (stats) {
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6">
           @for (card of statCards; track card.title) {
             <article class="card {{ card.borderClass }}">
               <p class="text-sm font-medium uppercase tracking-wide {{ card.titleClass }}">

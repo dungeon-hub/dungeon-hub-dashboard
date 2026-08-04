@@ -80,6 +80,7 @@ describe('ServerStatsComponent carry count', () => {
     const fixture = TestBed.createComponent(ServerStatsComponent);
     fixture.detectChanges();
 
+    expect(fixture.nativeElement.querySelector('.xl\\:grid-cols-5')).toBeTruthy();
     expect(getCarryCount).toHaveBeenCalledWith('356134481452597250', 'server-1');
     expect((fixture.componentInstance as any).stats.userCarryCount).toBe(1250);
     const text = fixture.nativeElement.textContent;
