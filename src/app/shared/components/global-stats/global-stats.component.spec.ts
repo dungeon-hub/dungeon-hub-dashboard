@@ -69,7 +69,9 @@ describe('GlobalStatsComponent', () => {
     expect(text).toContain('Users flagged for illegitimate or harmful activity');
     expect(text).toContain('Lifetime');
     expect(text).toContain('Last 30 days');
+    expect(text).toContain('0% vs previous 30 days');
     expect(text).toContain('Last 7 days');
+    expect(text).toContain('0% vs previous 7 days');
   });
 
   it('shows errors and retries through the rendered button', () => {

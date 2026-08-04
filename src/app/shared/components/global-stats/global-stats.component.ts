@@ -35,6 +35,23 @@ interface GlobalStatCard {
 
 const COMING_SOON = 'Coming soon';
 
+function numericValue(value: string | number | null | undefined): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatTrend(currentValue: string | number, doublePeriodValue: string | number): string {
+  const current = numericValue(currentValue);
+  const previous = Math.max(numericValue(doublePeriodValue) - current, 0);
+
+  if (previous === 0) return current > 0 ? 'New activity' : 'No change';
+
+  const percentage = ((current - previous) / previous) * 100;
+  const formatted = Math.abs(percentage).toFixed(1).replace(/\.0$/, '');
+  const prefix = percentage > 0 ? '+' : percentage < 0 ? '-' : '';
+  return `${prefix}${formatted}%`;
+}
+
 function pickStatValue(stat: PeriodStat | null | undefined, key: PeriodKey): string {
   if (stat === null || stat === undefined) return COMING_SOON;
 
@@ -82,7 +99,12 @@ function pickStatValue(stat: PeriodStat | null | undefined, key: PeriodKey): str
                   @for (period of periods; track period.key) {
                     <div class="flex items-center justify-between gap-4">
                       <dt class="text-gray-400">{{ period.label }}</dt>
-                      <dd class="font-semibold">{{ getPeriodValue(card.stat, period.key) }}</dd>
+                      <dd class="text-right">
+                        <p class="font-semibold">{{ getPeriodValue(card.stat, period.key) }}</p>
+                        @if (getTrendValue(card.stat, period.key); as trend) {
+                          <p class="text-xs text-gray-500">{{ trend }}</p>
+                        }
+                      </dd>
                     </div>
                   }
                 </dl>
@@ -164,6 +186,16 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
 
   protected getPeriodValue(stat: PeriodStat | null | undefined, key: PeriodKey): string {
     return pickStatValue(stat, key);
+  }
+
+  protected getTrendValue(stat: PeriodStat | null | undefined, key: PeriodKey): string | null {
+    if (!stat || key === 'lifetime') return null;
+
+    if (key === 'last30Days') {
+      return `${formatTrend(stat.last30Days, stat.last60Days)} vs previous 30 days`;
+    }
+
+    return `${formatTrend(stat.last7Days, stat.last14Days)} vs previous 7 days`;
   }
 
   protected formatStatValue(value: string | number | null | undefined): string {
