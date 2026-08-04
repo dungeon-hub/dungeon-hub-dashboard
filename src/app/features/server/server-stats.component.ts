@@ -1,6 +1,7 @@
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { BASE_PATH, DiscordServerControllerService } from '@dungeon-hub/api-client';
 import { Observable, Subscription, throwError } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
@@ -159,6 +160,8 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   private discordGuildService = inject(DiscordGuildService);
   private discordServerService = inject(DiscordServerControllerService);
   private cdr = inject(ChangeDetectorRef);
+  private http = inject(HttpClient, { optional: true });
+  private basePath = inject(BASE_PATH, { optional: true }) ?? '';
   private routeSubscription?: Subscription;
   private statsSubscription?: Subscription;
 
@@ -289,23 +292,34 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   }
 
   private loadServerStats(userId: string): Observable<ServerStats> {
-    const getStats =
-      (
-        this.discordServerService as unknown as {
-          getStats?: (server: string, user?: string) => Observable<ServerStats>;
-          getServerStats?: (server: string, user?: string) => Observable<ServerStats>;
-        }
-      ).getStats ??
-      (
-        this.discordServerService as unknown as {
-          getServerStats?: (server: string, user?: string) => Observable<ServerStats>;
-        }
-      ).getServerStats;
+    const statsService = this.discordServerService as unknown as Record<
+      string,
+      ((server: string, user?: string) => Observable<ServerStats>) | undefined
+    >;
+    const getStats = [
+      'getStats',
+      'getServerStats',
+      'getStatistics',
+      'getServerStatistics',
+      'getStats1',
+      'getServerStats1',
+    ]
+      .map((methodName) => statsService[methodName])
+      .find(
+        (method): method is (server: string, user?: string) => Observable<ServerStats> =>
+          typeof method === 'function',
+      );
 
-    if (!getStats) {
-      return throwError(() => new Error('Server stats endpoint is unavailable.'));
+    if (getStats) {
+      return getStats.call(this.discordServerService, this.serverId, userId);
     }
 
-    return getStats.call(this.discordServerService, this.serverId, userId);
+    if (this.http) {
+      return this.http.get<ServerStats>(`${this.basePath}/api/v1/server/${this.serverId}/stats`, {
+        params: { user: userId },
+      });
+    }
+
+    return throwError(() => new Error('Server stats endpoint is unavailable.'));
   }
 }

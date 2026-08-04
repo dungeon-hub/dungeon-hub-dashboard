@@ -1,5 +1,6 @@
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { BASE_PATH, DiscordServerControllerService } from '@dungeon-hub/api-client';
 import { Observable, Subscription, throwError } from 'rxjs';
 
 export function formatLinkedUserCount(value: string | number | null | undefined): string {
@@ -113,6 +114,8 @@ function pickStatValue(
 export class GlobalStatsComponent implements OnInit, OnDestroy {
   private discordServerService = inject(DiscordServerControllerService);
   private cdr = inject(ChangeDetectorRef);
+  private http = inject(HttpClient, { optional: true });
+  private basePath = inject(BASE_PATH, { optional: true }) ?? '';
   private statsSubscription?: Subscription;
 
   protected linkedUsers = '0';
@@ -200,16 +203,33 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
   }
 
   private loadGlobalStats(): Observable<GlobalStatsApiResponse> {
-    const getGlobalStats = (
-      this.discordServerService as unknown as {
-        getGlobalStats?: () => Observable<GlobalStatsApiResponse>;
-      }
-    ).getGlobalStats;
+    const statsService = this.discordServerService as unknown as Record<
+      string,
+      (() => Observable<GlobalStatsApiResponse>) | undefined
+    >;
+    const getGlobalStats = [
+      'getGlobalStats',
+      'getGlobalStatistics',
+      'getStats',
+      'getStatistics',
+      'getDashboardStats',
+      'getGlobalStats1',
+      'getStats1',
+    ]
+      .map((methodName) => statsService[methodName])
+      .find(
+        (method): method is () => Observable<GlobalStatsApiResponse> =>
+          typeof method === 'function',
+      );
 
-    if (!getGlobalStats) {
-      return throwError(() => new Error('Global stats endpoint is unavailable.'));
+    if (getGlobalStats) {
+      return getGlobalStats.call(this.discordServerService);
     }
 
-    return getGlobalStats.call(this.discordServerService);
+    if (this.http) {
+      return this.http.get<GlobalStatsApiResponse>(`${this.basePath}/api/v1/server/stats`);
+    }
+
+    return throwError(() => new Error('Global stats endpoint is unavailable.'));
   }
 }
