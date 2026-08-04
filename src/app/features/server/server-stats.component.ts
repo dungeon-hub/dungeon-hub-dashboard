@@ -216,6 +216,13 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         value: 'Coming soon',
         description: 'Received as a customer on this server',
       },
+      {
+        borderClass: 'border-red-500/40',
+        titleClass: 'text-red-400',
+        title: 'Total warns given',
+        value: 'Coming soon',
+        description: 'Warnings issued by this server',
+      },
     ];
   }
 

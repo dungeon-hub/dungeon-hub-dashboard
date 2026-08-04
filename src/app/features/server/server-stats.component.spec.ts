@@ -92,6 +92,8 @@ describe('ServerStatsComponent carry count', () => {
     expect(text).toContain('Points earned by carriers based on carry difficulty');
     expect(text).toContain('Your bought carries');
     expect(text).toContain('Received as a customer on this server');
+    expect(text).toContain('Total warns given');
+    expect(text).toContain('Warnings issued by this server');
   });
 
   it('preserves the other stats when the user carry count request fails', async () => {

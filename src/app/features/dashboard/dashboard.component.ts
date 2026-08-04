@@ -222,7 +222,7 @@ export function categorizeGuilds(
             <button type="button" (click)="loadGlobalStats()" class="btn btn-secondary mt-4">Retry</button>
           </div>
         } @else {
-          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6">
             <article class="card border-blue-500/40">
               <p class="text-sm font-medium uppercase tracking-wide text-blue-400">Linked users</p>
               <p class="mt-3 text-3xl font-bold">{{ linkedUsers }}</p>
@@ -282,6 +282,11 @@ export function categorizeGuilds(
               </dl>
               <p class="mt-4 text-sm text-gray-500">People who gained score by completing at least one carry.</p>
               <p class="mt-2 text-sm text-gray-500">Trend comparisons are not implemented yet and are coming soon.</p>
+            </article>
+            <article class="card border-red-500/40">
+              <p class="text-sm font-medium uppercase tracking-wide text-red-400">Total flagged users</p>
+              <p class="mt-3 text-3xl font-bold">Coming soon</p>
+              <p class="mt-2 text-sm text-gray-400">Users flagged for illegitimate or harmful activity</p>
             </article>
           </div>
         }

@@ -53,10 +53,13 @@ describe('DashboardComponent global stats', () => {
     fixture.detectChanges();
 
     const text = fixture.nativeElement.textContent;
+    expect(fixture.nativeElement.querySelector('.xl\\:grid-cols-5')).toBeTruthy();
     expect(text).toContain('Completed carries');
     expect(text).toContain('Total created tickets');
     expect(text).toContain('Unique carriers');
     expect(text).toContain('People who gained score by completing at least one carry.');
+    expect(text).toContain('Total flagged users');
+    expect(text).toContain('Users flagged for illegitimate or harmful activity');
     expect(text).toContain('Lifetime');
     expect(text).toContain('Last 30 days');
     expect(text).toContain('Last 7 days');
