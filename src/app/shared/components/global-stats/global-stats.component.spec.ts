@@ -1,8 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import {
-  DiscordServerControllerService,
-  DiscordUserControllerService,
-} from '@dungeon-hub/api-client';
+import { DiscordServerControllerService } from '@dungeon-hub/api-client';
 import { Subject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GlobalStatsComponent, formatLinkedUserCount } from './global-stats.component';
@@ -14,18 +11,13 @@ describe('formatLinkedUserCount', () => {
 });
 
 describe('GlobalStatsComponent', () => {
-  const countLinkedUsers = vi.fn();
   const getGlobalStats = vi.fn();
 
   beforeEach(async () => {
-    countLinkedUsers.mockReset();
     getGlobalStats.mockReset();
     await TestBed.configureTestingModule({
       imports: [GlobalStatsComponent],
-      providers: [
-        { provide: DiscordServerControllerService, useValue: { getGlobalStats } },
-        { provide: DiscordUserControllerService, useValue: { countLinkedUsers } },
-      ],
+      providers: [{ provide: DiscordServerControllerService, useValue: { getGlobalStats } }],
     }).compileComponents();
   });
 
@@ -47,7 +39,6 @@ describe('GlobalStatsComponent', () => {
     expect(text).toContain('12,345');
     expect(text).toContain('Discord users linked to their Minecraft account');
     expect(getGlobalStats).toHaveBeenCalledOnce();
-    expect(countLinkedUsers).not.toHaveBeenCalled();
     expect(text).toContain('Completed carries');
     expect(text).toContain('1,000,000');
     expect(text).toContain('Total created tickets');

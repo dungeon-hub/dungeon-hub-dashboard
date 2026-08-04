@@ -1,10 +1,7 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import {
-  DiscordServerControllerService,
-  DiscordUserControllerService,
-} from '@dungeon-hub/api-client';
-import { Observable, Subscription, catchError, forkJoin, of } from 'rxjs';
+import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { Observable, Subscription, throwError } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
 
@@ -161,7 +158,6 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private discordGuildService = inject(DiscordGuildService);
   private discordServerService = inject(DiscordServerControllerService);
-  private discordUserService = inject(DiscordUserControllerService);
   private cdr = inject(ChangeDetectorRef);
   private routeSubscription?: Subscription;
   private statsSubscription?: Subscription;
@@ -306,32 +302,10 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         }
       ).getServerStats;
 
-    if (getStats) {
-      return getStats.call(this.discordServerService, this.serverId, userId);
+    if (!getStats) {
+      return throwError(() => new Error('Server stats endpoint is unavailable.'));
     }
 
-    return forkJoin({
-      totalMoneySpent: this.discordServerService.getTotalAmountOfMoneySpentOnServices(
-        this.serverId,
-      ),
-      totalCarries: this.discordServerService.countCarries(this.serverId),
-      totalScore: of(null),
-      totalTickets: of(null),
-      totalCarriers: of(null),
-      userMoneySpent: this.discordServerService.getTotalAmountOfMoneySpentOnServices(
-        this.serverId,
-        userId,
-      ),
-      userMoneyEarned: this.discordServerService.getTotalAmountOfMoneySpentOnServices(
-        this.serverId,
-        undefined,
-        userId,
-      ),
-      userCarryCount: this.discordUserService
-        .getCarryCount(userId, this.serverId)
-        .pipe(catchError(() => of(null))),
-      userBoughtCarries: of(null),
-      totalWarnsGiven: of(null),
-    });
+    return getStats.call(this.discordServerService, this.serverId, userId);
   }
 }

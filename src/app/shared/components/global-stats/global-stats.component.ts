@@ -1,9 +1,6 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
-import {
-  DiscordServerControllerService,
-  DiscordUserControllerService,
-} from '@dungeon-hub/api-client';
-import { Observable, Subscription, map } from 'rxjs';
+import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { Observable, Subscription, throwError } from 'rxjs';
 
 export function formatLinkedUserCount(value: string | number | null | undefined): string {
   return String(value ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -115,7 +112,6 @@ function pickStatValue(
 })
 export class GlobalStatsComponent implements OnInit, OnDestroy {
   private discordServerService = inject(DiscordServerControllerService);
-  private discordUserService = inject(DiscordUserControllerService);
   private cdr = inject(ChangeDetectorRef);
   private statsSubscription?: Subscription;
 
@@ -210,10 +206,10 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
       }
     ).getGlobalStats;
 
-    if (getGlobalStats) {
-      return getGlobalStats.call(this.discordServerService);
+    if (!getGlobalStats) {
+      return throwError(() => new Error('Global stats endpoint is unavailable.'));
     }
 
-    return this.discordUserService.countLinkedUsers().pipe(map((linkedUsers) => ({ linkedUsers })));
+    return getGlobalStats.call(this.discordServerService);
   }
 }

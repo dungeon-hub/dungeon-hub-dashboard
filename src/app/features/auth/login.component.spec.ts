@@ -1,9 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import {
-  DiscordServerControllerService,
-  DiscordUserControllerService,
-} from '@dungeon-hub/api-client';
+import { DiscordServerControllerService } from '@dungeon-hub/api-client';
 import { of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/services/auth.service';
@@ -21,7 +18,6 @@ describe('LoginComponent', () => {
           useValue: { isAuthenticated: () => false, login: vi.fn() },
         },
         { provide: DiscordServerControllerService, useValue: { getGlobalStats } },
-        { provide: DiscordUserControllerService, useValue: { countLinkedUsers: vi.fn() } },
       ],
     }).compileComponents();
 

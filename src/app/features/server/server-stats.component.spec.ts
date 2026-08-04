@@ -1,9 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
-import {
-  DiscordServerControllerService,
-  DiscordUserControllerService,
-} from '@dungeon-hub/api-client';
+import { DiscordServerControllerService } from '@dungeon-hub/api-client';
 import { of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/services/auth.service';
@@ -77,7 +74,6 @@ describe('ServerStatsComponent carry count', () => {
         totalWarnsGiven: { active: 2, total: 10 },
       }),
     );
-    const getCarryCount = vi.fn();
     const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
 
     await TestBed.configureTestingModule({
@@ -91,7 +87,6 @@ describe('ServerStatsComponent carry count', () => {
         { provide: AuthService, useValue: { getIdToken: () => token } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
         { provide: DiscordServerControllerService, useValue: { getStats } },
-        { provide: DiscordUserControllerService, useValue: { getCarryCount } },
       ],
     }).compileComponents();
 
@@ -102,7 +97,6 @@ describe('ServerStatsComponent carry count', () => {
       true,
     );
     expect(getStats).toHaveBeenCalledWith('server-1', '356134481452597250');
-    expect(getCarryCount).not.toHaveBeenCalled();
     expect((fixture.componentInstance as any).stats.userCarryCount).toBe(1250);
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Your completed carries');
@@ -121,7 +115,7 @@ describe('ServerStatsComponent carry count', () => {
     expect(text).toContain('Warnings issued on this server');
   });
 
-  it('preserves the other stats when the user carry count request fails', async () => {
+  it('keeps the page-level error when the server stats endpoint fails', async () => {
     const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
 
     await TestBed.configureTestingModule({
@@ -136,62 +130,8 @@ describe('ServerStatsComponent carry count', () => {
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
         {
           provide: DiscordServerControllerService,
-          useValue: {
-            getTotalAmountOfMoneySpentOnServices: (
-              _server: string,
-              user?: string,
-              carrier?: string,
-            ) => of(user ? '2000' : carrier ? '3000' : '1000'),
-            countCarries: () => of('4'),
-          },
+          useValue: { getStats: () => throwError(() => new Error('unavailable')) },
         },
-        {
-          provide: DiscordUserControllerService,
-          useValue: { getCarryCount: () => throwError(() => new Error('unavailable')) },
-        },
-      ],
-    }).compileComponents();
-
-    const fixture = TestBed.createComponent(ServerStatsComponent);
-    fixture.detectChanges();
-
-    const component = fixture.componentInstance as any;
-    expect(component.error).toBe('');
-    expect(component.stats).toMatchObject({
-      totalMoneySpent: '1000',
-      totalCarries: '4',
-      userMoneySpent: '2000',
-      userMoneyEarned: '3000',
-      userCarryCount: null,
-    });
-    const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Total money spent');
-    expect(text).toContain('1k');
-    expect(text).toContain('Your completed carries');
-    expect(text).toContain('Coming soon');
-  });
-
-  it('keeps the page-level error when a primary server stats request fails', async () => {
-    const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
-
-    await TestBed.configureTestingModule({
-      imports: [ServerStatsComponent],
-      providers: [
-        provideRouter([]),
-        {
-          provide: ActivatedRoute,
-          useValue: { paramMap: of(convertToParamMap({ serverId: 'server-1' })) },
-        },
-        { provide: AuthService, useValue: { getIdToken: () => token } },
-        { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
-        {
-          provide: DiscordServerControllerService,
-          useValue: {
-            getTotalAmountOfMoneySpentOnServices: () => throwError(() => new Error('unavailable')),
-            countCarries: () => of('4'),
-          },
-        },
-        { provide: DiscordUserControllerService, useValue: { getCarryCount: () => of(2) } },
       ],
     }).compileComponents();
 
@@ -207,7 +147,7 @@ describe('ServerStatsComponent carry count', () => {
   });
 
   it('does not request stats when the Discord user cannot be identified', async () => {
-    const countCarries = vi.fn();
+    const getStats = vi.fn();
 
     await TestBed.configureTestingModule({
       imports: [ServerStatsComponent],
@@ -219,15 +159,14 @@ describe('ServerStatsComponent carry count', () => {
         },
         { provide: AuthService, useValue: { getIdToken: () => null } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
-        { provide: DiscordServerControllerService, useValue: { countCarries } },
-        { provide: DiscordUserControllerService, useValue: {} },
+        { provide: DiscordServerControllerService, useValue: { getStats } },
       ],
     }).compileComponents();
 
     const fixture = TestBed.createComponent(ServerStatsComponent);
     fixture.detectChanges();
 
-    expect(countCarries).not.toHaveBeenCalled();
+    expect(getStats).not.toHaveBeenCalled();
     expect((fixture.componentInstance as any).error).toBe(
       'Your server or Discord user could not be identified.',
     );
