@@ -105,10 +105,10 @@ function formatStatValue(value: string | number | null | undefined): string {
 }
 
 function formatWarnValue(value: WarnStats | string | number | null | undefined): string {
-  if (value === null || value === undefined) return 'Active / total coming soon';
+  if (value === null || value === undefined) return 'Total (active) coming soon';
   if (typeof value === 'string' || typeof value === 'number') return formatCompactValue(value);
 
-  return `Active: ${formatStatValue(value.active)} / Total: ${formatStatValue(value.total)}`;
+  return `${formatStatValue(value.total)} (${formatStatValue(value.active)} active)`;
 }
 
 @Component({

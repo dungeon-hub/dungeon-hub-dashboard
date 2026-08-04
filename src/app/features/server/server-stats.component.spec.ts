@@ -117,7 +117,7 @@ describe('ServerStatsComponent carry count', () => {
     expect(text).toContain('9');
     expect(text).toContain('Received as a customer on this server');
     expect(text).toContain('Total warns given');
-    expect(text).toContain('Active: 2 / Total: 10');
+    expect(text).toContain('10 (2 active)');
     expect(text).toContain('Warnings issued on this server');
   });
 
