@@ -3,32 +3,8 @@ import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/route
 import { StatsControllerService } from '@dungeon-hub/api-client';
 import { of, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
-import {
-  ServerStatsComponent,
-  formatCompactValue,
-  getDiscordUserId,
-} from './server-stats.component';
-
-function tokenWithPayload(payload: string): string {
-  const encodedPayload = btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  return `header.${encodedPayload}.signature`;
-}
-
-describe('getDiscordUserId', () => {
-  it('reads the Discord id claim without losing numeric precision', () => {
-    const token = tokenWithPayload('{"discord-id":356134481452597250}');
-
-    expect(getDiscordUserId(token)).toBe('356134481452597250');
-  });
-
-  it('returns an empty string when the token or Discord id claim is not present', () => {
-    expect(getDiscordUserId(null)).toBe('');
-    expect(getDiscordUserId(tokenWithPayload('{"sub":"not-a-discord-id"}'))).toBe('');
-    expect(getDiscordUserId('not-a-jwt')).toBe('');
-  });
-});
+import { ServerStatsComponent, formatCompactValue } from './server-stats.component';
 
 describe('formatCompactValue', () => {
   it('only adds a suffix at or above its threshold', () => {
@@ -74,8 +50,6 @@ describe('ServerStatsComponent carry count', () => {
         totalWarnsGiven: { active: 2, total: 10 },
       }),
     );
-    const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
-
     await TestBed.configureTestingModule({
       imports: [ServerStatsComponent],
       providers: [
@@ -84,7 +58,6 @@ describe('ServerStatsComponent carry count', () => {
           provide: ActivatedRoute,
           useValue: { paramMap: of(convertToParamMap({ serverId: 'server-1' })) },
         },
-        { provide: AuthService, useValue: { getIdToken: () => token } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
         { provide: StatsControllerService, useValue: { getServerStats } },
       ],
@@ -96,7 +69,7 @@ describe('ServerStatsComponent carry count', () => {
     expect(fixture.nativeElement.querySelector('.grid')?.classList.contains('xl:grid-cols-5')).toBe(
       true,
     );
-    expect(getServerStats).toHaveBeenCalledWith('server-1', '356134481452597250');
+    expect(getServerStats).toHaveBeenCalledWith('server-1');
     expect((fixture.componentInstance as any).stats.userCarryCount).toBe(1250);
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Your completed carries');
@@ -116,8 +89,6 @@ describe('ServerStatsComponent carry count', () => {
   });
 
   it('keeps the page-level error when the server stats endpoint fails', async () => {
-    const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
-
     await TestBed.configureTestingModule({
       imports: [ServerStatsComponent],
       providers: [
@@ -126,7 +97,6 @@ describe('ServerStatsComponent carry count', () => {
           provide: ActivatedRoute,
           useValue: { paramMap: of(convertToParamMap({ serverId: 'server-1' })) },
         },
-        { provide: AuthService, useValue: { getIdToken: () => token } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
         {
           provide: StatsControllerService,
@@ -146,7 +116,7 @@ describe('ServerStatsComponent carry count', () => {
     expect(fixture.nativeElement.textContent).toContain('Unable to load stats');
   });
 
-  it('does not request stats when the Discord user cannot be identified', async () => {
+  it('does not request stats when the server cannot be identified', async () => {
     const getServerStats = vi.fn();
 
     await TestBed.configureTestingModule({
@@ -155,9 +125,8 @@ describe('ServerStatsComponent carry count', () => {
         provideRouter([]),
         {
           provide: ActivatedRoute,
-          useValue: { paramMap: of(convertToParamMap({ serverId: 'server-1' })) },
+          useValue: { paramMap: of(convertToParamMap({})) },
         },
-        { provide: AuthService, useValue: { getIdToken: () => null } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
         { provide: StatsControllerService, useValue: { getServerStats } },
       ],
@@ -167,9 +136,7 @@ describe('ServerStatsComponent carry count', () => {
     fixture.detectChanges();
 
     expect(getServerStats).not.toHaveBeenCalled();
-    expect((fixture.componentInstance as any).error).toBe(
-      'Your server or Discord user could not be identified.',
-    );
+    expect((fixture.componentInstance as any).error).toBe('Your server could not be identified.');
     expect(fixture.nativeElement.textContent).toContain('Unable to load stats');
   });
 });

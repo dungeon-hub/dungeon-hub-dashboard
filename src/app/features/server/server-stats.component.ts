@@ -2,7 +2,6 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angula
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { StatsControllerService } from '@dungeon-hub/api-client';
 import { Observable, Subscription } from 'rxjs';
-import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
 
 export interface WarnStats {
@@ -76,27 +75,6 @@ export function formatCompactValue(value: string | number): string {
   return `${sign}${whole}${decimals ? `.${decimals}` : ''}${compactUnit.suffix}`;
 }
 
-export function getDiscordUserId(token: string | null): string {
-  if (!token) return '';
-
-  try {
-    const payload = token.split('.')[1];
-    if (!payload) return '';
-
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((character) => `%${character.charCodeAt(0).toString(16).padStart(2, '0')}`)
-        .join(''),
-    );
-    const match = json.match(/"discord-id"\s*:\s*(?:"(\d+)"|(\d+))/);
-    return match?.[1] ?? match?.[2] ?? '';
-  } catch {
-    return '';
-  }
-}
-
 function formatStatValue(value: string | number | null | undefined): string {
   return value === null || value === undefined ? 'Coming soon' : formatCompactValue(value);
 }
@@ -155,7 +133,6 @@ function formatWarnValue(value: WarnStats | string | number | null | undefined):
 })
 export class ServerStatsComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
-  private authService = inject(AuthService);
   private discordGuildService = inject(DiscordGuildService);
   private statsService = inject(StatsControllerService);
   private cdr = inject(ChangeDetectorRef);
@@ -260,12 +237,9 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   }
 
   protected loadStats(): void {
-    // Read the claim directly from the encoded JWT. Parsing the payload as JSON first would
-    // round Discord snowflakes because they are larger than Number.MAX_SAFE_INTEGER.
-    const userId = getDiscordUserId(this.authService.getIdToken());
-    if (!this.serverId || !userId) {
+    if (!this.serverId) {
       this.loading = false;
-      this.error = 'Your server or Discord user could not be identified.';
+      this.error = 'Your server could not be identified.';
       return;
     }
 
@@ -273,7 +247,7 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = '';
 
-    this.statsSubscription = this.loadServerStats(userId).subscribe({
+    this.statsSubscription = this.loadServerStats().subscribe({
       next: (stats) => {
         this.stats = stats;
         this.loading = false;
@@ -288,7 +262,7 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
     });
   }
 
-  private loadServerStats(userId: string): Observable<ServerStats> {
-    return this.statsService.getServerStats(this.serverId, userId) as Observable<ServerStats>;
+  private loadServerStats(): Observable<ServerStats> {
+    return this.statsService.getServerStats(this.serverId) as Observable<ServerStats>;
   }
 }
