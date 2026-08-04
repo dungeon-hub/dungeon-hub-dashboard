@@ -17,9 +17,7 @@ describe('GlobalStatsComponent', () => {
     countLinkedUsers.mockReset();
     await TestBed.configureTestingModule({
       imports: [GlobalStatsComponent],
-      providers: [
-        { provide: DiscordUserControllerService, useValue: { countLinkedUsers } },
-      ],
+      providers: [{ provide: DiscordUserControllerService, useValue: { countLinkedUsers } }],
     }).compileComponents();
   });
 
@@ -34,7 +32,12 @@ describe('GlobalStatsComponent', () => {
     expect(text).toContain('Discord users linked to their Minecraft account');
     expect(text).toContain('Completed carries');
     expect(text).toContain('Total created tickets');
+    expect(fixture.nativeElement.querySelector('.grid')?.classList.contains('xl:grid-cols-5')).toBe(
+      true,
+    );
     expect(text).toContain('Unique carriers');
+    expect(text).toContain('Total flagged users');
+    expect(text).toContain('Users flagged for illegitimate or harmful activity');
     expect(text).toContain('Lifetime');
     expect(text).toContain('Last 30 days');
     expect(text).toContain('Last 7 days');

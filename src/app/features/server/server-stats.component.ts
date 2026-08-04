@@ -1,6 +1,9 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DiscordServerControllerService, DiscordUserControllerService } from '@dungeon-hub/api-client';
+import {
+  DiscordServerControllerService,
+  DiscordUserControllerService,
+} from '@dungeon-hub/api-client';
 import { Subscription, catchError, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
@@ -29,11 +32,12 @@ export function formatCompactValue(value: string | number): string {
     const [, sign, whole, fraction = '', rawExponent] = exponentMatch;
     const digits = `${whole}${fraction}`;
     const decimalIndex = whole.length + Number(rawExponent);
-    text = decimalIndex <= 0
-      ? `${sign}0.${'0'.repeat(-decimalIndex)}${digits}`
-      : decimalIndex >= digits.length
-        ? `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
-        : `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
+    text =
+      decimalIndex <= 0
+        ? `${sign}0.${'0'.repeat(-decimalIndex)}${digits}`
+        : decimalIndex >= digits.length
+          ? `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
+          : `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
   }
 
   const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
@@ -204,9 +208,10 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         borderClass: 'border-pink-500/40',
         titleClass: 'text-pink-400',
         title: 'Your completed carries',
-        value: this.stats.userCarryCount === null
-          ? 'Coming soon'
-          : formatCompactValue(this.stats.userCarryCount),
+        value:
+          this.stats.userCarryCount === null
+            ? 'Coming soon'
+            : formatCompactValue(this.stats.userCarryCount),
         description: 'Completed as a carrier on this server',
       },
       {
@@ -215,6 +220,13 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         title: 'Your bought carries',
         value: 'Coming soon',
         description: 'Received as a customer on this server',
+      },
+      {
+        borderClass: 'border-red-500/40',
+        titleClass: 'text-red-400',
+        title: 'Total warns given',
+        value: 'Active / total coming soon',
+        description: 'Warnings issued on this server',
       },
     ];
   }
@@ -261,9 +273,9 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         undefined,
         userId,
       ),
-      userCarryCount: this.discordUserService.getCarryCount(userId, this.serverId).pipe(
-        catchError(() => of(null)),
-      ),
+      userCarryCount: this.discordUserService
+        .getCarryCount(userId, this.serverId)
+        .pipe(catchError(() => of(null))),
     }).subscribe({
       next: (stats) => {
         this.stats = stats;
