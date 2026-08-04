@@ -1,9 +1,63 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { DiscordUserControllerService } from '@dungeon-hub/api-client';
-import { Subscription } from 'rxjs';
+import {
+  DiscordServerControllerService,
+  DiscordUserControllerService,
+} from '@dungeon-hub/api-client';
+import { Observable, Subscription, map } from 'rxjs';
 
-export function formatLinkedUserCount(value: string): string {
+export function formatLinkedUserCount(value: string | number | null | undefined): string {
   return String(value ?? '0').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+type PeriodKey = 'lifetime' | 'last30Days' | 'last7Days';
+
+interface PeriodStat {
+  lifetime?: string | number | null;
+  total?: string | number | null;
+  allTime?: string | number | null;
+  last30Days?: string | number | null;
+  thirtyDays?: string | number | null;
+  last7Days?: string | number | null;
+  sevenDays?: string | number | null;
+}
+
+interface GlobalStatsApiResponse {
+  linkedUsers?: string | number | null;
+  completedCarries?: PeriodStat | string | number | null;
+  totalCreatedTickets?: PeriodStat | string | number | null;
+  createdTickets?: PeriodStat | string | number | null;
+  uniqueCarriers?: PeriodStat | string | number | null;
+  totalFlaggedUsers?: PeriodStat | string | number | null;
+  flaggedUsers?: PeriodStat | string | number | null;
+}
+
+interface GlobalStatCard {
+  borderClass: string;
+  titleClass: string;
+  title: string;
+  description: string;
+  stat: PeriodStat | string | number | null | undefined;
+}
+
+const COMING_SOON = 'Coming soon';
+
+function pickStatValue(
+  stat: PeriodStat | string | number | null | undefined,
+  key: PeriodKey,
+): string {
+  if (stat === null || stat === undefined) return COMING_SOON;
+  if (typeof stat === 'string' || typeof stat === 'number') {
+    return key === 'lifetime' ? formatLinkedUserCount(stat) : COMING_SOON;
+  }
+
+  const value =
+    key === 'lifetime'
+      ? (stat.lifetime ?? stat.total ?? stat.allTime)
+      : key === 'last30Days'
+        ? (stat.last30Days ?? stat.thirtyDays)
+        : (stat.last7Days ?? stat.sevenDays);
+
+  return value === null || value === undefined ? COMING_SOON : formatLinkedUserCount(value);
 }
 
 @Component({
@@ -33,16 +87,16 @@ export function formatLinkedUserCount(value: string): string {
               Discord users linked to their Minecraft account
             </p>
           </article>
-          @for (card of placeholderCards; track card.title) {
+          @for (card of statCards; track card.title) {
             <article class="card {{ card.borderClass }}">
               <p class="text-sm font-medium uppercase tracking-wide {{ card.titleClass }}">
                 {{ card.title }}
               </p>
               <dl class="mt-3 space-y-3">
-                @for (period of periods; track period) {
+                @for (period of periods; track period.key) {
                   <div class="flex items-center justify-between gap-4">
-                    <dt class="text-gray-400">{{ period }}</dt>
-                    <dd class="font-semibold">Coming soon</dd>
+                    <dt class="text-gray-400">{{ period.label }}</dt>
+                    <dd class="font-semibold">{{ getPeriodValue(card.stat, period.key) }}</dd>
                   </div>
                 }
               </dl>
@@ -60,6 +114,7 @@ export function formatLinkedUserCount(value: string): string {
   `,
 })
 export class GlobalStatsComponent implements OnInit, OnDestroy {
+  private discordServerService = inject(DiscordServerControllerService);
   private discordUserService = inject(DiscordUserControllerService);
   private cdr = inject(ChangeDetectorRef);
   private statsSubscription?: Subscription;
@@ -67,33 +122,45 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
   protected linkedUsers = '0';
   protected loading = true;
   protected error = false;
-  protected readonly periods = ['Lifetime', 'Last 30 days', 'Last 7 days'];
-  protected readonly placeholderCards = [
-    {
-      borderClass: 'border-purple-500/40',
-      titleClass: 'text-purple-400',
-      title: 'Completed carries',
-      description: '',
-    },
-    {
-      borderClass: 'border-cyan-500/40',
-      titleClass: 'text-cyan-400',
-      title: 'Total created tickets',
-      description: '',
-    },
-    {
-      borderClass: 'border-emerald-500/40',
-      titleClass: 'text-emerald-400',
-      title: 'Unique carriers',
-      description: 'People who gained score by completing at least one carry.',
-    },
-    {
-      borderClass: 'border-rose-500/40',
-      titleClass: 'text-rose-400',
-      title: 'Total flagged users',
-      description: 'Users flagged for illegitimate or harmful activity',
-    },
+  protected stats: GlobalStatsApiResponse | null = null;
+  protected readonly periods: { key: PeriodKey; label: string }[] = [
+    { key: 'lifetime', label: 'Lifetime' },
+    { key: 'last30Days', label: 'Last 30 days' },
+    { key: 'last7Days', label: 'Last 7 days' },
   ];
+
+  protected get statCards(): GlobalStatCard[] {
+    return [
+      {
+        borderClass: 'border-purple-500/40',
+        titleClass: 'text-purple-400',
+        title: 'Completed carries',
+        description: '',
+        stat: this.stats?.completedCarries,
+      },
+      {
+        borderClass: 'border-cyan-500/40',
+        titleClass: 'text-cyan-400',
+        title: 'Total created tickets',
+        description: '',
+        stat: this.stats?.totalCreatedTickets ?? this.stats?.createdTickets,
+      },
+      {
+        borderClass: 'border-emerald-500/40',
+        titleClass: 'text-emerald-400',
+        title: 'Unique carriers',
+        description: 'People who gained score by completing at least one carry.',
+        stat: this.stats?.uniqueCarriers,
+      },
+      {
+        borderClass: 'border-rose-500/40',
+        titleClass: 'text-rose-400',
+        title: 'Total flagged users',
+        description: 'Users flagged for illegitimate or harmful activity',
+        stat: this.stats?.totalFlaggedUsers ?? this.stats?.flaggedUsers,
+      },
+    ];
+  }
 
   // TODO: Remove this comment when global trend statistics are implemented. Request twice
   // the displayed period (60 days for a 30-day trend, or 14 days for a 7-day trend), subtract
@@ -109,14 +176,22 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
     this.statsSubscription?.unsubscribe();
   }
 
+  protected getPeriodValue(
+    stat: PeriodStat | string | number | null | undefined,
+    key: PeriodKey,
+  ): string {
+    return pickStatValue(stat, key);
+  }
+
   protected loadStats(): void {
     this.statsSubscription?.unsubscribe();
     this.loading = true;
     this.error = false;
 
-    this.statsSubscription = this.discordUserService.countLinkedUsers().subscribe({
-      next: (count) => {
-        this.linkedUsers = formatLinkedUserCount(count);
+    this.statsSubscription = this.loadGlobalStats().subscribe({
+      next: (stats) => {
+        this.stats = stats;
+        this.linkedUsers = formatLinkedUserCount(stats.linkedUsers);
         this.loading = false;
         this.cdr.detectChanges();
       },
@@ -126,5 +201,19 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
       },
     });
+  }
+
+  private loadGlobalStats(): Observable<GlobalStatsApiResponse> {
+    const getGlobalStats = (
+      this.discordServerService as unknown as {
+        getGlobalStats?: () => Observable<GlobalStatsApiResponse>;
+      }
+    ).getGlobalStats;
+
+    if (getGlobalStats) {
+      return getGlobalStats.call(this.discordServerService);
+    }
+
+    return this.discordUserService.countLinkedUsers().pipe(map((linkedUsers) => ({ linkedUsers })));
   }
 }

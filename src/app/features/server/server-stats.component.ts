@@ -4,16 +4,26 @@ import {
   DiscordServerControllerService,
   DiscordUserControllerService,
 } from '@dungeon-hub/api-client';
-import { Subscription, catchError, forkJoin, of } from 'rxjs';
+import { Observable, Subscription, catchError, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
 
+export interface WarnStats {
+  active?: string | number | null;
+  total?: string | number | null;
+}
+
 export interface ServerStats {
-  totalMoneySpent: string;
-  totalCarries: string;
-  userMoneySpent: string;
-  userMoneyEarned: string;
-  userCarryCount: number | null;
+  totalMoneySpent: string | number;
+  totalCarries: string | number;
+  totalScore?: string | number | null;
+  totalTickets?: string | number | null;
+  totalCarriers?: string | number | null;
+  userMoneySpent: string | number;
+  userMoneyEarned: string | number;
+  userCarryCount: string | number | null;
+  userBoughtCarries?: string | number | null;
+  totalWarnsGiven?: WarnStats | string | number | null;
 }
 
 const COMPACT_SUFFIXES = [
@@ -88,6 +98,17 @@ export function getDiscordUserId(token: string | null): string {
   } catch {
     return '';
   }
+}
+
+function formatStatValue(value: string | number | null | undefined): string {
+  return value === null || value === undefined ? 'Coming soon' : formatCompactValue(value);
+}
+
+function formatWarnValue(value: WarnStats | string | number | null | undefined): string {
+  if (value === null || value === undefined) return 'Active / total coming soon';
+  if (typeof value === 'string' || typeof value === 'number') return formatCompactValue(value);
+
+  return `Active: ${formatStatValue(value.active)} / Total: ${formatStatValue(value.total)}`;
 }
 
 @Component({
@@ -173,21 +194,21 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         borderClass: 'border-violet-500/40',
         titleClass: 'text-violet-400',
         title: 'Total score',
-        value: 'Coming soon',
+        value: formatStatValue(this.stats.totalScore),
         description: 'Points earned by carriers based on carry difficulty',
       },
       {
         borderClass: 'border-cyan-500/40',
         titleClass: 'text-cyan-400',
         title: 'Total tickets',
-        value: 'Coming soon',
+        value: formatStatValue(this.stats.totalTickets),
         description: '',
       },
       {
         borderClass: 'border-teal-500/40',
         titleClass: 'text-teal-400',
         title: 'Total carriers',
-        value: 'Coming soon',
+        value: formatStatValue(this.stats.totalCarriers),
         description: 'People who gained score by completing at least one carry',
       },
       {
@@ -208,24 +229,21 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         borderClass: 'border-pink-500/40',
         titleClass: 'text-pink-400',
         title: 'Your completed carries',
-        value:
-          this.stats.userCarryCount === null
-            ? 'Coming soon'
-            : formatCompactValue(this.stats.userCarryCount),
+        value: formatStatValue(this.stats.userCarryCount),
         description: 'Completed as a carrier on this server',
       },
       {
         borderClass: 'border-indigo-500/40',
         titleClass: 'text-indigo-400',
         title: 'Your bought carries',
-        value: 'Coming soon',
+        value: formatStatValue(this.stats.userBoughtCarries),
         description: 'Received as a customer on this server',
       },
       {
         borderClass: 'border-red-500/40',
         titleClass: 'text-red-400',
         title: 'Total warns given',
-        value: 'Active / total coming soon',
+        value: formatWarnValue(this.stats.totalWarnsGiven),
         description: 'Warnings issued on this server',
       },
     ];
@@ -259,11 +277,47 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = '';
 
-    this.statsSubscription = forkJoin({
+    this.statsSubscription = this.loadServerStats(userId).subscribe({
+      next: (stats) => {
+        this.stats = stats;
+        this.loading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.stats = null;
+        this.loading = false;
+        this.error = 'The statistics service did not return a result. Please try again.';
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
+  private loadServerStats(userId: string): Observable<ServerStats> {
+    const getStats =
+      (
+        this.discordServerService as unknown as {
+          getStats?: (server: string, user?: string) => Observable<ServerStats>;
+          getServerStats?: (server: string, user?: string) => Observable<ServerStats>;
+        }
+      ).getStats ??
+      (
+        this.discordServerService as unknown as {
+          getServerStats?: (server: string, user?: string) => Observable<ServerStats>;
+        }
+      ).getServerStats;
+
+    if (getStats) {
+      return getStats.call(this.discordServerService, this.serverId, userId);
+    }
+
+    return forkJoin({
       totalMoneySpent: this.discordServerService.getTotalAmountOfMoneySpentOnServices(
         this.serverId,
       ),
       totalCarries: this.discordServerService.countCarries(this.serverId),
+      totalScore: of(null),
+      totalTickets: of(null),
+      totalCarriers: of(null),
       userMoneySpent: this.discordServerService.getTotalAmountOfMoneySpentOnServices(
         this.serverId,
         userId,
@@ -276,18 +330,8 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
       userCarryCount: this.discordUserService
         .getCarryCount(userId, this.serverId)
         .pipe(catchError(() => of(null))),
-    }).subscribe({
-      next: (stats) => {
-        this.stats = stats;
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.stats = null;
-        this.loading = false;
-        this.error = 'The statistics service did not return a result. Please try again.';
-        this.cdr.detectChanges();
-      },
+      userBoughtCarries: of(null),
+      totalWarnsGiven: of(null),
     });
   }
 }

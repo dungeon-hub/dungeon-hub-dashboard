@@ -62,8 +62,22 @@ describe('formatCompactValue', () => {
 });
 
 describe('ServerStatsComponent carry count', () => {
-  it('requests and displays the current user carry count for the server', async () => {
-    const getCarryCount = vi.fn().mockReturnValue(of(1250));
+  it('requests and displays the new server stats endpoint for the current user', async () => {
+    const getStats = vi.fn().mockReturnValue(
+      of({
+        totalMoneySpent: '1000',
+        totalCarries: '2000',
+        totalScore: '3000',
+        totalTickets: '4000',
+        totalCarriers: '50',
+        userMoneySpent: '6000',
+        userMoneyEarned: '7000',
+        userCarryCount: 1250,
+        userBoughtCarries: '9',
+        totalWarnsGiven: { active: 2, total: 10 },
+      }),
+    );
+    const getCarryCount = vi.fn();
     const token = tokenWithPayload('{"discord-id":"356134481452597250"}');
 
     await TestBed.configureTestingModule({
@@ -76,13 +90,7 @@ describe('ServerStatsComponent carry count', () => {
         },
         { provide: AuthService, useValue: { getIdToken: () => token } },
         { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
-        {
-          provide: DiscordServerControllerService,
-          useValue: {
-            getTotalAmountOfMoneySpentOnServices: () => of('0'),
-            countCarries: () => of('0'),
-          },
-        },
+        { provide: DiscordServerControllerService, useValue: { getStats } },
         { provide: DiscordUserControllerService, useValue: { getCarryCount } },
       ],
     }).compileComponents();
@@ -90,20 +98,26 @@ describe('ServerStatsComponent carry count', () => {
     const fixture = TestBed.createComponent(ServerStatsComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('.xl\\:grid-cols-5')).toBeTruthy();
-    expect(getCarryCount).toHaveBeenCalledWith('356134481452597250', 'server-1');
+    expect(fixture.nativeElement.querySelector('.grid')?.classList.contains('xl:grid-cols-5')).toBe(
+      true,
+    );
+    expect(getStats).toHaveBeenCalledWith('server-1', '356134481452597250');
+    expect(getCarryCount).not.toHaveBeenCalled();
     expect((fixture.componentInstance as any).stats.userCarryCount).toBe(1250);
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Your completed carries');
     expect(text).toContain('1.25k');
     expect(text).toContain('Total carriers');
+    expect(text).toContain('50');
     expect(text).toContain('People who gained score by completing at least one carry');
     expect(text).toContain('Total score');
+    expect(text).toContain('3k');
     expect(text).toContain('Points earned by carriers based on carry difficulty');
     expect(text).toContain('Your bought carries');
+    expect(text).toContain('9');
     expect(text).toContain('Received as a customer on this server');
     expect(text).toContain('Total warns given');
-    expect(text).toContain('Active / total coming soon');
+    expect(text).toContain('Active: 2 / Total: 10');
     expect(text).toContain('Warnings issued on this server');
   });
 
@@ -143,7 +157,7 @@ describe('ServerStatsComponent carry count', () => {
 
     const component = fixture.componentInstance as any;
     expect(component.error).toBe('');
-    expect(component.stats).toEqual({
+    expect(component.stats).toMatchObject({
       totalMoneySpent: '1000',
       totalCarries: '4',
       userMoneySpent: '2000',

@@ -1,5 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { DiscordUserControllerService } from '@dungeon-hub/api-client';
+import {
+  DiscordServerControllerService,
+  DiscordUserControllerService,
+} from '@dungeon-hub/api-client';
 import { Subject, of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GlobalStatsComponent, formatLinkedUserCount } from './global-stats.component';
@@ -12,17 +15,30 @@ describe('formatLinkedUserCount', () => {
 
 describe('GlobalStatsComponent', () => {
   const countLinkedUsers = vi.fn();
+  const getGlobalStats = vi.fn();
 
   beforeEach(async () => {
     countLinkedUsers.mockReset();
+    getGlobalStats.mockReset();
     await TestBed.configureTestingModule({
       imports: [GlobalStatsComponent],
-      providers: [{ provide: DiscordUserControllerService, useValue: { countLinkedUsers } }],
+      providers: [
+        { provide: DiscordServerControllerService, useValue: { getGlobalStats } },
+        { provide: DiscordUserControllerService, useValue: { countLinkedUsers } },
+      ],
     }).compileComponents();
   });
 
   it('loads linked users and displays every global statistic', () => {
-    countLinkedUsers.mockReturnValue(of('12345'));
+    getGlobalStats.mockReturnValue(
+      of({
+        linkedUsers: '12345',
+        completedCarries: { lifetime: '1000000', last30Days: '300', last7Days: '70' },
+        totalCreatedTickets: { lifetime: '500', last30Days: '50', last7Days: '7' },
+        uniqueCarriers: { lifetime: '42', last30Days: '10', last7Days: '3' },
+        totalFlaggedUsers: { lifetime: '4', last30Days: '2', last7Days: '1' },
+      }),
+    );
     const fixture = TestBed.createComponent(GlobalStatsComponent);
 
     fixture.detectChanges();
@@ -30,8 +46,12 @@ describe('GlobalStatsComponent', () => {
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('12,345');
     expect(text).toContain('Discord users linked to their Minecraft account');
+    expect(getGlobalStats).toHaveBeenCalledOnce();
+    expect(countLinkedUsers).not.toHaveBeenCalled();
     expect(text).toContain('Completed carries');
+    expect(text).toContain('1,000,000');
     expect(text).toContain('Total created tickets');
+    expect(text).toContain('500');
     expect(fixture.nativeElement.querySelector('.grid')?.classList.contains('xl:grid-cols-5')).toBe(
       true,
     );
@@ -44,8 +64,8 @@ describe('GlobalStatsComponent', () => {
   });
 
   it('shows errors and retries through the rendered button', () => {
-    const firstRequest = new Subject<string>();
-    countLinkedUsers.mockReturnValueOnce(firstRequest).mockReturnValueOnce(of('42'));
+    const firstRequest = new Subject<any>();
+    getGlobalStats.mockReturnValueOnce(firstRequest).mockReturnValueOnce(of({ linkedUsers: '42' }));
     const fixture = TestBed.createComponent(GlobalStatsComponent);
 
     fixture.detectChanges();
@@ -53,13 +73,13 @@ describe('GlobalStatsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Unable to load global stats');
 
     (fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();
-    expect(countLinkedUsers).toHaveBeenCalledTimes(2);
+    expect(getGlobalStats).toHaveBeenCalledTimes(2);
     expect(fixture.nativeElement.textContent).toContain('42');
   });
 
   it('renders loading and cancels the request when destroyed', () => {
-    const request = new Subject<string>();
-    countLinkedUsers.mockReturnValue(request);
+    const request = new Subject<any>();
+    getGlobalStats.mockReturnValue(request);
     const fixture = TestBed.createComponent(GlobalStatsComponent);
 
     fixture.detectChanges();
