@@ -88,19 +88,19 @@ describe('ticket panel transfer', () => {
       openChannelName: original.openChannelName,
       claimedChannelName: original.claimedChannelName,
       closedChannelName: original.closedChannelName,
-      transcriptChannel: original.transcriptChannel?.id,
+      transcriptChannel: undefined,
       ticketMessage: original.ticketMessage,
       requiresLinking: original.requiresLinking,
       closeTranscriptTarget: original.closeTranscriptTarget,
       deleteTranscriptTarget: original.deleteTranscriptTarget,
       userTranscriptDm: original.userTranscriptDm,
       formQuestions: original.formQuestions,
-      relatedCarryTier: original.relatedCarryTier?.id,
-      relatedCarryDifficulty: original.relatedCarryDifficulty?.id,
-      supportRoles: ['role-1'],
-      additionalRoles: ['role-2'],
-      openCategories: original.openCategories,
-      closedCategories: original.closedCategories,
+      relatedCarryTier: undefined,
+      relatedCarryDifficulty: undefined,
+      supportRoles: undefined,
+      additionalRoles: undefined,
+      openCategories: undefined,
+      closedCategories: undefined,
       permissions: original.permissions,
     });
   });
@@ -232,6 +232,20 @@ describe('ticket panel transfer', () => {
     expect(() => parseTicketPanelExport('{"version":999,"panel":{"name":"x"}}')).toThrow(
       'not a supported ticket panel export',
     );
+  });
+
+  it('ignores server-specific references when parsing an imported panel', () => {
+    const exported = exportTicketPanel(panel());
+
+    const imported = parseTicketPanelExport(JSON.stringify(exported));
+
+    expect(imported.panel.transcriptChannel).toBeUndefined();
+    expect(imported.panel.relatedCarryTier).toBeUndefined();
+    expect(imported.panel.relatedCarryDifficulty).toBeUndefined();
+    expect(imported.panel.supportRoles).toBeUndefined();
+    expect(imported.panel.additionalRoles).toBeUndefined();
+    expect(imported.panel.openCategories).toBeUndefined();
+    expect(imported.panel.closedCategories).toBeUndefined();
   });
 
   it('normalizes accepted null collection values to undefined before API use', () => {

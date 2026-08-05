@@ -100,6 +100,33 @@ describe('TicketPanelListComponent transfers', () => {
     expect(instance.ticketPanels[0]).toEqual(snapshot);
   });
 
+  it('recognizes an export-all backup copied from the clipboard as importable', async () => {
+    const second = {
+      ...structuredClone(existing),
+      id: 'panel-2',
+      name: 'billing',
+      displayName: 'Billing',
+    };
+    const instance = component();
+    instance.ticketPanels = [existing, second];
+    clipboard.writeText.mockResolvedValueOnce(undefined);
+
+    instance.openExportAllModal();
+    await instance.copyExportToClipboard();
+    const backup = clipboard.writeText.mock.calls[0][0];
+    clipboard.readText.mockResolvedValueOnce(backup);
+    await instance.openImportSourceModal();
+
+    expect(instance.clipboardHasValidPanel).toBe(true);
+    instance.importFromClipboard();
+    await Promise.resolve();
+    expect(instance.showImportSelectionModal).toBe(true);
+    expect(instance.importCandidates.map((candidate) => candidate.imported.panel.name)).toEqual([
+      'support',
+      'billing',
+    ]);
+  });
+
   it('copies an all-panel backup to the clipboard without mutating current panels', async () => {
     const second = {
       ...structuredClone(existing),
