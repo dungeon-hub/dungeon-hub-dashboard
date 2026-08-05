@@ -31,6 +31,7 @@ interface UntrustedTicketPanelExport {
   id?: unknown;
   name?: unknown;
   panel?: unknown;
+  panels?: unknown;
 }
 
 const TRANSCRIPT_TARGETS = new Set(['None', 'User', 'TranscriptChannel', 'Both']);
@@ -185,15 +186,44 @@ export function serializeTicketPanels(panels: TicketPanelModel[]): string {
 
 export function isTicketPanelExport(contents: string): boolean {
   try {
-    parseTicketPanelExport(contents);
+    parseTicketPanelExports(contents);
     return true;
   } catch {
     return false;
   }
 }
 
-export function parseTicketPanelExport(contents: string): TicketPanelImport {
+export function parseTicketPanelExports(contents: string): TicketPanelImport[] {
   const parsed: unknown = JSON.parse(contents);
+  const exports = Array.isArray(parsed) ? parsed : getBackupPanels(parsed);
+  if (exports) {
+    if (exports.length === 0) {
+      throw new Error('This is not a supported ticket panel export.');
+    }
+    return exports.map((panelExport) => parseTicketPanelExportValue(panelExport));
+  }
+  return [parseTicketPanelExportValue(parsed)];
+}
+
+function getBackupPanels(parsed: unknown): unknown[] | undefined {
+  if (!isRecord(parsed)) return undefined;
+  const candidate = parsed as UntrustedTicketPanelExport;
+  if (candidate.panels === undefined) return undefined;
+  if (candidate.version !== TICKET_PANEL_EXPORT_VERSION || !Array.isArray(candidate.panels)) {
+    throw new Error('This is not a supported ticket panel export.');
+  }
+  return candidate.panels;
+}
+
+export function parseTicketPanelExport(contents: string): TicketPanelImport {
+  const imports = parseTicketPanelExports(contents);
+  if (imports.length !== 1) {
+    throw new Error('This is not a supported ticket panel export.');
+  }
+  return imports[0];
+}
+
+function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
   if (!isRecord(parsed)) {
     throw new Error('This is not a supported ticket panel export.');
   }

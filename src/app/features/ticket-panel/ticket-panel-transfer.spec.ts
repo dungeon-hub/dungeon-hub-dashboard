@@ -7,6 +7,7 @@ import {
   hasDuplicatePanelName,
   isTicketPanelExport,
   parseTicketPanelExport,
+  parseTicketPanelExports,
   serializeTicketPanel,
   serializeTicketPanels,
   toTicketPanelCreation,
@@ -121,6 +122,33 @@ describe('ticket panel transfer', () => {
       ],
     });
     expect(source).toEqual(snapshot);
+  });
+
+  it('parses exported backups and raw arrays as multiple detached imports', () => {
+    const first = panel();
+    const second = { ...structuredClone(first), id: '2', name: 'billing', displayName: 'Billing' };
+
+    const backupImports = parseTicketPanelExports(serializeTicketPanels([first, second]));
+    const arrayImports = parseTicketPanelExports(
+      JSON.stringify([exportTicketPanel(first), exportTicketPanel(second)]),
+    );
+    backupImports[0].panel.permissions!['Everyone']['Denied'] = '0';
+
+    expect(backupImports.map((item) => item.panel.name)).toEqual(['support', 'billing']);
+    expect(arrayImports.map((item) => item.id)).toEqual(['1', '2']);
+    expect(first.permissions['Everyone']['Denied']).toBe('1024');
+  });
+
+  it.each([
+    ['empty array', '[]'],
+    ['empty backup', JSON.stringify({ version: 1, panels: [] })],
+    [
+      'wrong backup version',
+      JSON.stringify({ version: 999, panels: [exportTicketPanel(panel())] }),
+    ],
+    ['invalid entry in array', JSON.stringify([exportTicketPanel(panel()), { version: 1 }])],
+  ])('rejects invalid multi-panel exports: %s', (_label, contents) => {
+    expect(() => parseTicketPanelExports(contents)).toThrow('not a supported ticket panel export');
   });
 
   it('serializes an all-panel backup as reusable pretty JSON', () => {

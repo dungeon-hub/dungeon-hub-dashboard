@@ -36,6 +36,9 @@ jobs:
       - name: Run tests
         run: npm test -- --watch=false
 
+      - name: Run lint
+        run: npm run lint
+
   biome:
     name: Biome linter
     runs-on: ubuntu-latest
@@ -51,4 +54,4 @@ jobs:
         uses: biomejs/setup-biome@v2
 
       - name: Run linter
-        run: biome lint src
+        run: biome ci src

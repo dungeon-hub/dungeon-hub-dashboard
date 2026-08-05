@@ -239,6 +239,89 @@ describe('TicketPanelListComponent transfers', () => {
     expect(instance.modalTitle).toBe('Import Ticket Panel');
   });
 
+  it('lets users select which panels from a backup should enter the import flow', async () => {
+    const selected = {
+      ...structuredClone(existing),
+      id: 'panel-2',
+      name: 'billing',
+      displayName: 'Billing',
+    };
+    const skipped = {
+      ...structuredClone(existing),
+      id: 'panel-3',
+      name: 'sales',
+      displayName: 'Sales',
+    };
+    const instance = component();
+
+    await instance.onFileDrop({
+      preventDefault: vi.fn(),
+      dataTransfer: {
+        files: [{ text: () => Promise.resolve(serializeTicketPanels([selected, skipped])) }],
+      },
+    } as any);
+    instance.importCandidates[1].selected = false;
+    instance.confirmSelectedImports();
+
+    expect(instance.showImportSelectionModal).toBe(false);
+    expect(instance.showCreateModal).toBe(true);
+    expect(instance.pendingPanel?.name).toBe('billing');
+    expect(instance.pendingImportQueue).toEqual([]);
+  });
+
+  it('continues selected backup imports through per-panel conflict checks', async () => {
+    const second = {
+      ...structuredClone(existing),
+      id: 'panel-2',
+      name: 'billing',
+      displayName: 'Billing',
+    };
+    const instance = component();
+
+    await instance.onFileDrop({
+      preventDefault: vi.fn(),
+      dataTransfer: {
+        files: [{ text: () => Promise.resolve(serializeTicketPanels([existing, second])) }],
+      },
+    } as any);
+    instance.confirmSelectedImports();
+
+    expect(instance.importConflict).toBe(existing);
+    instance.overwriteImport();
+
+    expect(service.updateTicketPanel).toHaveBeenCalledWith(
+      'server-1',
+      'panel-1',
+      expect.objectContaining({ name: 'support' }),
+    );
+    expect(instance.showCreateModal).toBe(true);
+    expect(instance.pendingPanel?.name).toBe('billing');
+  });
+
+  it('requires at least one selected panel before continuing a backup import', async () => {
+    const second = {
+      ...structuredClone(existing),
+      id: 'panel-2',
+      name: 'billing',
+      displayName: 'Billing',
+    };
+    const instance = component();
+
+    await instance.onFileDrop({
+      preventDefault: vi.fn(),
+      dataTransfer: {
+        files: [{ text: () => Promise.resolve(serializeTicketPanels([existing, second])) }],
+      },
+    } as any);
+    instance.importCandidates.forEach((candidate) => (candidate.selected = false));
+    instance.confirmSelectedImports();
+
+    expect(instance.showImportSelectionModal).toBe(true);
+    expect(instance.createError).toBe('Select at least one ticket panel to import.');
+    expect(service.createNewTicketPanel).not.toHaveBeenCalled();
+    expect(service.updateTicketPanel).not.toHaveBeenCalled();
+  });
+
   it('updates drag highlighting and prevents browser drop behavior', () => {
     const instance = component();
     const over = { preventDefault: vi.fn() } as unknown as DragEvent;

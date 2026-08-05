@@ -11,12 +11,13 @@ import {
   findImportConflict,
   hasDuplicatePanelName,
   isTicketPanelExport,
-  parseTicketPanelExport,
+  parseTicketPanelExports,
   serializeTicketPanel,
   serializeTicketPanels,
   toTicketPanelCreation,
   toTicketPanelUpdate,
 } from './ticket-panel-transfer';
+import type { TicketPanelImport } from './ticket-panel-transfer';
 
 @Component({
   selector: 'app-ticket-panel-list',
@@ -195,6 +196,38 @@ import {
         </div>
       }
 
+      @if (showImportSelectionModal) {
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div class="card max-w-lg w-full mx-4">
+            <h3 class="text-xl font-semibold mb-3">Select Ticket Panels to Import</h3>
+            <p class="text-gray-400 mb-4">
+              This file contains multiple ticket panels. Choose which panels should continue through
+              the import flow.
+            </p>
+            <div class="space-y-3 max-h-80 overflow-y-auto mb-4">
+              @for (candidate of importCandidates; track candidate.index) {
+                <label class="flex items-center gap-3 bg-gray-700 rounded-lg p-3">
+                  <input type="checkbox" [(ngModel)]="candidate.selected" />
+                  <span>
+                    {{ candidate.imported.panel.displayName || candidate.imported.panel.name }}
+                    <span class="text-gray-400">({{ candidate.imported.panel.name }})</span>
+                  </span>
+                </label>
+              }
+            </div>
+            @if (createError) {
+              <p class="text-red-400 text-sm mb-4">{{ createError }}</p>
+            }
+            <div class="flex gap-3">
+              <button (click)="cancelImport()" class="btn btn-secondary flex-1">Cancel</button>
+              <button (click)="confirmSelectedImports()" class="btn btn-primary flex-1">
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+
       @if (importConflict) {
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div class="card max-w-lg w-full mx-4">
@@ -333,6 +366,10 @@ export class TicketPanelListComponent implements OnInit {
   };
   pendingPanel: TicketPanelCreationModel | null = null;
   importConflict: TicketPanelModel | null = null;
+  importCandidates: { index: number; imported: TicketPanelImport; selected: boolean }[] = [];
+  pendingImportQueue: TicketPanelImport[] = [];
+  createdPanelNames: Pick<TicketPanelModel, 'name' | 'displayName'>[] = [];
+  showImportSelectionModal = false;
   modalTitle = '';
   showExportModal = false;
   showImportSourceModal = false;
@@ -351,12 +388,13 @@ export class TicketPanelListComponent implements OnInit {
     return (
       !!name &&
       (!this.pendingPanel || !!displayName) &&
-      !hasDuplicatePanelName(this.ticketPanels, name, displayName)
+      !hasDuplicatePanelName([...this.ticketPanels, ...this.createdPanelNames], name, displayName)
     );
   }
 
   openCreateModal() {
     this.pendingPanel = null;
+    this.createdPanelNames = [];
     this.newPanel = { name: '', displayName: '', emoji: '' };
     this.createError = null;
     this.showCreateModal = true;
@@ -431,15 +469,61 @@ export class TicketPanelListComponent implements OnInit {
 
   private async processImport(contents: string) {
     try {
-      const imported = parseTicketPanelExport(contents);
-      this.pendingPanel = imported.panel;
+      const imports = parseTicketPanelExports(contents);
       this.createError = null;
       this.showImportSourceModal = false;
-      this.importConflict = findImportConflict(this.ticketPanels, imported) || null;
-      if (!this.importConflict) this.openImportedNameModal();
+      if (imports.length > 1) {
+        this.importCandidates = imports.map((imported, index) => ({
+          index,
+          imported,
+          selected: true,
+        }));
+        this.showImportSelectionModal = true;
+        return;
+      }
+      this.startImportQueue(imports);
     } catch {
       this.transferMessage =
         'Could not read ticket panel export. Choose a valid ticket panel JSON file.';
+    }
+  }
+
+  confirmSelectedImports() {
+    const selectedImports = this.importCandidates
+      .filter((candidate) => candidate.selected)
+      .map((candidate) => candidate.imported);
+    if (selectedImports.length === 0) {
+      this.createError = 'Select at least one ticket panel to import.';
+      return;
+    }
+    this.importCandidates = [];
+    this.showImportSelectionModal = false;
+    this.startImportQueue(selectedImports);
+  }
+
+  private startImportQueue(imports: TicketPanelImport[]) {
+    this.createdPanelNames = [];
+    this.pendingImportQueue = [...imports];
+    this.openNextPendingImport();
+  }
+
+  private openNextPendingImport() {
+    const imported = this.pendingImportQueue.shift();
+    if (!imported) {
+      this.pendingPanel = null;
+      this.importConflict = null;
+      return;
+    }
+    this.pendingPanel = imported.panel;
+    this.importConflict = findImportConflict(this.ticketPanels, imported) || null;
+    if (!this.importConflict) this.openImportedNameModal();
+  }
+
+  private finishCurrentImport() {
+    this.importConflict = null;
+    this.pendingPanel = null;
+    if (this.pendingImportQueue.length > 0) {
+      this.openNextPendingImport();
     }
   }
 
@@ -463,8 +547,7 @@ export class TicketPanelListComponent implements OnInit {
       .subscribe({
         next: () => {
           this.isCreating = false;
-          this.importConflict = null;
-          this.pendingPanel = null;
+          this.finishCurrentImport();
           this.loadTicketPanels();
         },
         error: (err) => {
@@ -478,6 +561,10 @@ export class TicketPanelListComponent implements OnInit {
   cancelImport() {
     this.importConflict = null;
     this.pendingPanel = null;
+    this.pendingImportQueue = [];
+    this.importCandidates = [];
+    this.createdPanelNames = [];
+    this.showImportSelectionModal = false;
     this.createError = null;
   }
 
@@ -633,9 +720,13 @@ export class TicketPanelListComponent implements OnInit {
     this.ticketPanelService.createNewTicketPanel(this.serverId, creationModel).subscribe({
       next: () => {
         this.showCreateModal = false;
+        this.createdPanelNames.push({
+          name: creationModel.name,
+          displayName: creationModel.displayName,
+        });
         this.newPanel = { name: '', displayName: '', emoji: '' };
-        this.pendingPanel = null;
         this.isCreating = false;
+        this.finishCurrentImport();
         this.loadTicketPanels();
       },
       error: (err) => {
