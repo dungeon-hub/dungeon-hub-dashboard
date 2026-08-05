@@ -7,16 +7,22 @@ import {
   inject,
 } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DiscordServerControllerService } from '@dungeon-hub/api-client';
-import { Subscription, forkJoin } from 'rxjs';
-import { AuthService } from '../../core/services/auth.service';
+import { StatsControllerService } from '@dungeon-hub/api-client';
+import { Observable, Subscription } from 'rxjs';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
 
 export interface ServerStats {
-  totalMoneySpent: string;
-  totalCarries: string;
-  userMoneySpent: string;
-  userMoneyEarned: string;
+  totalMoneySpent: string | number;
+  totalCarries: string | number;
+  totalTickets: string | number;
+  totalCarriers: string | number;
+  totalScore: string | number;
+  activeWarns: string | number;
+  totalWarns: string | number;
+  yourMoneySpent?: string | number | null;
+  yourMoneyEarned?: string | number | null;
+  yourCompletedCarries?: string | number | null;
+  yourBoughtCarries?: string | number | null;
 }
 
 interface StatCard {
@@ -34,8 +40,23 @@ const COMPACT_SUFFIXES = [
   { threshold: 3, suffix: 'k' },
 ] as const;
 
-export function formatCompactValue(value: string): string {
-  const text = String(value ?? '0');
+export function formatCompactValue(value: string | number): string {
+  const rawText = String(value ?? '0');
+  const exponentMatch = rawText.match(/^(-?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
+  let text = rawText;
+
+  if (exponentMatch) {
+    const [, sign, whole, fraction = '', rawExponent] = exponentMatch;
+    const digits = `${whole}${fraction}`;
+    const decimalIndex = whole.length + Number(rawExponent);
+    text =
+      decimalIndex <= 0
+        ? `${sign}0.${'0'.repeat(-decimalIndex)}${digits}`
+        : decimalIndex >= digits.length
+          ? `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
+          : `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
+  }
+
   const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
   if (!match) return text;
 
@@ -65,25 +86,12 @@ export function formatCompactValue(value: string): string {
   return `${sign}${whole}${decimals ? `.${decimals}` : ''}${compactUnit.suffix}`;
 }
 
-export function getDiscordUserId(token: string | null): string {
-  if (!token) return '';
+function formatStatValue(value: string | number | null | undefined): string {
+  return value === null || value === undefined ? 'Coming soon' : formatCompactValue(value);
+}
 
-  try {
-    const payload = token.split('.')[1];
-    if (!payload) return '';
-
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((character) => `%${character.charCodeAt(0).toString(16).padStart(2, '0')}`)
-        .join(''),
-    );
-    const match = json.match(/"discord-id"\s*:\s*(?:"(\d+)"|(\d+))/);
-    return match?.[1] ?? match?.[2] ?? '';
-  } catch {
-    return '';
-  }
+function formatWarnValue(total: string | number, active: string | number): string {
+  return `${formatCompactValue(total)} (${formatCompactValue(active)} active)`;
 }
 
 @Component({
@@ -115,7 +123,7 @@ export function getDiscordUserId(token: string | null): string {
           <button type="button" (click)="loadStats()" class="btn btn-secondary mt-4">Retry</button>
         </div>
       } @else if (stats) {
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6">
           @for (card of statCards; track card.title) {
             <article class="card {{ card.borderClass }}">
               <p class="text-sm font-medium uppercase tracking-wide {{ card.titleClass }}">
@@ -134,9 +142,8 @@ export function getDiscordUserId(token: string | null): string {
 })
 export class ServerStatsComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
-  private authService = inject(AuthService);
   private discordGuildService = inject(DiscordGuildService);
-  private discordServerService = inject(DiscordServerControllerService);
+  private statsService = inject(StatsControllerService);
   private cdr = inject(ChangeDetectorRef);
   private routeSubscription?: Subscription;
   private statsSubscription?: Subscription;
@@ -165,27 +172,64 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         title: 'Total carries',
         value: formatCompactValue(stats.totalCarries),
         description: 'Completed by this server',
+        value: formatCompactValue(this.stats.totalCarries),
+        description: 'Completed on this server',
+      },
+      {
+        borderClass: 'border-violet-500/40',
+        titleClass: 'text-violet-400',
+        title: 'Total score',
+        value: formatStatValue(this.stats.totalScore),
+        description: 'Points earned by the service team',
       },
       {
         borderClass: 'border-cyan-500/40',
         titleClass: 'text-cyan-400',
         title: 'Total tickets',
-        value: 'Coming soon',
+        value: formatStatValue(this.stats.totalTickets),
         description: '',
+      },
+      {
+        borderClass: 'border-teal-500/40',
+        titleClass: 'text-teal-400',
+        title: 'Total carriers',
+        value: formatStatValue(this.stats.totalCarriers),
+        description: 'People who gained score by completing at least one carry',
       },
       {
         borderClass: 'border-amber-500/40',
         titleClass: 'text-amber-400',
         title: 'Your money spent',
-        value: formatCompactValue(stats.userMoneySpent),
+        value: formatStatValue(this.stats.yourMoneySpent),
         description: 'As the user receiving a service',
       },
       {
         borderClass: 'border-emerald-500/40',
         titleClass: 'text-emerald-400',
         title: 'Your money earned',
-        value: formatCompactValue(stats.userMoneyEarned),
+        value: formatStatValue(this.stats.yourMoneyEarned),
         description: 'As the carrier providing a service',
+      },
+      {
+        borderClass: 'border-pink-500/40',
+        titleClass: 'text-pink-400',
+        title: 'Your completed carries',
+        value: formatStatValue(this.stats.yourCompletedCarries),
+        description: 'Completed as a carrier on this server',
+      },
+      {
+        borderClass: 'border-indigo-500/40',
+        titleClass: 'text-indigo-400',
+        title: 'Your bought carries',
+        value: formatStatValue(this.stats.yourBoughtCarries),
+        description: 'Received as a customer on this server',
+      },
+      {
+        borderClass: 'border-red-500/40',
+        titleClass: 'text-red-400',
+        title: 'Total warns given',
+        value: formatWarnValue(this.stats.totalWarns, this.stats.activeWarns),
+        description: 'Warnings issued on this server',
       },
     ];
   }
@@ -210,37 +254,19 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   }
 
   protected loadStats(): void {
-    // Read the claim directly from the encoded JWT. Parsing the payload as JSON first would
-    // round Discord snowflakes because they are larger than Number.MAX_SAFE_INTEGER.
-    const userId = getDiscordUserId(this.authService.getIdToken());
     this.statsSubscription?.unsubscribe();
     this.stats = null;
-    this.statCards = [];
 
-    if (!this.serverId || !userId) {
+    if (!this.serverId) {
       this.loading = false;
-      this.error = 'Your server or Discord user could not be identified.';
+      this.error = 'Your server could not be identified.';
       return;
     }
 
     this.loading = true;
     this.error = '';
 
-    this.statsSubscription = forkJoin({
-      totalMoneySpent: this.discordServerService.getTotalAmountOfMoneySpentOnServices(
-        this.serverId,
-      ),
-      totalCarries: this.discordServerService.countCarries(this.serverId),
-      userMoneySpent: this.discordServerService.getTotalAmountOfMoneySpentOnServices(
-        this.serverId,
-        userId,
-      ),
-      userMoneyEarned: this.discordServerService.getTotalAmountOfMoneySpentOnServices(
-        this.serverId,
-        undefined,
-        userId,
-      ),
-    }).subscribe({
+    this.statsSubscription = this.loadServerStats().subscribe({
       next: (stats) => {
         this.stats = stats;
         this.statCards = this.buildStatCards(stats);
@@ -255,5 +281,9 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         this.cdr.markForCheck();
       },
     });
+  }
+
+  private loadServerStats(): Observable<ServerStats> {
+    return this.statsService.getServerStats(this.serverId) as Observable<ServerStats>;
   }
 }
