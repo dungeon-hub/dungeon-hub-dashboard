@@ -191,8 +191,29 @@ describe('ticket panel transfer', () => {
     expect(findImportConflict([existing], { id: '1', name: 'support' })).toBe(existing);
     expect(findImportConflict([existing], { id: '4', name: 'support' })).toBe(existing);
     expect(findImportConflict([existing], { name: 'support' })).toBe(existing);
+    expect(findImportConflict([existing], { name: ' SUPPORT ' })).toBe(existing);
     expect(findImportConflict([existing], { id: '1', name: 'other' })).toBeUndefined();
     expect(findImportConflict([existing], { id: '1' })).toBeUndefined();
+  });
+
+  it('uses the required panel name for imports when legacy metadata omits the name', () => {
+    const exported = exportTicketPanel(panel()) as any;
+    delete exported.name;
+
+    const imported = parseTicketPanelExport(JSON.stringify(exported));
+
+    expect(imported.name).toBe('support');
+    expect(findImportConflict([panel()], imported)).toEqual(panel());
+  });
+
+  it('accepts legacy top-level names that differ only by case or surrounding whitespace', () => {
+    const exported = exportTicketPanel(panel()) as any;
+    exported.name = ' SUPPORT ';
+
+    const imported = parseTicketPanelExport(JSON.stringify(exported));
+
+    expect(imported.name).toBe('support');
+    expect(findImportConflict([panel()], imported)).toEqual(panel());
   });
 
   it('builds a detached overwrite model and resets settings absent from the import', () => {

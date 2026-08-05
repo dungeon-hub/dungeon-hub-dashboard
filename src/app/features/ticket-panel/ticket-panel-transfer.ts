@@ -107,6 +107,10 @@ function normalizePermissions(
   );
 }
 
+function normalizePanelName(name: string): string {
+  return name.trim().toLocaleLowerCase();
+}
+
 const ticketPanelFieldValidators = {
   name: (value: unknown) => typeof value === 'string' && !!value.trim(),
   displayName: isNullableOptionalString,
@@ -272,14 +276,15 @@ function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
     !isOptionalExportId(candidate.id) ||
     !isOptionalString(candidate.name) ||
     hasInvalidPanelField ||
-    (candidate.name !== undefined && candidate.name !== panel.name) ||
-    typeof panel.name !== 'string'
+    typeof panel.name !== 'string' ||
+    (candidate.name !== undefined &&
+      normalizePanelName(candidate.name) !== normalizePanelName(panel.name))
   ) {
     throw new Error('This is not a supported ticket panel export.');
   }
   return {
     id: candidate.id === undefined ? undefined : String(candidate.id),
-    name: candidate.name,
+    name: panel.name,
     panel: copyTicketPanelCreation(panel as unknown as TicketPanelCreationModel),
   };
 }
@@ -289,7 +294,9 @@ export function findImportConflict(
   imported: Pick<TicketPanelImport, 'id' | 'name'>,
 ): TicketPanelModel | undefined {
   if (!imported.name) return undefined;
-  const nameMatch = (panel: Pick<TicketPanelModel, 'name'>) => panel.name === imported.name;
+  const importedName = normalizePanelName(imported.name);
+  const nameMatch = (panel: Pick<TicketPanelModel, 'name'>) =>
+    normalizePanelName(panel.name) === importedName;
   if (imported.id) {
     const exactMatch = panels.find((panel) => String(panel.id) === imported.id && nameMatch(panel));
     if (exactMatch) return exactMatch;
