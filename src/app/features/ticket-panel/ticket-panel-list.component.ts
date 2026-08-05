@@ -1,30 +1,36 @@
-import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DiscordGuildService } from '../../core/services/discord-guild.service';
+import { CommonModule } from "@angular/common";
 import {
-  TicketPanelControllerService,
-  TicketPanelCreationModel,
-  TicketPanelModel,
-} from '@dungeon-hub/api-client';
+	ChangeDetectorRef,
+	Component,
+	DestroyRef,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { ActivatedRoute, RouterLink } from "@angular/router";
 import {
-  findImportConflict,
-  hasDuplicatePanelName,
-  isTicketPanelExport,
-  parseTicketPanelExports,
-  serializeTicketPanel,
-  serializeTicketPanels,
-  toTicketPanelCreation,
-  toTicketPanelUpdate,
-} from './ticket-panel-transfer';
-import type { TicketPanelImport } from './ticket-panel-transfer';
+	TicketPanelControllerService,
+	type TicketPanelCreationModel,
+	type TicketPanelModel,
+} from "@dungeon-hub/api-client";
+import { DiscordGuildService } from "../../core/services/discord-guild.service";
+import type { TicketPanelImport } from "./ticket-panel-transfer";
+import {
+	findImportConflict,
+	hasDuplicatePanelName,
+	isTicketPanelExport,
+	parseTicketPanelExports,
+	serializeTicketPanel,
+	serializeTicketPanels,
+	toTicketPanelCreation,
+	toTicketPanelUpdate,
+} from "./ticket-panel-transfer";
 
 @Component({
-  selector: 'app-ticket-panel-list',
-  standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
-  template: `
+	selector: "app-ticket-panel-list",
+	standalone: true,
+	imports: [CommonModule, RouterLink, FormsModule],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
         <a [routerLink]="['/server', serverId]" class="btn btn-secondary mb-4 inline-block">
@@ -348,397 +354,422 @@ import type { TicketPanelImport } from './ticket-panel-transfer';
   `,
 })
 export class TicketPanelListComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private ticketPanelService = inject(TicketPanelControllerService);
-  private discordGuildService = inject(DiscordGuildService);
-  private cdr = inject(ChangeDetectorRef);
-  private destroyRef = inject(DestroyRef);
+	private route = inject(ActivatedRoute);
+	private ticketPanelService = inject(TicketPanelControllerService);
+	private discordGuildService = inject(DiscordGuildService);
+	private cdr = inject(ChangeDetectorRef);
+	private destroyRef = inject(DestroyRef);
 
-  serverId!: string;
-  serverName = 'Server';
-  ticketPanels: TicketPanelModel[] = [];
-  loadError: string | null = null;
+	serverId!: string;
+	serverName = "Server";
+	ticketPanels: TicketPanelModel[] = [];
+	loadError: string | null = null;
 
-  showCreateModal = false;
-  isCreating = false;
-  createError: string | null = null;
-  newPanel = {
-    name: '',
-    displayName: '',
-    emoji: '',
-  };
-  pendingPanel: TicketPanelCreationModel | null = null;
-  importConflict: TicketPanelModel | null = null;
-  importCandidates: { index: number; imported: TicketPanelImport; selected: boolean }[] = [];
-  pendingImportQueue: TicketPanelImport[] = [];
-  createdPanelNames: Pick<TicketPanelModel, 'name' | 'displayName'>[] = [];
-  showImportSelectionModal = false;
-  modalTitle = '';
-  showExportModal = false;
-  showImportSourceModal = false;
-  exportTarget: TicketPanelModel | null = null;
-  exportAllSelected = false;
-  clipboardContents = '';
-  clipboardHasValidPanel = false;
-  clipboardAccessDenied = false;
-  isDragging = false;
-  transferMessage: string | null = null;
-  transferError = false;
+	showCreateModal = false;
+	isCreating = false;
+	createError: string | null = null;
+	newPanel = {
+		name: "",
+		displayName: "",
+		emoji: "",
+	};
+	pendingPanel: TicketPanelCreationModel | null = null;
+	importConflict: TicketPanelModel | null = null;
+	importCandidates: {
+		index: number;
+		imported: TicketPanelImport;
+		selected: boolean;
+	}[] = [];
+	pendingImportQueue: TicketPanelImport[] = [];
+	createdPanelNames: Pick<TicketPanelModel, "name" | "displayName">[] = [];
+	showImportSelectionModal = false;
+	modalTitle = "";
+	showExportModal = false;
+	showImportSourceModal = false;
+	exportTarget: TicketPanelModel | null = null;
+	exportAllSelected = false;
+	clipboardContents = "";
+	clipboardHasValidPanel = false;
+	clipboardAccessDenied = false;
+	isDragging = false;
+	transferMessage: string | null = null;
+	transferError = false;
 
-  get canCreate(): boolean {
-    const name = this.newPanel.name.trim();
-    const displayName = this.newPanel.displayName.trim();
-    return (
-      !!name &&
-      (!this.pendingPanel || !!displayName) &&
-      !hasDuplicatePanelName([...this.ticketPanels, ...this.createdPanelNames], name, displayName)
-    );
-  }
+	get canCreate(): boolean {
+		const name = this.newPanel.name.trim();
+		const displayName = this.newPanel.displayName.trim();
+		return (
+			!!name &&
+			(!this.pendingPanel || !!displayName) &&
+			!hasDuplicatePanelName(
+				[...this.ticketPanels, ...this.createdPanelNames],
+				name,
+				displayName,
+			)
+		);
+	}
 
-  openCreateModal() {
-    this.pendingPanel = null;
-    this.createdPanelNames = [];
-    this.newPanel = { name: '', displayName: '', emoji: '' };
-    this.createError = null;
-    this.showCreateModal = true;
-  }
+	openCreateModal() {
+		this.pendingPanel = null;
+		this.createdPanelNames = [];
+		this.newPanel = { name: "", displayName: "", emoji: "" };
+		this.createError = null;
+		this.showCreateModal = true;
+	}
 
-  openCopyModal(panel: TicketPanelModel) {
-    this.pendingPanel = toTicketPanelCreation(panel);
-    this.modalTitle = 'Clone Ticket Panel';
-    this.newPanel = { name: '', displayName: '', emoji: panel.emoji || '' };
-    this.createError = null;
-    this.showCreateModal = true;
-  }
+	openCopyModal(panel: TicketPanelModel) {
+		this.pendingPanel = toTicketPanelCreation(panel);
+		this.modalTitle = "Clone Ticket Panel";
+		this.newPanel = { name: "", displayName: "", emoji: panel.emoji || "" };
+		this.createError = null;
+		this.showCreateModal = true;
+	}
 
-  async importPanel(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    await this.importFile(file);
-  }
+	async importPanel(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = "";
+		if (!file) return;
+		await this.importFile(file);
+	}
 
-  async openImportSourceModal() {
-    this.showImportSourceModal = true;
-    this.transferMessage = null;
-    this.clipboardContents = '';
-    this.clipboardHasValidPanel = false;
-    this.clipboardAccessDenied = false;
-    try {
-      this.clipboardContents = await navigator.clipboard.readText();
-      this.clipboardHasValidPanel = isTicketPanelExport(this.clipboardContents);
-    } catch {
-      this.clipboardAccessDenied = true;
-    }
-    if (!this.destroyRef.destroyed) this.cdr.detectChanges();
-  }
+	async openImportSourceModal() {
+		this.showImportSourceModal = true;
+		this.transferMessage = null;
+		this.clipboardContents = "";
+		this.clipboardHasValidPanel = false;
+		this.clipboardAccessDenied = false;
+		try {
+			this.clipboardContents = await navigator.clipboard.readText();
+			this.clipboardHasValidPanel = isTicketPanelExport(this.clipboardContents);
+		} catch {
+			this.clipboardAccessDenied = true;
+		}
+		if (!this.destroyRef.destroyed) this.cdr.detectChanges();
+	}
 
-  closeImportSourceModal() {
-    this.showImportSourceModal = false;
-    this.isDragging = false;
-    this.transferMessage = null;
-  }
+	closeImportSourceModal() {
+		this.showImportSourceModal = false;
+		this.isDragging = false;
+		this.transferMessage = null;
+	}
 
-  importFromClipboard() {
-    if (this.clipboardHasValidPanel) void this.processImport(this.clipboardContents);
-  }
+	importFromClipboard() {
+		if (this.clipboardHasValidPanel)
+			void this.processImport(this.clipboardContents);
+	}
 
-  onDragOver(event: DragEvent) {
-    event.preventDefault();
-    this.isDragging = true;
-  }
+	onDragOver(event: DragEvent) {
+		event.preventDefault();
+		this.isDragging = true;
+	}
 
-  onDragLeave(event: DragEvent) {
-    event.preventDefault();
-    this.isDragging = false;
-  }
+	onDragLeave(event: DragEvent) {
+		event.preventDefault();
+		this.isDragging = false;
+	}
 
-  async onFileDrop(event: DragEvent) {
-    event.preventDefault();
-    this.isDragging = false;
-    const file = event.dataTransfer?.files?.[0];
-    if (file) await this.importFile(file);
-  }
+	async onFileDrop(event: DragEvent) {
+		event.preventDefault();
+		this.isDragging = false;
+		const file = event.dataTransfer?.files?.[0];
+		if (file) await this.importFile(file);
+	}
 
-  private async importFile(file: Pick<File, 'text'>) {
-    try {
-      await this.processImport(await file.text());
-    } catch {
-      this.transferMessage =
-        'Could not read ticket panel export. Choose a valid ticket panel JSON file.';
-    }
-  }
+	private async importFile(file: Pick<File, "text">) {
+		try {
+			await this.processImport(await file.text());
+		} catch {
+			this.transferMessage =
+				"Could not read ticket panel export. Choose a valid ticket panel JSON file.";
+		}
+	}
 
-  private async processImport(contents: string) {
-    try {
-      const imports = parseTicketPanelExports(contents);
-      this.createError = null;
-      this.showImportSourceModal = false;
-      if (imports.length > 1) {
-        this.importCandidates = imports.map((imported, index) => ({
-          index,
-          imported,
-          selected: true,
-        }));
-        this.showImportSelectionModal = true;
-        return;
-      }
-      this.startImportQueue(imports);
-    } catch {
-      this.transferMessage =
-        'Could not read ticket panel export. Choose a valid ticket panel JSON file.';
-    }
-  }
+	private async processImport(contents: string) {
+		try {
+			const imports = parseTicketPanelExports(contents);
+			this.createError = null;
+			this.showImportSourceModal = false;
+			if (imports.length > 1) {
+				this.importCandidates = imports.map((imported, index) => ({
+					index,
+					imported,
+					selected: true,
+				}));
+				this.showImportSelectionModal = true;
+				return;
+			}
+			this.startImportQueue(imports);
+		} catch {
+			this.transferMessage =
+				"Could not read ticket panel export. Choose a valid ticket panel JSON file.";
+		}
+	}
 
-  confirmSelectedImports() {
-    const selectedImports = this.importCandidates
-      .filter((candidate) => candidate.selected)
-      .map((candidate) => candidate.imported);
-    if (selectedImports.length === 0) {
-      this.createError = 'Select at least one ticket panel to import.';
-      return;
-    }
-    this.importCandidates = [];
-    this.showImportSelectionModal = false;
-    this.startImportQueue(selectedImports);
-  }
+	confirmSelectedImports() {
+		const selectedImports = this.importCandidates
+			.filter((candidate) => candidate.selected)
+			.map((candidate) => candidate.imported);
+		if (selectedImports.length === 0) {
+			this.createError = "Select at least one ticket panel to import.";
+			return;
+		}
+		this.importCandidates = [];
+		this.showImportSelectionModal = false;
+		this.startImportQueue(selectedImports);
+	}
 
-  private startImportQueue(imports: TicketPanelImport[]) {
-    this.createdPanelNames = [];
-    this.pendingImportQueue = [...imports];
-    this.openNextPendingImport();
-  }
+	private startImportQueue(imports: TicketPanelImport[]) {
+		this.createdPanelNames = [];
+		this.pendingImportQueue = [...imports];
+		this.openNextPendingImport();
+	}
 
-  private openNextPendingImport() {
-    const imported = this.pendingImportQueue.shift();
-    if (!imported) {
-      this.pendingPanel = null;
-      this.importConflict = null;
-      return;
-    }
-    this.pendingPanel = imported.panel;
-    this.importConflict = findImportConflict(this.ticketPanels, imported) || null;
-    if (!this.importConflict) this.openImportedNameModal();
-  }
+	private openNextPendingImport() {
+		const imported = this.pendingImportQueue.shift();
+		if (!imported) {
+			this.pendingPanel = null;
+			this.importConflict = null;
+			return;
+		}
+		this.pendingPanel = imported.panel;
+		this.importConflict =
+			findImportConflict(this.ticketPanels, imported) || null;
+		if (!this.importConflict) this.openImportedNameModal();
+	}
 
-  private finishCurrentImport() {
-    this.importConflict = null;
-    this.pendingPanel = null;
-    if (this.pendingImportQueue.length > 0) {
-      this.openNextPendingImport();
-    }
-  }
+	private finishCurrentImport() {
+		this.importConflict = null;
+		this.pendingPanel = null;
+		if (this.pendingImportQueue.length > 0) {
+			this.openNextPendingImport();
+		}
+	}
 
-  createNewFromConflict() {
-    if (this.isCreating) return;
-    this.importConflict = null;
-    this.createError = null;
-    this.openImportedNameModal();
-  }
+	createNewFromConflict() {
+		if (this.isCreating) return;
+		this.importConflict = null;
+		this.createError = null;
+		this.openImportedNameModal();
+	}
 
-  overwriteImport() {
-    if (!this.importConflict || !this.pendingPanel || this.isCreating) return;
-    this.isCreating = true;
-    this.createError = null;
-    this.ticketPanelService
-      .updateTicketPanel(
-        this.serverId,
-        this.importConflict.id,
-        toTicketPanelUpdate(this.pendingPanel),
-      )
-      .subscribe({
-        next: () => {
-          this.isCreating = false;
-          this.finishCurrentImport();
-          this.loadTicketPanels();
-        },
-        error: (err) => {
-          this.isCreating = false;
-          this.createError = err.error?.message || 'Failed to overwrite ticket panel';
-          this.cdr.detectChanges();
-        },
-      });
-  }
+	overwriteImport() {
+		if (!this.importConflict || !this.pendingPanel || this.isCreating) return;
+		this.isCreating = true;
+		this.createError = null;
+		this.ticketPanelService
+			.updateTicketPanel(
+				this.serverId,
+				this.importConflict.id,
+				toTicketPanelUpdate(this.pendingPanel),
+			)
+			.subscribe({
+				next: () => {
+					this.isCreating = false;
+					this.finishCurrentImport();
+					this.loadTicketPanels();
+				},
+				error: (err) => {
+					this.isCreating = false;
+					this.createError =
+						err.error?.message || "Failed to overwrite ticket panel";
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  cancelImport() {
-    this.importConflict = null;
-    this.pendingPanel = null;
-    this.pendingImportQueue = [];
-    this.importCandidates = [];
-    this.createdPanelNames = [];
-    this.showImportSelectionModal = false;
-    this.createError = null;
-  }
+	cancelImport() {
+		this.importConflict = null;
+		this.pendingPanel = null;
+		this.pendingImportQueue = [];
+		this.importCandidates = [];
+		this.createdPanelNames = [];
+		this.showImportSelectionModal = false;
+		this.createError = null;
+	}
 
-  private openImportedNameModal() {
-    if (!this.pendingPanel) return;
-    this.modalTitle = 'Import Ticket Panel';
-    this.newPanel = { name: '', displayName: '', emoji: this.pendingPanel.emoji || '' };
-    this.showCreateModal = true;
-  }
+	private openImportedNameModal() {
+		if (!this.pendingPanel) return;
+		this.modalTitle = "Import Ticket Panel";
+		this.newPanel = {
+			name: "",
+			displayName: "",
+			emoji: this.pendingPanel.emoji || "",
+		};
+		this.showCreateModal = true;
+	}
 
-  openExportModal(panel: TicketPanelModel) {
-    this.exportTarget = panel;
-    this.exportAllSelected = false;
-    this.showExportModal = true;
-    this.transferMessage = null;
-    this.transferError = false;
-  }
+	openExportModal(panel: TicketPanelModel) {
+		this.exportTarget = panel;
+		this.exportAllSelected = false;
+		this.showExportModal = true;
+		this.transferMessage = null;
+		this.transferError = false;
+	}
 
-  openExportAllModal() {
-    if (this.ticketPanels.length === 0) return;
-    this.exportTarget = null;
-    this.exportAllSelected = true;
-    this.showExportModal = true;
-    this.transferMessage = null;
-    this.transferError = false;
-  }
+	openExportAllModal() {
+		if (this.ticketPanels.length === 0) return;
+		this.exportTarget = null;
+		this.exportAllSelected = true;
+		this.showExportModal = true;
+		this.transferMessage = null;
+		this.transferError = false;
+	}
 
-  closeExportModal() {
-    this.showExportModal = false;
-    this.exportTarget = null;
-    this.exportAllSelected = false;
-    this.transferMessage = null;
-  }
+	closeExportModal() {
+		this.showExportModal = false;
+		this.exportTarget = null;
+		this.exportAllSelected = false;
+		this.transferMessage = null;
+	}
 
-  async copyExportToClipboard() {
-    const serialized = this.getExportContents();
-    if (!serialized) return;
-    try {
-      await navigator.clipboard.writeText(serialized);
-      this.transferMessage = this.exportAllSelected
-        ? 'Ticket panel backup copied to the clipboard.'
-        : 'Ticket panel data copied to the clipboard.';
-      this.transferError = false;
-    } catch {
-      this.transferMessage = 'Clipboard access was denied. Please download the JSON file instead.';
-      this.transferError = true;
-    }
-    if (!this.destroyRef.destroyed) this.cdr.detectChanges();
-  }
+	async copyExportToClipboard() {
+		const serialized = this.getExportContents();
+		if (!serialized) return;
+		try {
+			await navigator.clipboard.writeText(serialized);
+			this.transferMessage = this.exportAllSelected
+				? "Ticket panel backup copied to the clipboard."
+				: "Ticket panel data copied to the clipboard.";
+			this.transferError = false;
+		} catch {
+			this.transferMessage =
+				"Clipboard access was denied. Please download the JSON file instead.";
+			this.transferError = true;
+		}
+		if (!this.destroyRef.destroyed) this.cdr.detectChanges();
+	}
 
-  downloadExport() {
-    const serialized = this.getExportContents();
-    if (!serialized) return;
-    let url: string | null = null;
-    try {
-      const blob = new Blob([serialized], {
-        type: 'application/json',
-      });
-      url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = this.exportAllSelected
-        ? 'ticket-panels.backup.json'
-        : `${this.exportTarget!.name}.ticket-panel.json`;
-      link.click();
-      this.closeExportModal();
-    } catch {
-      this.transferMessage = 'Could not download the ticket panel export. Please try again.';
-      this.transferError = true;
-    } finally {
-      if (url) {
-        const allocatedUrl = url;
-        setTimeout(() => URL.revokeObjectURL(allocatedUrl), 0);
-      }
-    }
-  }
+	downloadExport() {
+		const serialized = this.getExportContents();
+		if (!serialized) return;
+		let url: string | null = null;
+		try {
+			const blob = new Blob([serialized], {
+				type: "application/json",
+			});
+			url = URL.createObjectURL(blob);
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = this.exportAllSelected
+				? "ticket-panels.backup.json"
+				: `${this.exportTarget?.name}.ticket-panel.json`;
+			link.click();
+			this.closeExportModal();
+		} catch {
+			this.transferMessage =
+				"Could not download the ticket panel export. Please try again.";
+			this.transferError = true;
+		} finally {
+			if (url) {
+				const allocatedUrl = url;
+				setTimeout(() => URL.revokeObjectURL(allocatedUrl), 0);
+			}
+		}
+	}
 
-  private getExportContents(): string | null {
-    if (this.exportAllSelected) return serializeTicketPanels(this.ticketPanels);
-    return this.exportTarget ? serializeTicketPanel(this.exportTarget) : null;
-  }
+	private getExportContents(): string | null {
+		if (this.exportAllSelected) return serializeTicketPanels(this.ticketPanels);
+		return this.exportTarget ? serializeTicketPanel(this.exportTarget) : null;
+	}
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
-    const guild = this.discordGuildService.getGuildById(this.serverId);
-    this.serverName = guild ? this.discordGuildService.getDisplayName(guild) : 'Server';
-    this.loadTicketPanels();
-  }
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params["serverId"];
+		const guild = this.discordGuildService.getGuildById(this.serverId);
+		this.serverName = guild
+			? this.discordGuildService.getDisplayName(guild)
+			: "Server";
+		this.loadTicketPanels();
+	}
 
-  loadTicketPanels() {
-    this.loadError = null;
-    this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
-      next: (panels) => {
-        this.ticketPanels = panels || [];
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load ticket panels. Please try again.';
-        console.error('Error loading ticket panels:', err);
-        this.cdr.detectChanges();
-      },
-    });
-  }
+	loadTicketPanels() {
+		this.loadError = null;
+		this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
+			next: (panels) => {
+				this.ticketPanels = panels || [];
+				this.cdr.detectChanges();
+			},
+			error: (err) => {
+				this.loadError = "Failed to load ticket panels. Please try again.";
+				console.error("Error loading ticket panels:", err);
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  createPanel() {
-    const trimmedName = this.newPanel.name.trim();
-    if (this.isCreating) return;
-    if (this.pendingPanel && !this.newPanel.displayName.trim()) {
-      this.createError = 'A display name is required for cloned and imported ticket panels.';
-      return;
-    }
-    if (!this.canCreate) {
-      this.createError = 'Internal and display names must be unique.';
-      return;
-    }
+	createPanel() {
+		const trimmedName = this.newPanel.name.trim();
+		if (this.isCreating) return;
+		if (this.pendingPanel && !this.newPanel.displayName.trim()) {
+			this.createError =
+				"A display name is required for cloned and imported ticket panels.";
+			return;
+		}
+		if (!this.canCreate) {
+			this.createError = "Internal and display names must be unique.";
+			return;
+		}
 
-    this.isCreating = true;
-    this.createError = null;
+		this.isCreating = true;
+		this.createError = null;
 
-    const defaults: TicketPanelCreationModel = {
-      name: trimmedName,
-      displayName: this.newPanel.displayName || undefined,
-      emoji: this.newPanel.emoji || undefined,
-      closeable: false,
-      closeConfirmation: false,
-      claimable: false,
-      requiresLinking: false,
-      openChannelName: '{panel.name}-{ticket.count}',
-      ticketMessage:
-        '{"content":"Welcome, {user.mention}!\\nPlease describe your {panel.name} request below further."}',
-      userTranscriptDm: '["transcript"]',
-      permissions: {
-        SupportTeam: {
-          Allowed: '68608',
-        },
-        AdditionalRoles: {
-          Allowed: '68608',
-        },
-        TicketCreator: {
-          Allowed: '68608',
-        },
-        TicketClaimer: {
-          Allowed: '68608',
-        },
-        Everyone: {
-          Denied: '1024',
-        },
-      },
-    };
-    const creationModel: TicketPanelCreationModel = structuredClone(this.pendingPanel || defaults);
-    creationModel.name = trimmedName;
-    creationModel.displayName = this.newPanel.displayName.trim() || undefined;
-    creationModel.emoji = this.newPanel.emoji.trim() || undefined;
+		const defaults: TicketPanelCreationModel = {
+			name: trimmedName,
+			displayName: this.newPanel.displayName || undefined,
+			emoji: this.newPanel.emoji || undefined,
+			closeable: false,
+			closeConfirmation: false,
+			claimable: false,
+			requiresLinking: false,
+			openChannelName: "{panel.name}-{ticket.count}",
+			ticketMessage:
+				'{"content":"Welcome, {user.mention}!\\nPlease describe your {panel.name} request below further."}',
+			userTranscriptDm: '["transcript"]',
+			permissions: {
+				SupportTeam: {
+					Allowed: "68608",
+				},
+				AdditionalRoles: {
+					Allowed: "68608",
+				},
+				TicketCreator: {
+					Allowed: "68608",
+				},
+				TicketClaimer: {
+					Allowed: "68608",
+				},
+				Everyone: {
+					Denied: "1024",
+				},
+			},
+		};
+		const creationModel: TicketPanelCreationModel = structuredClone(
+			this.pendingPanel || defaults,
+		);
+		creationModel.name = trimmedName;
+		creationModel.displayName = this.newPanel.displayName.trim() || undefined;
+		creationModel.emoji = this.newPanel.emoji.trim() || undefined;
 
-    this.ticketPanelService.createNewTicketPanel(this.serverId, creationModel).subscribe({
-      next: () => {
-        this.showCreateModal = false;
-        this.createdPanelNames.push({
-          name: creationModel.name,
-          displayName: creationModel.displayName,
-        });
-        this.newPanel = { name: '', displayName: '', emoji: '' };
-        this.isCreating = false;
-        this.finishCurrentImport();
-        this.loadTicketPanels();
-      },
-      error: (err) => {
-        this.createError = err.error?.message || 'Failed to create ticket panel';
-        this.isCreating = false;
-        this.cdr.detectChanges();
-      },
-    });
-  }
+		this.ticketPanelService
+			.createNewTicketPanel(this.serverId, creationModel)
+			.subscribe({
+				next: () => {
+					this.showCreateModal = false;
+					this.createdPanelNames.push({
+						name: creationModel.name,
+						displayName: creationModel.displayName,
+					});
+					this.newPanel = { name: "", displayName: "", emoji: "" };
+					this.isCreating = false;
+					this.finishCurrentImport();
+					this.loadTicketPanels();
+				},
+				error: (err) => {
+					this.createError =
+						err.error?.message || "Failed to create ticket panel";
+					this.isCreating = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 }

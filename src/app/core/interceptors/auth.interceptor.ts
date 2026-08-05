@@ -1,56 +1,59 @@
-import type { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
-import { inject } from '@angular/core';
-import { OAuthService } from 'angular-oauth2-oidc';
-import { catchError, throwError } from 'rxjs';
-import { AuthService } from '../services/auth.service';
-import { environment } from '../../../environments/environment';
+import type {
+	HttpErrorResponse,
+	HttpInterceptorFn,
+} from "@angular/common/http";
+import { inject } from "@angular/core";
+import { OAuthService } from "angular-oauth2-oidc";
+import { catchError, throwError } from "rxjs";
+import { environment } from "../../../environments/environment";
+import { AuthService } from "../services/auth.service";
 
 // Allowed origins for bearer token attachment
 const ALLOWED_ORIGINS = [
-  'http://localhost:8080',
-  'https://api.dungeon-hub.net'
+	"http://localhost:8080",
+	"https://api.dungeon-hub.net",
 ];
 
 function isAllowedUrl(url: string): boolean {
-  try {
-    const requestUrl = new URL(url, window.location.origin);
-    const requestOrigin = requestUrl.origin;
+	try {
+		const requestUrl = new URL(url, window.location.origin);
+		const requestOrigin = requestUrl.origin;
 
-    // Check if the request origin matches any allowed origin
-    if (ALLOWED_ORIGINS.includes(requestOrigin)) {
-      return true;
-    }
+		// Check if the request origin matches any allowed origin
+		if (ALLOWED_ORIGINS.includes(requestOrigin)) {
+			return true;
+		}
 
-    // Also check if URL starts with the configured API URL
-    return url.startsWith(environment.apiUrl);
-  } catch {
-    // URL parsing failed, don't attach token
-    if (!environment.production) {
-      console.warn('[Auth Interceptor] Failed to parse URL:', url);
-    }
-    return false;
-  }
+		// Also check if URL starts with the configured API URL
+		return url.startsWith(environment.apiUrl);
+	} catch {
+		// URL parsing failed, don't attach token
+		if (!environment.production) {
+			console.warn("[Auth Interceptor] Failed to parse URL:", url);
+		}
+		return false;
+	}
 }
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const oauthService = inject(OAuthService);
-  const authService = inject(AuthService);
-  const token = oauthService.getAccessToken();
+	const oauthService = inject(OAuthService);
+	const authService = inject(AuthService);
+	const token = oauthService.getAccessToken();
 
-  if (token && isAllowedUrl(req.url)) {
-    req = req.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`
-      }
-    });
-  }
+	if (token && isAllowedUrl(req.url)) {
+		req = req.clone({
+			setHeaders: {
+				Authorization: `Bearer ${token}`,
+			},
+		});
+	}
 
-  return next(req).pipe(
-    catchError((error: HttpErrorResponse) => {
-      if (error.status === 401 && isAllowedUrl(req.url)) {
-        authService.handleExpiredSession();
-      }
-      return throwError(() => error);
-    })
-  );
+	return next(req).pipe(
+		catchError((error: HttpErrorResponse) => {
+			if (error.status === 401 && isAllowedUrl(req.url)) {
+				authService.handleExpiredSession();
+			}
+			return throwError(() => error);
+		}),
+	);
 };

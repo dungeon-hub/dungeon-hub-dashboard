@@ -1,13 +1,13 @@
-import { Component, inject, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
-import { GlobalStatsComponent } from '../../shared/components/global-stats/global-stats.component';
+import { Component, inject, type OnInit } from "@angular/core";
+import { Router } from "@angular/router";
+import { AuthService } from "../../core/services/auth.service";
+import { GlobalStatsComponent } from "../../shared/components/global-stats/global-stats.component";
 
 @Component({
-  selector: 'app-login',
-  standalone: true,
-  imports: [GlobalStatsComponent],
-  template: `
+	selector: "app-login",
+	standalone: true,
+	imports: [GlobalStatsComponent],
+	template: `
     <div class="min-h-full bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div class="container mx-auto px-4 py-8">
         <div class="card max-w-md w-full mx-auto text-center">
@@ -27,20 +27,20 @@ import { GlobalStatsComponent } from '../../shared/components/global-stats/globa
         <app-global-stats class="block mt-8" />
       </div>
     </div>
-  `
+  `,
 })
 export class LoginComponent implements OnInit {
-  private authService = inject(AuthService);
-  private router = inject(Router);
+	private authService = inject(AuthService);
+	private router = inject(Router);
 
-  ngOnInit() {
-    // If already authenticated, redirect to dashboard
-    if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/dashboard']);
-    }
-  }
+	ngOnInit() {
+		// If already authenticated, redirect to dashboard
+		if (this.authService.isAuthenticated()) {
+			this.router.navigate(["/dashboard"]);
+		}
+	}
 
-  login() {
-    this.authService.login();
-  }
+	login() {
+		this.authService.login();
+	}
 }

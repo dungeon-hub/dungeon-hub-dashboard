@@ -1,19 +1,24 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { DiscordGuildService } from '../../core/services/discord-guild.service';
+import { CommonModule } from "@angular/common";
 import {
-  TicketPanelControllerService,
-  CntRequestControllerService,
-  CarryTypeControllerService,
-  CarryTypeModel
-} from '@dungeon-hub/api-client';
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import { ActivatedRoute, RouterLink } from "@angular/router";
+import {
+	CarryTypeControllerService,
+	type CarryTypeModel,
+	CntRequestControllerService,
+	TicketPanelControllerService,
+} from "@dungeon-hub/api-client";
+import { DiscordGuildService } from "../../core/services/discord-guild.service";
 
 @Component({
-  selector: 'app-server-detail',
-  standalone: true,
-  imports: [CommonModule, RouterLink],
-  template: `
+	selector: "app-server-detail",
+	standalone: true,
+	imports: [CommonModule, RouterLink],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <!-- Back Button & Header -->
       <div class="mb-8">
@@ -204,148 +209,149 @@ import {
         </a>
       </div>
     </div>
-  `
+  `,
 })
 export class ServerDetailComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private discordGuildService = inject(DiscordGuildService);
-  private ticketPanelService = inject(TicketPanelControllerService);
-  private cntRequestService = inject(CntRequestControllerService);
-  private carryTypeService = inject(CarryTypeControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private discordGuildService = inject(DiscordGuildService);
+	private ticketPanelService = inject(TicketPanelControllerService);
+	private cntRequestService = inject(CntRequestControllerService);
+	private carryTypeService = inject(CarryTypeControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  serverName: string = '';
-  ticketPanels: any[] = [];
-  carryTypes: CarryTypeModel[] = [];
-  totalCntRequests = 0;
-  loadError: string | null = null;
+	serverId!: string;
+	serverName: string = "";
+	ticketPanels: any[] = [];
+	carryTypes: CarryTypeModel[] = [];
+	totalCntRequests = 0;
+	loadError: string | null = null;
 
-  // Limits for dashboard display
-  readonly MAX_TICKET_PANELS_DISPLAY = 9;
-  readonly MAX_CARRY_TYPES_DISPLAY = 9;
+	// Limits for dashboard display
+	readonly MAX_TICKET_PANELS_DISPLAY = 9;
+	readonly MAX_CARRY_TYPES_DISPLAY = 9;
 
-  // Pagination state
-  currentTicketPanelPage = 0;
-  currentCarryTypePage = 0;
+	// Pagination state
+	currentTicketPanelPage = 0;
+	currentCarryTypePage = 0;
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params.serverId;
 
-    // Load server name from guild info
-    const guild = this.discordGuildService.getGuildById(this.serverId);
-    if (guild) {
-      this.serverName = guild.name;
-    }
+		// Load server name from guild info
+		const guild = this.discordGuildService.getGuildById(this.serverId);
+		if (guild) {
+			this.serverName = guild.name;
+		}
 
-    this.loadData();
-  }
+		this.loadData();
+	}
 
-  getDisplayName(guildName: string): string {
-    return this.discordGuildService.getDisplayName(guildName);
-  }
+	getDisplayName(guildName: string): string {
+		return this.discordGuildService.getDisplayName(guildName);
+	}
 
-  loadData() {
-    this.loadError = null;
+	loadData() {
+		this.loadError = null;
 
-    // Load ticket panels
-    this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
-      next: (panels) => {
-        this.ticketPanels = panels || [];
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.loadError = 'Failed to load ticket panels. Please try again.';
-        this.cdr.detectChanges();
-      }
-    });
+		// Load ticket panels
+		this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
+			next: (panels) => {
+				this.ticketPanels = panels || [];
+				this.cdr.detectChanges();
+			},
+			error: () => {
+				this.loadError = "Failed to load ticket panels. Please try again.";
+				this.cdr.detectChanges();
+			},
+		});
 
-    // Load carry types
-    this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
-      next: (types) => {
-        this.carryTypes = types || [];
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('Failed to load carry types:', err);
-        this.cdr.detectChanges();
-      }
-    });
+		// Load carry types
+		this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+			next: (types) => {
+				this.carryTypes = types || [];
+				this.cdr.detectChanges();
+			},
+			error: (err) => {
+				console.error("Failed to load carry types:", err);
+				this.cdr.detectChanges();
+			},
+		});
 
-    // Load CNT request count
-    this.cntRequestService.getCntRequests(this.serverId, 0, 1).subscribe({
-      next: (page) => {
-        this.totalCntRequests = Number(page.totalElements || 0);
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.loadError = 'Failed to load CNT requests. Please try again.';
-        this.cdr.detectChanges();
-      },
-    });
-  }
+		// Load CNT request count
+		this.cntRequestService.getCntRequests(this.serverId, 0, 1).subscribe({
+			next: (page) => {
+				this.totalCntRequests = Number(page.totalElements || 0);
+				this.cdr.detectChanges();
+			},
+			error: () => {
+				this.loadError = "Failed to load CNT requests. Please try again.";
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  // Ticket Panel Pagination Methods
-  getCurrentTicketPanelPage(): any[] {
-    const start = this.currentTicketPanelPage * this.MAX_TICKET_PANELS_DISPLAY;
-    const end = start + this.MAX_TICKET_PANELS_DISPLAY;
-    return this.ticketPanels.slice(start, end);
-  }
+	// Ticket Panel Pagination Methods
+	getCurrentTicketPanelPage(): any[] {
+		const start = this.currentTicketPanelPage * this.MAX_TICKET_PANELS_DISPLAY;
+		const end = start + this.MAX_TICKET_PANELS_DISPLAY;
+		return this.ticketPanels.slice(start, end);
+	}
 
-  getTotalTicketPanelPages(): number {
-    return Math.ceil(this.ticketPanels.length / this.MAX_TICKET_PANELS_DISPLAY);
-  }
+	getTotalTicketPanelPages(): number {
+		return Math.ceil(this.ticketPanels.length / this.MAX_TICKET_PANELS_DISPLAY);
+	}
 
-  getTicketPanelRangeStart(): number {
-    return this.currentTicketPanelPage * this.MAX_TICKET_PANELS_DISPLAY + 1;
-  }
+	getTicketPanelRangeStart(): number {
+		return this.currentTicketPanelPage * this.MAX_TICKET_PANELS_DISPLAY + 1;
+	}
 
-  getTicketPanelRangeEnd(): number {
-    const end = (this.currentTicketPanelPage + 1) * this.MAX_TICKET_PANELS_DISPLAY;
-    return Math.min(end, this.ticketPanels.length);
-  }
+	getTicketPanelRangeEnd(): number {
+		const end =
+			(this.currentTicketPanelPage + 1) * this.MAX_TICKET_PANELS_DISPLAY;
+		return Math.min(end, this.ticketPanels.length);
+	}
 
-  nextTicketPanelPage(): void {
-    if (this.currentTicketPanelPage < this.getTotalTicketPanelPages() - 1) {
-      this.currentTicketPanelPage++;
-    }
-  }
+	nextTicketPanelPage(): void {
+		if (this.currentTicketPanelPage < this.getTotalTicketPanelPages() - 1) {
+			this.currentTicketPanelPage++;
+		}
+	}
 
-  previousTicketPanelPage(): void {
-    if (this.currentTicketPanelPage > 0) {
-      this.currentTicketPanelPage--;
-    }
-  }
+	previousTicketPanelPage(): void {
+		if (this.currentTicketPanelPage > 0) {
+			this.currentTicketPanelPage--;
+		}
+	}
 
-  // Carry Type Pagination Methods
-  getCurrentCarryTypePage(): CarryTypeModel[] {
-    const start = this.currentCarryTypePage * this.MAX_CARRY_TYPES_DISPLAY;
-    const end = start + this.MAX_CARRY_TYPES_DISPLAY;
-    return this.carryTypes.slice(start, end);
-  }
+	// Carry Type Pagination Methods
+	getCurrentCarryTypePage(): CarryTypeModel[] {
+		const start = this.currentCarryTypePage * this.MAX_CARRY_TYPES_DISPLAY;
+		const end = start + this.MAX_CARRY_TYPES_DISPLAY;
+		return this.carryTypes.slice(start, end);
+	}
 
-  getTotalCarryTypePages(): number {
-    return Math.ceil(this.carryTypes.length / this.MAX_CARRY_TYPES_DISPLAY);
-  }
+	getTotalCarryTypePages(): number {
+		return Math.ceil(this.carryTypes.length / this.MAX_CARRY_TYPES_DISPLAY);
+	}
 
-  getCarryTypeRangeStart(): number {
-    return this.currentCarryTypePage * this.MAX_CARRY_TYPES_DISPLAY + 1;
-  }
+	getCarryTypeRangeStart(): number {
+		return this.currentCarryTypePage * this.MAX_CARRY_TYPES_DISPLAY + 1;
+	}
 
-  getCarryTypeRangeEnd(): number {
-    const end = (this.currentCarryTypePage + 1) * this.MAX_CARRY_TYPES_DISPLAY;
-    return Math.min(end, this.carryTypes.length);
-  }
+	getCarryTypeRangeEnd(): number {
+		const end = (this.currentCarryTypePage + 1) * this.MAX_CARRY_TYPES_DISPLAY;
+		return Math.min(end, this.carryTypes.length);
+	}
 
-  nextCarryTypePage(): void {
-    if (this.currentCarryTypePage < this.getTotalCarryTypePages() - 1) {
-      this.currentCarryTypePage++;
-    }
-  }
+	nextCarryTypePage(): void {
+		if (this.currentCarryTypePage < this.getTotalCarryTypePages() - 1) {
+			this.currentCarryTypePage++;
+		}
+	}
 
-  previousCarryTypePage(): void {
-    if (this.currentCarryTypePage > 0) {
-      this.currentCarryTypePage--;
-    }
-  }
+	previousCarryTypePage(): void {
+		if (this.currentCarryTypePage > 0) {
+			this.currentCarryTypePage--;
+		}
+	}
 }

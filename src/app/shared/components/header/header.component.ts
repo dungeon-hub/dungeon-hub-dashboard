@@ -1,12 +1,12 @@
-import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { AuthService } from '../../../core/services/auth.service';
+import { CommonModule } from "@angular/common";
+import { Component, inject } from "@angular/core";
+import { AuthService } from "../../../core/services/auth.service";
 
 @Component({
-  selector: 'app-header',
-  standalone: true,
-  imports: [CommonModule],
-  template: `
+	selector: "app-header",
+	standalone: true,
+	imports: [CommonModule],
+	template: `
     <header class="bg-gray-800 border-b border-gray-700">
       <nav class="container mx-auto px-4">
         <div class="flex justify-between items-center py-3">
@@ -87,7 +87,8 @@ import { AuthService } from '../../../core/services/auth.service';
       <hr class="border-gray-700 m-0">
     </header>
   `,
-  styles: [`
+	styles: [
+		`
     details.dropdown summary::-webkit-details-marker {
       display: none;
     }
@@ -103,21 +104,22 @@ import { AuthService } from '../../../core/services/auth.service';
     details.dropdown:not([open]) ul {
       display: none;
     }
-  `]
+  `,
+	],
 })
 export class HeaderComponent {
-  private authService = inject(AuthService);
+	private authService = inject(AuthService);
 
-  get isAuthenticated(): boolean {
-    return this.authService.isAuthenticated();
-  }
+	get isAuthenticated(): boolean {
+		return this.authService.isAuthenticated();
+	}
 
-  get userEmail(): string {
-    const userInfo = this.authService.getUserInfo();
-    return userInfo?.email || 'User';
-  }
+	get userEmail(): string {
+		const userInfo = this.authService.getUserInfo();
+		return userInfo?.email || "User";
+	}
 
-  logout(): void {
-    this.authService.logout();
-  }
+	logout(): void {
+		this.authService.logout();
+	}
 }

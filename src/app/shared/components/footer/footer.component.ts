@@ -1,9 +1,9 @@
-import { Component } from '@angular/core';
+import { Component } from "@angular/core";
 
 @Component({
-  selector: 'app-footer',
-  standalone: true,
-  template: `
+	selector: "app-footer",
+	standalone: true,
+	template: `
     <footer class="mt-auto bg-gray-800 border-t border-gray-700 py-3 px-4">
       <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
         <small class="text-gray-400">© 2026. All rights reserved.</small>
@@ -29,6 +29,6 @@ import { Component } from '@angular/core';
         </div>
       </div>
     </footer>
-  `
+  `,
 })
 export class FooterComponent {}

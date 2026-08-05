@@ -1,24 +1,32 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { CommonModule } from "@angular/common";
 import {
-  CarryTypeControllerService,
-  CarryTierControllerService,
-  CarryDifficultyControllerService,
-  CarryTypeModel,
-  CarryTierModel,
-  CarryDifficultyModel,
-  CarryDifficultyUpdateModel,
-  CarryDifficultyCreationModel
-} from '@dungeon-hub/api-client';
-import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carry-type-labels';
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import {
+	CarryDifficultyControllerService,
+	type CarryDifficultyCreationModel,
+	type CarryDifficultyModel,
+	type CarryDifficultyUpdateModel,
+	CarryTierControllerService,
+	type CarryTierModel,
+	CarryTypeControllerService,
+	type CarryTypeModel,
+} from "@dungeon-hub/api-client";
+import {
+	getIngameCarryTypeLabel,
+	INGAME_CARRY_TYPE_LABELS,
+} from "./ingame-carry-type-labels";
 
 @Component({
-  selector: 'app-carry-difficulty-detail',
-  standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
-  template: `
+	selector: "app-carry-difficulty-detail",
+	standalone: true,
+	imports: [CommonModule, RouterLink, FormsModule],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
         <a [routerLink]="['/server', serverId, 'carry-type', carryTypeId, 'carry-tier', carryTierId]" class="btn btn-secondary mb-4 inline-block">
@@ -235,177 +243,261 @@ import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carr
         </div>
       }
     </div>
-  `
+  `,
 })
 export class CarryDifficultyDetailComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private carryTypeService = inject(CarryTypeControllerService);
-  private carryTierService = inject(CarryTierControllerService);
-  private carryDifficultyService = inject(CarryDifficultyControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private router = inject(Router);
+	private carryTypeService = inject(CarryTypeControllerService);
+	private carryTierService = inject(CarryTierControllerService);
+	private carryDifficultyService = inject(CarryDifficultyControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  carryTypeId!: string;
-  carryTierId!: string;
-  difficultyId!: string;
-  carryType: CarryTypeModel | null = null;
-  carryTier: CarryTierModel | null = null;
-  difficulty: CarryDifficultyModel | null = null;
-  loadError: string | null = null;
+	serverId!: string;
+	carryTypeId!: string;
+	carryTierId!: string;
+	difficultyId!: string;
+	carryType: CarryTypeModel | null = null;
+	carryTier: CarryTierModel | null = null;
+	difficulty: CarryDifficultyModel | null = null;
+	loadError: string | null = null;
 
-  showEditModal = false;
-  isUpdating = false;
-  updateError: string | null = null;
-  editForm = {
-    displayName: '',
-    price: null as number | null,
-    score: null as number | null,
-    bulkAmount: null as number | null,
-    bulkPrice: null as number | null,
-    thumbnailUrl: '',
-    priceName: '',
-    ingameCarryType: null as CarryDifficultyCreationModel.IngameCarryTypeEnum | null
-  };
+	showEditModal = false;
+	isUpdating = false;
+	updateError: string | null = null;
+	editForm = {
+		displayName: "",
+		price: null as number | null,
+		score: null as number | null,
+		bulkAmount: null as number | null,
+		bulkPrice: null as number | null,
+		thumbnailUrl: "",
+		priceName: "",
+		ingameCarryType:
+			null as CarryDifficultyCreationModel.IngameCarryTypeEnum | null,
+	};
 
-  get ingameCarryTypeOptions() {
-    return Object.entries(INGAME_CARRY_TYPE_LABELS)
-      .map(([value, label]) => ({
-        value: value as CarryDifficultyCreationModel.IngameCarryTypeEnum,
-        label
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }
+	get ingameCarryTypeOptions() {
+		return Object.entries(INGAME_CARRY_TYPE_LABELS)
+			.map(([value, label]) => ({
+				value: value as CarryDifficultyCreationModel.IngameCarryTypeEnum,
+				label,
+			}))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	}
 
-  getIngameCarryTypeLabel = getIngameCarryTypeLabel;
+	getIngameCarryTypeLabel = getIngameCarryTypeLabel;
 
-  showDeleteModal = false;
-  isDeleting = false;
-  deleteError: string | null = null;
+	showDeleteModal = false;
+	isDeleting = false;
+	deleteError: string | null = null;
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
-    this.carryTypeId = this.route.snapshot.params['carryTypeId'];
-    this.carryTierId = this.route.snapshot.params['carryTierId'];
-    this.difficultyId = this.route.snapshot.params['difficultyId'];
-    this.loadData();
-  }
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params.serverId;
+		this.carryTypeId = this.route.snapshot.params.carryTypeId;
+		this.carryTierId = this.route.snapshot.params.carryTierId;
+		this.difficultyId = this.route.snapshot.params.difficultyId;
+		this.loadData();
+	}
 
-  loadData() {
-    this.loadError = null;
+	loadData() {
+		this.loadError = null;
 
-    this.carryTypeService.getById6(this.serverId, this.carryTypeId).subscribe({
-      next: (type) => {
-        this.carryType = type;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load carry type.';
-        console.error('CarryDifficultyDetail: Error loading carry type:', err);
-        this.cdr.detectChanges();
-      }
-    });
+		this.carryTypeService.getById6(this.serverId, this.carryTypeId).subscribe({
+			next: (type) => {
+				this.carryType = type;
+				this.cdr.detectChanges();
+			},
+			error: (err) => {
+				this.loadError = "Failed to load carry type.";
+				console.error("CarryDifficultyDetail: Error loading carry type:", err);
+				this.cdr.detectChanges();
+			},
+		});
 
-    this.carryTierService.getAllCarryTiers(this.serverId, this.carryTypeId).subscribe({
-      next: (tiers) => {
-        this.carryTier = tiers.find(t => t.id.toString() === this.carryTierId.toString()) || null;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error('CarryDifficultyDetail: Error loading carry tier:', err);
-        this.cdr.detectChanges();
-      }
-    });
+		this.carryTierService
+			.getAllCarryTiers(this.serverId, this.carryTypeId)
+			.subscribe({
+				next: (tiers) => {
+					this.carryTier =
+						tiers.find(
+							(t) => t.id.toString() === this.carryTierId.toString(),
+						) || null;
+					this.cdr.detectChanges();
+				},
+				error: (err) => {
+					console.error(
+						"CarryDifficultyDetail: Error loading carry tier:",
+						err,
+					);
+					this.cdr.detectChanges();
+				},
+			});
 
-    this.carryDifficultyService.getAllCarryDifficulties(this.serverId, this.carryTypeId, this.carryTierId).subscribe({
-      next: (difficulties) => {
-        this.difficulty = difficulties.find(d => d.id.toString() === this.difficultyId.toString()) || null;
-        if (!this.difficulty) {
-          this.loadError = 'Difficulty not found.';
-          console.error('CarryDifficultyDetail: Difficulty not found. Looking for ID:', this.difficultyId, 'Available difficulties:', difficulties.map(d => d.id));
-        } else {
-          this.editForm = {
-            displayName: this.difficulty.displayName,
-            price: this.difficulty.price,
-            score: this.difficulty.score,
-            bulkAmount: this.difficulty.bulkAmount != null ? this.difficulty.bulkAmount : null,
-            bulkPrice: this.difficulty.bulkPrice != null ? this.difficulty.bulkPrice : null,
-            thumbnailUrl: this.difficulty.thumbnailUrl || '',
-            priceName: this.difficulty.priceName || '',
-            ingameCarryType: this.difficulty.ingameCarryType || null
-          };
-        }
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load difficulty.';
-        console.error('CarryDifficultyDetail: Error loading difficulty:', err);
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryDifficultyService
+			.getAllCarryDifficulties(
+				this.serverId,
+				this.carryTypeId,
+				this.carryTierId,
+			)
+			.subscribe({
+				next: (difficulties) => {
+					this.difficulty =
+						difficulties.find(
+							(d) => d.id.toString() === this.difficultyId.toString(),
+						) || null;
+					if (!this.difficulty) {
+						this.loadError = "Difficulty not found.";
+						console.error(
+							"CarryDifficultyDetail: Difficulty not found. Looking for ID:",
+							this.difficultyId,
+							"Available difficulties:",
+							difficulties.map((d) => d.id),
+						);
+					} else {
+						this.editForm = {
+							displayName: this.difficulty.displayName,
+							price: this.difficulty.price,
+							score: this.difficulty.score,
+							bulkAmount:
+								this.difficulty.bulkAmount != null
+									? this.difficulty.bulkAmount
+									: null,
+							bulkPrice:
+								this.difficulty.bulkPrice != null
+									? this.difficulty.bulkPrice
+									: null,
+							thumbnailUrl: this.difficulty.thumbnailUrl || "",
+							priceName: this.difficulty.priceName || "",
+							ingameCarryType: this.difficulty.ingameCarryType || null,
+						};
+					}
+					this.cdr.detectChanges();
+				},
+				error: (err) => {
+					this.loadError = "Failed to load difficulty.";
+					console.error(
+						"CarryDifficultyDetail: Error loading difficulty:",
+						err,
+					);
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  wasCleared(currentValue: any, formValue: any): boolean {
-    return currentValue != null && (formValue == null || formValue === '');
-  }
+	wasCleared(currentValue: unknown, formValue: unknown): boolean {
+		return currentValue != null && (formValue == null || formValue === "");
+	}
 
-  updateDifficulty() {
-    if (!this.difficulty || this.isUpdating) return;
+	updateDifficulty() {
+		if (!this.difficulty || this.isUpdating) return;
 
-    this.isUpdating = true;
-    this.updateError = null;
+		this.isUpdating = true;
+		this.updateError = null;
 
-    const resetBulkAmount = this.wasCleared(this.difficulty.bulkAmount, this.editForm.bulkAmount);
-    const resetBulkPrice = this.wasCleared(this.difficulty.bulkPrice, this.editForm.bulkPrice);
-    const resetThumbnailUrl = this.wasCleared(this.difficulty.thumbnailUrl, this.editForm.thumbnailUrl);
-    const resetPriceName = this.wasCleared(this.difficulty.priceName, this.editForm.priceName);
-    const resetIngameCarryType = this.editForm.ingameCarryType === null && this.difficulty.ingameCarryType !== null;
+		const resetBulkAmount = this.wasCleared(
+			this.difficulty.bulkAmount,
+			this.editForm.bulkAmount,
+		);
+		const resetBulkPrice = this.wasCleared(
+			this.difficulty.bulkPrice,
+			this.editForm.bulkPrice,
+		);
+		const resetThumbnailUrl = this.wasCleared(
+			this.difficulty.thumbnailUrl,
+			this.editForm.thumbnailUrl,
+		);
+		const resetPriceName = this.wasCleared(
+			this.difficulty.priceName,
+			this.editForm.priceName,
+		);
+		const resetIngameCarryType =
+			this.editForm.ingameCarryType === null &&
+			this.difficulty.ingameCarryType !== null;
 
-    const updateModel: CarryDifficultyUpdateModel = {
-      displayName: this.editForm.displayName || undefined,
-      price: this.editForm.price !== null ? this.editForm.price : undefined,
-      score: this.editForm.score !== null ? this.editForm.score : undefined,
-      bulkAmount: resetBulkAmount ? undefined : (this.editForm.bulkAmount != null ? this.editForm.bulkAmount : undefined),
-      bulkPrice: resetBulkPrice ? undefined : (this.editForm.bulkPrice != null ? this.editForm.bulkPrice : undefined),
-      thumbnailUrl: resetThumbnailUrl ? undefined : (this.editForm.thumbnailUrl || undefined),
-      priceName: resetPriceName ? undefined : (this.editForm.priceName || undefined),
-      ingameCarryType: resetIngameCarryType ? undefined : (this.editForm.ingameCarryType || undefined),
-      resetBulkAmount: resetBulkAmount,
-      resetBulkPrice: resetBulkPrice,
-      resetThumbnailUrl: resetThumbnailUrl,
-      resetPriceName: resetPriceName,
-      resetIngameCarryType: resetIngameCarryType
-    };
+		const updateModel: CarryDifficultyUpdateModel = {
+			displayName: this.editForm.displayName || undefined,
+			price: this.editForm.price !== null ? this.editForm.price : undefined,
+			score: this.editForm.score !== null ? this.editForm.score : undefined,
+			bulkAmount: resetBulkAmount
+				? undefined
+				: this.editForm.bulkAmount != null
+					? this.editForm.bulkAmount
+					: undefined,
+			bulkPrice: resetBulkPrice
+				? undefined
+				: this.editForm.bulkPrice != null
+					? this.editForm.bulkPrice
+					: undefined,
+			thumbnailUrl: resetThumbnailUrl
+				? undefined
+				: this.editForm.thumbnailUrl || undefined,
+			priceName: resetPriceName
+				? undefined
+				: this.editForm.priceName || undefined,
+			ingameCarryType: resetIngameCarryType
+				? undefined
+				: this.editForm.ingameCarryType || undefined,
+			resetBulkAmount: resetBulkAmount,
+			resetBulkPrice: resetBulkPrice,
+			resetThumbnailUrl: resetThumbnailUrl,
+			resetPriceName: resetPriceName,
+			resetIngameCarryType: resetIngameCarryType,
+		};
 
-    this.carryDifficultyService.updateCarryDifficulty(this.serverId, this.carryTypeId, this.carryTierId, this.difficulty.id, updateModel).subscribe({
-      next: () => {
-        this.showEditModal = false;
-        this.isUpdating = false;
-        this.loadData();
-      },
-      error: (err) => {
-        this.updateError = err.error?.message || 'Failed to update difficulty';
-        this.isUpdating = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryDifficultyService
+			.updateCarryDifficulty(
+				this.serverId,
+				this.carryTypeId,
+				this.carryTierId,
+				this.difficulty.id,
+				updateModel,
+			)
+			.subscribe({
+				next: () => {
+					this.showEditModal = false;
+					this.isUpdating = false;
+					this.loadData();
+				},
+				error: (err) => {
+					this.updateError =
+						err.error?.message || "Failed to update difficulty";
+					this.isUpdating = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  deleteDifficulty() {
-    if (!this.difficulty || this.isDeleting) return;
+	deleteDifficulty() {
+		if (!this.difficulty || this.isDeleting) return;
 
-    this.isDeleting = true;
-    this.deleteError = null;
+		this.isDeleting = true;
+		this.deleteError = null;
 
-    this.carryDifficultyService.deleteCarryDifficulty(this.serverId, this.carryTypeId, this.carryTierId, this.difficulty.id).subscribe({
-      next: () => {
-        this.router.navigate(['/server', this.serverId, 'carry-type', this.carryTypeId, 'carry-tier', this.carryTierId]);
-      },
-      error: (err) => {
-        this.deleteError = err.error?.message || 'Failed to delete difficulty';
-        this.isDeleting = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryDifficultyService
+			.deleteCarryDifficulty(
+				this.serverId,
+				this.carryTypeId,
+				this.carryTierId,
+				this.difficulty.id,
+			)
+			.subscribe({
+				next: () => {
+					this.router.navigate([
+						"/server",
+						this.serverId,
+						"carry-type",
+						this.carryTypeId,
+						"carry-tier",
+						this.carryTierId,
+					]);
+				},
+				error: (err) => {
+					this.deleteError =
+						err.error?.message || "Failed to delete difficulty";
+					this.isDeleting = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 }

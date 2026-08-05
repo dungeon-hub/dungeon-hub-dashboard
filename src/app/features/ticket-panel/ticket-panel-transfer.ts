@@ -1,337 +1,391 @@
-import {
-  TicketPanelCreationModel,
-  TicketPanelModel,
-  TicketPanelUpdateModel,
-} from '@dungeon-hub/api-client';
+import type {
+	TicketPanelCreationModel,
+	TicketPanelModel,
+	TicketPanelUpdateModel,
+} from "@dungeon-hub/api-client";
 
 export const TICKET_PANEL_EXPORT_VERSION = 1;
 
 export interface TicketPanelExport {
-  version: number;
-  id?: string;
-  name?: string;
-  panel: TicketPanelCreationModel;
+	version: number;
+	id?: string;
+	name?: string;
+	panel: TicketPanelCreationModel;
 }
 
 export interface TicketPanelImport {
-  id?: string;
-  name?: string;
-  panel: TicketPanelCreationModel;
+	id?: string;
+	name?: string;
+	panel: TicketPanelCreationModel;
 }
 
 export interface TicketPanelBackup {
-  version: number;
-  panels: TicketPanelExport[];
+	version: number;
+	panels: TicketPanelExport[];
 }
 
-type UntrustedTicketPanel = Partial<Record<keyof TicketPanelCreationModel, unknown>>;
+type UntrustedTicketPanel = Partial<
+	Record<keyof TicketPanelCreationModel, unknown>
+>;
 
 interface UntrustedTicketPanelExport {
-  version?: unknown;
-  id?: unknown;
-  name?: unknown;
-  panel?: unknown;
-  panels?: unknown;
+	version?: unknown;
+	id?: unknown;
+	name?: unknown;
+	panel?: unknown;
+	panels?: unknown;
 }
 
-const TRANSCRIPT_TARGETS = new Set(['None', 'User', 'TranscriptChannel', 'Both']);
-const FORM_TYPES = new Set(['Predefined', 'TextInput', 'StringSelect', 'TextDisplay']);
+const TRANSCRIPT_TARGETS = new Set([
+	"None",
+	"User",
+	"TranscriptChannel",
+	"Both",
+]);
+const FORM_TYPES = new Set([
+	"Predefined",
+	"TextInput",
+	"StringSelect",
+	"TextDisplay",
+]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isOptionalString(value: unknown): value is string | undefined {
-  return value === undefined || typeof value === 'string';
+	return value === undefined || typeof value === "string";
 }
 
-function isNullableOptionalString(value: unknown): value is string | null | undefined {
-  return value == null || typeof value === 'string';
+function isNullableOptionalString(
+	value: unknown,
+): value is string | null | undefined {
+	return value == null || typeof value === "string";
 }
 
-function isOptionalExportId(value: unknown): value is string | number | undefined {
-  return value === undefined || typeof value === 'string' || typeof value === 'number';
+function isOptionalExportId(
+	value: unknown,
+): value is string | number | undefined {
+	return (
+		value === undefined ||
+		typeof value === "string" ||
+		typeof value === "number"
+	);
 }
 
 function isNullableOptionalStringOrNumber(
-  value: unknown,
+	value: unknown,
 ): value is string | number | null | undefined {
-  return value == null || typeof value === 'string' || typeof value === 'number';
+	return (
+		value == null || typeof value === "string" || typeof value === "number"
+	);
 }
 
 function isOptionalStringArray(value: unknown): value is string[] | undefined {
-  return value == null || (Array.isArray(value) && value.every((item) => typeof item === 'string'));
+	return (
+		value == null ||
+		(Array.isArray(value) && value.every((item) => typeof item === "string"))
+	);
 }
 
 function isFormQuestions(value: unknown): boolean {
-  return (
-    value == null ||
-    (Array.isArray(value) &&
-      value.every(
-        (question) =>
-          isRecord(question) &&
-          typeof question['type'] === 'string' &&
-          FORM_TYPES.has(question['type']) &&
-          typeof question['data'] === 'string',
-      ))
-  );
+	return (
+		value == null ||
+		(Array.isArray(value) &&
+			value.every(
+				(question) =>
+					isRecord(question) &&
+					typeof question["type"] === "string" &&
+					FORM_TYPES.has(question["type"]) &&
+					typeof question["data"] === "string",
+			))
+	);
 }
 
 function isPermissions(value: unknown): boolean {
-  return (
-    value == null ||
-    (isRecord(value) &&
-      Object.values(value).every(
-        (permission) =>
-          isRecord(permission) &&
-          Object.values(permission).every(
-            (bitSet) => typeof bitSet === 'string' || typeof bitSet === 'number',
-          ),
-      ))
-  );
+	return (
+		value == null ||
+		(isRecord(value) &&
+			Object.values(value).every(
+				(permission) =>
+					isRecord(permission) &&
+					Object.values(permission).every(
+						(bitSet) =>
+							typeof bitSet === "string" || typeof bitSet === "number",
+					),
+			))
+	);
 }
 
 function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
-  return value ?? undefined;
+	return value ?? undefined;
 }
 
 function normalizePermissions(
-  permissions: TicketPanelCreationModel['permissions'] | null | undefined,
-): TicketPanelCreationModel['permissions'] | undefined {
-  if (permissions == null) return undefined;
-  return Object.fromEntries(
-    Object.entries(permissions).map(([scope, values]) => [
-      scope,
-      Object.fromEntries(Object.entries(values).map(([state, bitSet]) => [state, String(bitSet)])),
-    ]),
-  );
+	permissions: TicketPanelCreationModel["permissions"] | null | undefined,
+): TicketPanelCreationModel["permissions"] | undefined {
+	if (permissions == null) return undefined;
+	return Object.fromEntries(
+		Object.entries(permissions).map(([scope, values]) => [
+			scope,
+			Object.fromEntries(
+				Object.entries(values).map(([state, bitSet]) => [
+					state,
+					String(bitSet),
+				]),
+			),
+		]),
+	);
 }
 
 function normalizePanelName(name: string): string {
-  return name.trim().toLocaleLowerCase();
+	return name.trim().toLocaleLowerCase();
 }
 
 const ticketPanelFieldValidators = {
-  name: (value: unknown) => typeof value === 'string' && !!value.trim(),
-  displayName: isNullableOptionalString,
-  emoji: isNullableOptionalString,
-  closeable: (value: unknown) => typeof value === 'boolean',
-  closeConfirmation: (value: unknown) => typeof value === 'boolean',
-  claimable: (value: unknown) => typeof value === 'boolean',
-  openChannelName: isNullableOptionalString,
-  claimedChannelName: isNullableOptionalString,
-  closedChannelName: isNullableOptionalString,
-  transcriptChannel: isNullableOptionalString,
-  ticketMessage: isNullableOptionalString,
-  requiresLinking: (value: unknown) => typeof value === 'boolean',
-  closeTranscriptTarget: (value: unknown) =>
-    value == null || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
-  deleteTranscriptTarget: (value: unknown) =>
-    value == null || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
-  userTranscriptDm: isNullableOptionalString,
-  formQuestions: isFormQuestions,
-  relatedCarryTier: isNullableOptionalStringOrNumber,
-  relatedCarryDifficulty: isNullableOptionalStringOrNumber,
-  supportRoles: isOptionalStringArray,
-  additionalRoles: isOptionalStringArray,
-  openCategories: isOptionalStringArray,
-  closedCategories: isOptionalStringArray,
-  permissions: isPermissions,
+	name: (value: unknown) => typeof value === "string" && !!value.trim(),
+	displayName: isNullableOptionalString,
+	emoji: isNullableOptionalString,
+	closeable: (value: unknown) => typeof value === "boolean",
+	closeConfirmation: (value: unknown) => typeof value === "boolean",
+	claimable: (value: unknown) => typeof value === "boolean",
+	openChannelName: isNullableOptionalString,
+	claimedChannelName: isNullableOptionalString,
+	closedChannelName: isNullableOptionalString,
+	transcriptChannel: isNullableOptionalString,
+	ticketMessage: isNullableOptionalString,
+	requiresLinking: (value: unknown) => typeof value === "boolean",
+	closeTranscriptTarget: (value: unknown) =>
+		value == null ||
+		(typeof value === "string" && TRANSCRIPT_TARGETS.has(value)),
+	deleteTranscriptTarget: (value: unknown) =>
+		value == null ||
+		(typeof value === "string" && TRANSCRIPT_TARGETS.has(value)),
+	userTranscriptDm: isNullableOptionalString,
+	formQuestions: isFormQuestions,
+	relatedCarryTier: isNullableOptionalStringOrNumber,
+	relatedCarryDifficulty: isNullableOptionalStringOrNumber,
+	supportRoles: isOptionalStringArray,
+	additionalRoles: isOptionalStringArray,
+	openCategories: isOptionalStringArray,
+	closedCategories: isOptionalStringArray,
+	permissions: isPermissions,
 } satisfies Record<keyof TicketPanelCreationModel, (value: unknown) => boolean>;
 
-function copyTicketPanelCreation(panel: TicketPanelCreationModel): TicketPanelCreationModel {
-  return structuredClone({
-    name: panel.name,
-    displayName: undefinedIfNull(panel.displayName),
-    emoji: undefinedIfNull(panel.emoji),
-    closeable: panel.closeable,
-    closeConfirmation: panel.closeConfirmation,
-    claimable: panel.claimable,
-    openChannelName: undefinedIfNull(panel.openChannelName),
-    claimedChannelName: undefinedIfNull(panel.claimedChannelName),
-    closedChannelName: undefinedIfNull(panel.closedChannelName),
-    transcriptChannel: undefined,
-    ticketMessage: undefinedIfNull(panel.ticketMessage),
-    requiresLinking: panel.requiresLinking,
-    closeTranscriptTarget: undefinedIfNull(panel.closeTranscriptTarget),
-    deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
-    userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
-    formQuestions: undefinedIfNull(panel.formQuestions),
-    relatedCarryTier: undefined,
-    relatedCarryDifficulty: undefined,
-    supportRoles: undefined,
-    additionalRoles: undefined,
-    openCategories: undefined,
-    closedCategories: undefined,
-    permissions: normalizePermissions(panel.permissions),
-  } satisfies TicketPanelCreationModel & Record<keyof TicketPanelCreationModel, unknown>);
+function copyTicketPanelCreation(
+	panel: TicketPanelCreationModel,
+): TicketPanelCreationModel {
+	return structuredClone({
+		name: panel.name,
+		displayName: undefinedIfNull(panel.displayName),
+		emoji: undefinedIfNull(panel.emoji),
+		closeable: panel.closeable,
+		closeConfirmation: panel.closeConfirmation,
+		claimable: panel.claimable,
+		openChannelName: undefinedIfNull(panel.openChannelName),
+		claimedChannelName: undefinedIfNull(panel.claimedChannelName),
+		closedChannelName: undefinedIfNull(panel.closedChannelName),
+		transcriptChannel: undefined,
+		ticketMessage: undefinedIfNull(panel.ticketMessage),
+		requiresLinking: panel.requiresLinking,
+		closeTranscriptTarget: undefinedIfNull(panel.closeTranscriptTarget),
+		deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
+		userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
+		formQuestions: undefinedIfNull(panel.formQuestions),
+		relatedCarryTier: undefined,
+		relatedCarryDifficulty: undefined,
+		supportRoles: undefined,
+		additionalRoles: undefined,
+		openCategories: undefined,
+		closedCategories: undefined,
+		permissions: normalizePermissions(panel.permissions),
+	} satisfies TicketPanelCreationModel &
+		Record<keyof TicketPanelCreationModel, unknown>);
 }
 
 /** Builds a detached creation model so transfer operations can never mutate the source panel. */
-export function toTicketPanelCreation(panel: TicketPanelModel): TicketPanelCreationModel {
-  return structuredClone({
-    name: panel.name,
-    displayName: undefinedIfNull(panel.displayName),
-    emoji: undefinedIfNull(panel.emoji),
-    closeable: panel.closeable,
-    closeConfirmation: panel.closeConfirmation,
-    claimable: panel.claimable,
-    openChannelName: undefinedIfNull(panel.openChannelName),
-    claimedChannelName: undefinedIfNull(panel.claimedChannelName),
-    closedChannelName: undefinedIfNull(panel.closedChannelName),
-    transcriptChannel: panel.transcriptChannel?.id,
-    ticketMessage: undefinedIfNull(panel.ticketMessage),
-    requiresLinking: panel.requiresLinking,
-    closeTranscriptTarget: undefinedIfNull(panel.closeTranscriptTarget),
-    deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
-    userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
-    formQuestions: panel.formQuestions,
-    relatedCarryTier: panel.relatedCarryTier?.id,
-    relatedCarryDifficulty: panel.relatedCarryDifficulty?.id,
-    supportRoles: panel.supportRoles?.map((role) => role.id),
-    additionalRoles: panel.additionalRoles?.map((role) => role.id),
-    openCategories: panel.openCategories,
-    closedCategories: panel.closedCategories,
-    permissions: panel.permissions,
-  } satisfies TicketPanelCreationModel & Record<keyof TicketPanelCreationModel, unknown>);
+export function toTicketPanelCreation(
+	panel: TicketPanelModel,
+): TicketPanelCreationModel {
+	return structuredClone({
+		name: panel.name,
+		displayName: undefinedIfNull(panel.displayName),
+		emoji: undefinedIfNull(panel.emoji),
+		closeable: panel.closeable,
+		closeConfirmation: panel.closeConfirmation,
+		claimable: panel.claimable,
+		openChannelName: undefinedIfNull(panel.openChannelName),
+		claimedChannelName: undefinedIfNull(panel.claimedChannelName),
+		closedChannelName: undefinedIfNull(panel.closedChannelName),
+		transcriptChannel: panel.transcriptChannel?.id,
+		ticketMessage: undefinedIfNull(panel.ticketMessage),
+		requiresLinking: panel.requiresLinking,
+		closeTranscriptTarget: undefinedIfNull(panel.closeTranscriptTarget),
+		deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
+		userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
+		formQuestions: panel.formQuestions,
+		relatedCarryTier: panel.relatedCarryTier?.id,
+		relatedCarryDifficulty: panel.relatedCarryDifficulty?.id,
+		supportRoles: panel.supportRoles?.map((role) => role.id),
+		additionalRoles: panel.additionalRoles?.map((role) => role.id),
+		openCategories: panel.openCategories,
+		closedCategories: panel.closedCategories,
+		permissions: panel.permissions,
+	} satisfies TicketPanelCreationModel &
+		Record<keyof TicketPanelCreationModel, unknown>);
 }
 
 export function exportTicketPanel(panel: TicketPanelModel): TicketPanelExport {
-  return {
-    version: TICKET_PANEL_EXPORT_VERSION,
-    id: panel.id,
-    name: panel.name,
-    panel: toTicketPanelCreation(panel),
-  };
+	return {
+		version: TICKET_PANEL_EXPORT_VERSION,
+		id: panel.id,
+		name: panel.name,
+		panel: toTicketPanelCreation(panel),
+	};
 }
 
 export function serializeTicketPanel(panel: TicketPanelModel): string {
-  return JSON.stringify(exportTicketPanel(panel), null, 2);
+	return JSON.stringify(exportTicketPanel(panel), null, 2);
 }
 
-export function exportTicketPanels(panels: TicketPanelModel[]): TicketPanelBackup {
-  return {
-    version: TICKET_PANEL_EXPORT_VERSION,
-    panels: panels.map((panel) => exportTicketPanel(panel)),
-  };
+export function exportTicketPanels(
+	panels: TicketPanelModel[],
+): TicketPanelBackup {
+	return {
+		version: TICKET_PANEL_EXPORT_VERSION,
+		panels: panels.map((panel) => exportTicketPanel(panel)),
+	};
 }
 
 export function serializeTicketPanels(panels: TicketPanelModel[]): string {
-  return JSON.stringify(exportTicketPanels(panels), null, 2);
+	return JSON.stringify(exportTicketPanels(panels), null, 2);
 }
 
 export function isTicketPanelExport(contents: string): boolean {
-  try {
-    parseTicketPanelExports(contents);
-    return true;
-  } catch {
-    return false;
-  }
+	try {
+		parseTicketPanelExports(contents);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 export function parseTicketPanelExports(contents: string): TicketPanelImport[] {
-  const parsed: unknown = JSON.parse(contents);
-  const exports = Array.isArray(parsed) ? parsed : getBackupPanels(parsed);
-  if (exports) {
-    if (exports.length === 0) {
-      throw new Error('This is not a supported ticket panel export.');
-    }
-    return exports.map((panelExport) => parseTicketPanelExportValue(panelExport));
-  }
-  return [parseTicketPanelExportValue(parsed)];
+	const parsed: unknown = JSON.parse(contents);
+	const exports = Array.isArray(parsed) ? parsed : getBackupPanels(parsed);
+	if (exports) {
+		if (exports.length === 0) {
+			throw new Error("This is not a supported ticket panel export.");
+		}
+		return exports.map((panelExport) =>
+			parseTicketPanelExportValue(panelExport),
+		);
+	}
+	return [parseTicketPanelExportValue(parsed)];
 }
 
 function getBackupPanels(parsed: unknown): unknown[] | undefined {
-  if (!isRecord(parsed)) return undefined;
-  const candidate = parsed as UntrustedTicketPanelExport;
-  if (candidate.panels === undefined) return undefined;
-  if (candidate.version !== TICKET_PANEL_EXPORT_VERSION || !Array.isArray(candidate.panels)) {
-    throw new Error('This is not a supported ticket panel export.');
-  }
-  return candidate.panels;
+	if (!isRecord(parsed)) return undefined;
+	const candidate = parsed as UntrustedTicketPanelExport;
+	if (candidate.panels === undefined) return undefined;
+	if (
+		candidate.version !== TICKET_PANEL_EXPORT_VERSION ||
+		!Array.isArray(candidate.panels)
+	) {
+		throw new Error("This is not a supported ticket panel export.");
+	}
+	return candidate.panels;
 }
 
 export function parseTicketPanelExport(contents: string): TicketPanelImport {
-  const imports = parseTicketPanelExports(contents);
-  if (imports.length !== 1) {
-    throw new Error('This is not a supported ticket panel export.');
-  }
-  return imports[0];
+	const imports = parseTicketPanelExports(contents);
+	if (imports.length !== 1) {
+		throw new Error("This is not a supported ticket panel export.");
+	}
+	return imports[0];
 }
 
 function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
-  if (!isRecord(parsed)) {
-    throw new Error('This is not a supported ticket panel export.');
-  }
-  const candidate = parsed as UntrustedTicketPanelExport;
-  if (!isRecord(candidate.panel)) {
-    throw new Error('This is not a supported ticket panel export.');
-  }
-  const panel = candidate.panel as UntrustedTicketPanel;
-  const hasInvalidPanelField = Object.entries(ticketPanelFieldValidators).some(
-    ([field, validate]) => !validate(panel[field as keyof TicketPanelCreationModel]),
-  );
-  if (
-    candidate.version !== TICKET_PANEL_EXPORT_VERSION ||
-    !isOptionalExportId(candidate.id) ||
-    !isOptionalString(candidate.name) ||
-    hasInvalidPanelField ||
-    typeof panel.name !== 'string' ||
-    (candidate.name !== undefined &&
-      normalizePanelName(candidate.name) !== normalizePanelName(panel.name))
-  ) {
-    throw new Error('This is not a supported ticket panel export.');
-  }
-  return {
-    id: candidate.id === undefined ? undefined : String(candidate.id),
-    name: panel.name,
-    panel: copyTicketPanelCreation(panel as unknown as TicketPanelCreationModel),
-  };
+	if (!isRecord(parsed)) {
+		throw new Error("This is not a supported ticket panel export.");
+	}
+	const candidate = parsed as UntrustedTicketPanelExport;
+	if (!isRecord(candidate.panel)) {
+		throw new Error("This is not a supported ticket panel export.");
+	}
+	const panel = candidate.panel as UntrustedTicketPanel;
+	const hasInvalidPanelField = Object.entries(ticketPanelFieldValidators).some(
+		([field, validate]) =>
+			!validate(panel[field as keyof TicketPanelCreationModel]),
+	);
+	if (
+		candidate.version !== TICKET_PANEL_EXPORT_VERSION ||
+		!isOptionalExportId(candidate.id) ||
+		!isOptionalString(candidate.name) ||
+		hasInvalidPanelField ||
+		typeof panel.name !== "string" ||
+		(candidate.name !== undefined &&
+			normalizePanelName(candidate.name) !== normalizePanelName(panel.name))
+	) {
+		throw new Error("This is not a supported ticket panel export.");
+	}
+	return {
+		id: candidate.id === undefined ? undefined : String(candidate.id),
+		name: panel.name,
+		panel: copyTicketPanelCreation(
+			panel as unknown as TicketPanelCreationModel,
+		),
+	};
 }
 
 export function findImportConflict(
-  panels: TicketPanelModel[],
-  imported: Pick<TicketPanelImport, 'id' | 'name'>,
+	panels: TicketPanelModel[],
+	imported: Pick<TicketPanelImport, "id" | "name">,
 ): TicketPanelModel | undefined {
-  if (!imported.name) return undefined;
-  const importedName = normalizePanelName(imported.name);
-  const nameMatch = (panel: Pick<TicketPanelModel, 'name'>) =>
-    normalizePanelName(panel.name) === importedName;
-  if (imported.id) {
-    const exactMatch = panels.find((panel) => String(panel.id) === imported.id && nameMatch(panel));
-    if (exactMatch) return exactMatch;
-  }
-  return panels.find(nameMatch);
+	if (!imported.name) return undefined;
+	const importedName = normalizePanelName(imported.name);
+	const nameMatch = (panel: Pick<TicketPanelModel, "name">) =>
+		normalizePanelName(panel.name) === importedName;
+	if (imported.id) {
+		const exactMatch = panels.find(
+			(panel) => String(panel.id) === imported.id && nameMatch(panel),
+		);
+		if (exactMatch) return exactMatch;
+	}
+	return panels.find(nameMatch);
 }
 
 /** Converts every imported setting into an update, including resets for omitted optional values. */
-export function toTicketPanelUpdate(panel: TicketPanelCreationModel): TicketPanelUpdateModel {
-  return {
-    ...structuredClone(panel),
-    resetDisplayName: panel.displayName == null,
-    resetEmoji: panel.emoji == null,
-    resetOpenChannelName: panel.openChannelName == null,
-    resetClaimedChannelName: panel.claimedChannelName == null,
-    resetClosedChannelName: panel.closedChannelName == null,
-    resetTranscriptChannel: panel.transcriptChannel == null,
-    resetTicketMessage: panel.ticketMessage == null,
-    resetUserTranscriptDm: panel.userTranscriptDm == null,
-    resetRelatedCarryTier: panel.relatedCarryTier == null,
-    resetRelatedCarryDifficulty: panel.relatedCarryDifficulty == null,
-  };
+export function toTicketPanelUpdate(
+	panel: TicketPanelCreationModel,
+): TicketPanelUpdateModel {
+	return {
+		...structuredClone(panel),
+		resetDisplayName: panel.displayName == null,
+		resetEmoji: panel.emoji == null,
+		resetOpenChannelName: panel.openChannelName == null,
+		resetClaimedChannelName: panel.claimedChannelName == null,
+		resetClosedChannelName: panel.closedChannelName == null,
+		resetTranscriptChannel: panel.transcriptChannel == null,
+		resetTicketMessage: panel.ticketMessage == null,
+		resetUserTranscriptDm: panel.userTranscriptDm == null,
+		resetRelatedCarryTier: panel.relatedCarryTier == null,
+		resetRelatedCarryDifficulty: panel.relatedCarryDifficulty == null,
+	};
 }
 
 export function hasDuplicatePanelName(
-  panels: Pick<TicketPanelModel, 'name' | 'displayName'>[],
-  name: string,
-  displayName: string,
+	panels: Pick<TicketPanelModel, "name" | "displayName">[],
+	name: string,
+	displayName: string,
 ): boolean {
-  const normalizedName = name.trim().toLocaleLowerCase();
-  const normalizedDisplayName = displayName.trim().toLocaleLowerCase();
-  return panels.some(
-    (panel) =>
-      panel.name.trim().toLocaleLowerCase() === normalizedName ||
-      (!!normalizedDisplayName &&
-        panel.displayName?.trim().toLocaleLowerCase() === normalizedDisplayName),
-  );
+	const normalizedName = name.trim().toLocaleLowerCase();
+	const normalizedDisplayName = displayName.trim().toLocaleLowerCase();
+	return panels.some(
+		(panel) =>
+			panel.name.trim().toLocaleLowerCase() === normalizedName ||
+			(!!normalizedDisplayName &&
+				panel.displayName?.trim().toLocaleLowerCase() ===
+					normalizedDisplayName),
+	);
 }

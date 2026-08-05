@@ -1,24 +1,32 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { CommonModule } from "@angular/common";
 import {
-  CarryTypeControllerService,
-  CarryTierControllerService,
-  CarryDifficultyControllerService,
-  CarryTypeModel,
-  CarryTierModel,
-  CarryDifficultyModel,
-  CarryDifficultyCreationModel,
-  CarryTierUpdateModel
-} from '@dungeon-hub/api-client';
-import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carry-type-labels';
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import {
+	CarryDifficultyControllerService,
+	type CarryDifficultyCreationModel,
+	type CarryDifficultyModel,
+	CarryTierControllerService,
+	type CarryTierModel,
+	type CarryTierUpdateModel,
+	CarryTypeControllerService,
+	type CarryTypeModel,
+} from "@dungeon-hub/api-client";
+import {
+	getIngameCarryTypeLabel,
+	INGAME_CARRY_TYPE_LABELS,
+} from "./ingame-carry-type-labels";
 
 @Component({
-  selector: 'app-carry-tier-detail',
-  standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
-  template: `
+	selector: "app-carry-tier-detail",
+	standalone: true,
+	imports: [CommonModule, RouterLink, FormsModule],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
         <a [routerLink]="['/server', serverId, 'carry-type', carryTypeId]" class="btn btn-secondary mb-4 inline-block">
@@ -382,228 +390,317 @@ import { INGAME_CARRY_TYPE_LABELS, getIngameCarryTypeLabel } from './ingame-carr
         </div>
       }
     </div>
-  `
+  `,
 })
 export class CarryTierDetailComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private carryTypeService = inject(CarryTypeControllerService);
-  private carryTierService = inject(CarryTierControllerService);
-  private carryDifficultyService = inject(CarryDifficultyControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private router = inject(Router);
+	private carryTypeService = inject(CarryTypeControllerService);
+	private carryTierService = inject(CarryTierControllerService);
+	private carryDifficultyService = inject(CarryDifficultyControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  carryTypeId!: string;
-  carryTierId!: string;
-  carryType: CarryTypeModel | null = null;
-  carryTier: CarryTierModel | null = null;
-  difficulties: CarryDifficultyModel[] = [];
-  loadError: string | null = null;
+	serverId!: string;
+	carryTypeId!: string;
+	carryTierId!: string;
+	carryType: CarryTypeModel | null = null;
+	carryTier: CarryTierModel | null = null;
+	difficulties: CarryDifficultyModel[] = [];
+	loadError: string | null = null;
 
-  showCreateModal = false;
-  isCreating = false;
-  createError: string | null = null;
-  newDifficulty = {
-    identifier: '',
-    displayName: '',
-    price: null as number | null,
-    score: null as number | null,
-    bulkAmount: null as number | null,
-    bulkPrice: null as number | null,
-    thumbnailUrl: '',
-    priceName: '',
-    ingameCarryType: null as CarryDifficultyCreationModel.IngameCarryTypeEnum | null
-  };
+	showCreateModal = false;
+	isCreating = false;
+	createError: string | null = null;
+	newDifficulty = {
+		identifier: "",
+		displayName: "",
+		price: null as number | null,
+		score: null as number | null,
+		bulkAmount: null as number | null,
+		bulkPrice: null as number | null,
+		thumbnailUrl: "",
+		priceName: "",
+		ingameCarryType:
+			null as CarryDifficultyCreationModel.IngameCarryTypeEnum | null,
+	};
 
-  get ingameCarryTypeOptions() {
-    return Object.entries(INGAME_CARRY_TYPE_LABELS)
-      .map(([value, label]) => ({
-        value: value as CarryDifficultyCreationModel.IngameCarryTypeEnum,
-        label
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }
+	get ingameCarryTypeOptions() {
+		return Object.entries(INGAME_CARRY_TYPE_LABELS)
+			.map(([value, label]) => ({
+				value: value as CarryDifficultyCreationModel.IngameCarryTypeEnum,
+				label,
+			}))
+			.sort((a, b) => a.label.localeCompare(b.label));
+	}
 
-  showEditTierModal = false;
-  isUpdatingTier = false;
-  updateTierError: string | null = null;
-  editTierForm = {
-    displayName: '',
-    category: '',
-    descriptiveName: '',
-    thumbnailUrl: '',
-    priceTitle: '',
-    priceDescription: ''
-  };
+	showEditTierModal = false;
+	isUpdatingTier = false;
+	updateTierError: string | null = null;
+	editTierForm = {
+		displayName: "",
+		category: "",
+		descriptiveName: "",
+		thumbnailUrl: "",
+		priceTitle: "",
+		priceDescription: "",
+	};
 
-  showDeleteTierModal = false;
-  isDeletingTier = false;
-  deleteTierError: string | null = null;
+	showDeleteTierModal = false;
+	isDeletingTier = false;
+	deleteTierError: string | null = null;
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
-    this.carryTypeId = this.route.snapshot.params['carryTypeId'];
-    this.carryTierId = this.route.snapshot.params['carryTierId'];
-    this.loadData();
-  }
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params.serverId;
+		this.carryTypeId = this.route.snapshot.params.carryTypeId;
+		this.carryTierId = this.route.snapshot.params.carryTierId;
+		this.loadData();
+	}
 
-  loadData() {
-    this.loadError = null;
+	loadData() {
+		this.loadError = null;
 
-    this.carryTypeService.getById6(this.serverId, this.carryTypeId).subscribe({
-      next: (type) => {
-        this.carryType = type;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load carry type.';
-        console.error('Error loading carry type:', err);
-        this.cdr.detectChanges();
-      }
-    });
+		this.carryTypeService.getById6(this.serverId, this.carryTypeId).subscribe({
+			next: (type) => {
+				this.carryType = type;
+				this.cdr.detectChanges();
+			},
+			error: (err) => {
+				this.loadError = "Failed to load carry type.";
+				console.error("Error loading carry type:", err);
+				this.cdr.detectChanges();
+			},
+		});
 
-    this.carryTierService.getAllCarryTiers(this.serverId, this.carryTypeId).subscribe({
-      next: (tiers) => {
-        this.carryTier = tiers.find(t => t.id.toString() === this.carryTierId.toString()) || null;
-        if (!this.carryTier) {
-          this.loadError = 'Carry tier not found.';
-          console.error('Carry tier not found. Looking for ID:', this.carryTierId, 'Available tiers:', tiers.map(t => t.id));
-        }
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load carry tier.';
-        console.error('Error loading carry tier:', err);
-        this.cdr.detectChanges();
-      }
-    });
+		this.carryTierService
+			.getAllCarryTiers(this.serverId, this.carryTypeId)
+			.subscribe({
+				next: (tiers) => {
+					this.carryTier =
+						tiers.find(
+							(t) => t.id.toString() === this.carryTierId.toString(),
+						) || null;
+					if (!this.carryTier) {
+						this.loadError = "Carry tier not found.";
+						console.error(
+							"Carry tier not found. Looking for ID:",
+							this.carryTierId,
+							"Available tiers:",
+							tiers.map((t) => t.id),
+						);
+					}
+					this.cdr.detectChanges();
+				},
+				error: (err) => {
+					this.loadError = "Failed to load carry tier.";
+					console.error("Error loading carry tier:", err);
+					this.cdr.detectChanges();
+				},
+			});
 
-    this.loadDifficulties();
-  }
+		this.loadDifficulties();
+	}
 
-  loadDifficulties() {
-    this.carryDifficultyService.getAllCarryDifficulties(this.serverId, this.carryTypeId, this.carryTierId).subscribe({
-      next: (difficulties) => {
-        this.difficulties = difficulties || [];
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load difficulties.';
-        console.error('Error loading difficulties:', err);
-        this.cdr.detectChanges();
-      }
-    });
-  }
+	loadDifficulties() {
+		this.carryDifficultyService
+			.getAllCarryDifficulties(
+				this.serverId,
+				this.carryTypeId,
+				this.carryTierId,
+			)
+			.subscribe({
+				next: (difficulties) => {
+					this.difficulties = difficulties || [];
+					this.cdr.detectChanges();
+				},
+				error: (err) => {
+					this.loadError = "Failed to load difficulties.";
+					console.error("Error loading difficulties:", err);
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  createDifficulty() {
-    if (!this.newDifficulty.identifier || !this.newDifficulty.displayName ||
-      this.newDifficulty.price === null || this.newDifficulty.score === null || this.isCreating) return;
+	createDifficulty() {
+		if (
+			!this.newDifficulty.identifier ||
+			!this.newDifficulty.displayName ||
+			this.newDifficulty.price === null ||
+			this.newDifficulty.score === null ||
+			this.isCreating
+		)
+			return;
 
-    this.isCreating = true;
-    this.createError = null;
+		this.isCreating = true;
+		this.createError = null;
 
-    const creationModel: CarryDifficultyCreationModel = {
-      identifier: this.newDifficulty.identifier.trim().toLowerCase().replace(/ /g, '_'),
-      displayName: this.newDifficulty.displayName,
-      price: this.newDifficulty.price,
-      score: this.newDifficulty.score,
-      bulkAmount: this.newDifficulty.bulkAmount != null ? this.newDifficulty.bulkAmount : undefined,
-      bulkPrice: this.newDifficulty.bulkPrice != null ? this.newDifficulty.bulkPrice : undefined,
-      thumbnailUrl: this.newDifficulty.thumbnailUrl || undefined,
-      priceName: this.newDifficulty.priceName || undefined,
-      ingameCarryType: this.newDifficulty.ingameCarryType || undefined
-    };
+		const creationModel: CarryDifficultyCreationModel = {
+			identifier: this.newDifficulty.identifier
+				.trim()
+				.toLowerCase()
+				.replace(/ /g, "_"),
+			displayName: this.newDifficulty.displayName,
+			price: this.newDifficulty.price,
+			score: this.newDifficulty.score,
+			bulkAmount:
+				this.newDifficulty.bulkAmount != null
+					? this.newDifficulty.bulkAmount
+					: undefined,
+			bulkPrice:
+				this.newDifficulty.bulkPrice != null
+					? this.newDifficulty.bulkPrice
+					: undefined,
+			thumbnailUrl: this.newDifficulty.thumbnailUrl || undefined,
+			priceName: this.newDifficulty.priceName || undefined,
+			ingameCarryType: this.newDifficulty.ingameCarryType || undefined,
+		};
 
-    this.carryDifficultyService.createCarryDifficulty(this.serverId, this.carryTypeId, this.carryTierId, creationModel).subscribe({
-      next: () => {
-        this.showCreateModal = false;
-        this.newDifficulty = { identifier: '', displayName: '', price: null, score: null, bulkAmount: null, bulkPrice: null, thumbnailUrl: '', priceName: '', ingameCarryType: null };
-        this.isCreating = false;
-        this.loadDifficulties();
-      },
-      error: (err) => {
-        this.createError = err.error?.message || 'Failed to create difficulty';
-        this.isCreating = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryDifficultyService
+			.createCarryDifficulty(
+				this.serverId,
+				this.carryTypeId,
+				this.carryTierId,
+				creationModel,
+			)
+			.subscribe({
+				next: () => {
+					this.showCreateModal = false;
+					this.newDifficulty = {
+						identifier: "",
+						displayName: "",
+						price: null,
+						score: null,
+						bulkAmount: null,
+						bulkPrice: null,
+						thumbnailUrl: "",
+						priceName: "",
+						ingameCarryType: null,
+					};
+					this.isCreating = false;
+					this.loadDifficulties();
+				},
+				error: (err) => {
+					this.createError =
+						err.error?.message || "Failed to create difficulty";
+					this.isCreating = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  wasCleared(currentValue: any, formValue: any): boolean {
-    return currentValue != null && (formValue == null || formValue === '');
-  }
+	wasCleared(currentValue: unknown, formValue: unknown): boolean {
+		return currentValue != null && (formValue == null || formValue === "");
+	}
 
-  openEditTierModal() {
-    if (!this.carryTier) return;
-    this.editTierForm = {
-      displayName: this.carryTier.displayName,
-      category: this.carryTier.category || '',
-      descriptiveName: this.carryTier.descriptiveName || '',
-      thumbnailUrl: this.carryTier.thumbnailUrl || '',
-      priceTitle: this.carryTier.priceTitle || '',
-      priceDescription: this.carryTier.priceDescription || ''
-    };
-    this.updateTierError = null;
-    this.showEditTierModal = true;
-  }
+	openEditTierModal() {
+		if (!this.carryTier) return;
+		this.editTierForm = {
+			displayName: this.carryTier.displayName,
+			category: this.carryTier.category || "",
+			descriptiveName: this.carryTier.descriptiveName || "",
+			thumbnailUrl: this.carryTier.thumbnailUrl || "",
+			priceTitle: this.carryTier.priceTitle || "",
+			priceDescription: this.carryTier.priceDescription || "",
+		};
+		this.updateTierError = null;
+		this.showEditTierModal = true;
+	}
 
-  updateTier() {
-    if (!this.carryTier || this.isUpdatingTier) return;
+	updateTier() {
+		if (!this.carryTier || this.isUpdatingTier) return;
 
-    this.isUpdatingTier = true;
-    this.updateTierError = null;
+		this.isUpdatingTier = true;
+		this.updateTierError = null;
 
-    const resetCategory = this.wasCleared(this.carryTier.category, this.editTierForm.category);
-    const resetDescriptiveName = this.wasCleared(this.carryTier.descriptiveName, this.editTierForm.descriptiveName);
-    const resetThumbnailUrl = this.wasCleared(this.carryTier.thumbnailUrl, this.editTierForm.thumbnailUrl);
-    const resetPriceTitle = this.wasCleared(this.carryTier.priceTitle, this.editTierForm.priceTitle);
-    const resetPriceDescription = this.wasCleared(this.carryTier.priceDescription, this.editTierForm.priceDescription);
+		const resetCategory = this.wasCleared(
+			this.carryTier.category,
+			this.editTierForm.category,
+		);
+		const resetDescriptiveName = this.wasCleared(
+			this.carryTier.descriptiveName,
+			this.editTierForm.descriptiveName,
+		);
+		const resetThumbnailUrl = this.wasCleared(
+			this.carryTier.thumbnailUrl,
+			this.editTierForm.thumbnailUrl,
+		);
+		const resetPriceTitle = this.wasCleared(
+			this.carryTier.priceTitle,
+			this.editTierForm.priceTitle,
+		);
+		const resetPriceDescription = this.wasCleared(
+			this.carryTier.priceDescription,
+			this.editTierForm.priceDescription,
+		);
 
-    const updateModel: CarryTierUpdateModel = {
-      displayName: this.editTierForm.displayName || undefined,
-      category: resetCategory ? undefined : (this.editTierForm.category || undefined),
-      descriptiveName: resetDescriptiveName ? undefined : (this.editTierForm.descriptiveName || undefined),
-      thumbnailUrl: resetThumbnailUrl ? undefined : (this.editTierForm.thumbnailUrl || undefined),
-      priceTitle: resetPriceTitle ? undefined : (this.editTierForm.priceTitle || undefined),
-      priceDescription: resetPriceDescription ? undefined : (this.editTierForm.priceDescription || undefined),
-      resetCategory: resetCategory,
-      resetDescriptiveName: resetDescriptiveName,
-      resetThumbnailUrl: resetThumbnailUrl,
-      resetPriceTitle: resetPriceTitle,
-      resetPriceDescription: resetPriceDescription
-    };
+		const updateModel: CarryTierUpdateModel = {
+			displayName: this.editTierForm.displayName || undefined,
+			category: resetCategory
+				? undefined
+				: this.editTierForm.category || undefined,
+			descriptiveName: resetDescriptiveName
+				? undefined
+				: this.editTierForm.descriptiveName || undefined,
+			thumbnailUrl: resetThumbnailUrl
+				? undefined
+				: this.editTierForm.thumbnailUrl || undefined,
+			priceTitle: resetPriceTitle
+				? undefined
+				: this.editTierForm.priceTitle || undefined,
+			priceDescription: resetPriceDescription
+				? undefined
+				: this.editTierForm.priceDescription || undefined,
+			resetCategory: resetCategory,
+			resetDescriptiveName: resetDescriptiveName,
+			resetThumbnailUrl: resetThumbnailUrl,
+			resetPriceTitle: resetPriceTitle,
+			resetPriceDescription: resetPriceDescription,
+		};
 
-    this.carryTierService.updateCarryTier(this.serverId, this.carryTypeId, this.carryTier.id, updateModel).subscribe({
-      next: () => {
-        this.showEditTierModal = false;
-        this.isUpdatingTier = false;
-        this.loadData();
-      },
-      error: (err) => {
-        this.updateTierError = err.error?.message || 'Failed to update tier';
-        this.isUpdatingTier = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryTierService
+			.updateCarryTier(
+				this.serverId,
+				this.carryTypeId,
+				this.carryTier.id,
+				updateModel,
+			)
+			.subscribe({
+				next: () => {
+					this.showEditTierModal = false;
+					this.isUpdatingTier = false;
+					this.loadData();
+				},
+				error: (err) => {
+					this.updateTierError = err.error?.message || "Failed to update tier";
+					this.isUpdatingTier = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  deleteTier() {
-    if (!this.carryTier || this.isDeletingTier) return;
+	deleteTier() {
+		if (!this.carryTier || this.isDeletingTier) return;
 
-    this.isDeletingTier = true;
-    this.deleteTierError = null;
+		this.isDeletingTier = true;
+		this.deleteTierError = null;
 
-    this.carryTierService.deleteCarryTier(this.serverId, this.carryTypeId, this.carryTier.id).subscribe({
-      next: () => {
-        this.router.navigate(['/server', this.serverId, 'carry-type', this.carryTypeId]);
-      },
-      error: (err) => {
-        this.deleteTierError = err.error?.message || 'Failed to delete tier';
-        this.isDeletingTier = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryTierService
+			.deleteCarryTier(this.serverId, this.carryTypeId, this.carryTier.id)
+			.subscribe({
+				next: () => {
+					this.router.navigate([
+						"/server",
+						this.serverId,
+						"carry-type",
+						this.carryTypeId,
+					]);
+				},
+				error: (err) => {
+					this.deleteTierError = err.error?.message || "Failed to delete tier";
+					this.isDeletingTier = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  protected readonly getIngameCarryTypeLabel = getIngameCarryTypeLabel;
+	protected readonly getIngameCarryTypeLabel = getIngameCarryTypeLabel;
 }

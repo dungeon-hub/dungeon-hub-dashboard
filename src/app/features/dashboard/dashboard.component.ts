@@ -1,33 +1,52 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
-import { DiscordGuildService, DiscordGuild } from '../../core/services/discord-guild.service';
-import { CdnService } from '../../core/services/cdn.service';
-import { DiscordServerControllerService } from '@dungeon-hub/api-client';
-import { GlobalStatsComponent } from '../../shared/components/global-stats/global-stats.component';
+import { CommonModule } from "@angular/common";
+import {
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnDestroy,
+	type OnInit,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { RouterLink } from "@angular/router";
+import { DiscordServerControllerService } from "@dungeon-hub/api-client";
+import {
+	AuthService,
+	type AuthUserInfo,
+} from "../../core/services/auth.service";
+import { CdnService } from "../../core/services/cdn.service";
+import {
+	type DiscordGuild,
+	DiscordGuildService,
+} from "../../core/services/discord-guild.service";
+import { GlobalStatsComponent } from "../../shared/components/global-stats/global-stats.component";
 
 export function categorizeGuilds(
-  allGuilds: DiscordGuild[],
-  adminServerIds: ReadonlySet<string>,
-  botServerIds: ReadonlySet<string>
+	allGuilds: DiscordGuild[],
+	adminServerIds: ReadonlySet<string>,
+	botServerIds: ReadonlySet<string>,
 ) {
-  const hasAdminAccess = (guild: DiscordGuild) => adminServerIds.has(guild.id.toString());
-  const hasBot = (guild: DiscordGuild) => botServerIds.has(guild.id.toString());
+	const hasAdminAccess = (guild: DiscordGuild) =>
+		adminServerIds.has(guild.id.toString());
+	const hasBot = (guild: DiscordGuild) => botServerIds.has(guild.id.toString());
 
-  return {
-    editable: allGuilds.filter(guild => hasAdminAccess(guild) && hasBot(guild)),
-    needingInvite: allGuilds.filter(guild => hasAdminAccess(guild) && !hasBot(guild)),
-    viewOnly: allGuilds.filter(guild => !hasAdminAccess(guild) && hasBot(guild))
-  };
+	return {
+		editable: allGuilds.filter(
+			(guild) => hasAdminAccess(guild) && hasBot(guild),
+		),
+		needingInvite: allGuilds.filter(
+			(guild) => hasAdminAccess(guild) && !hasBot(guild),
+		),
+		viewOnly: allGuilds.filter(
+			(guild) => !hasAdminAccess(guild) && hasBot(guild),
+		),
+	};
 }
 
 @Component({
-  selector: 'app-dashboard',
-  standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, GlobalStatsComponent],
-  template: `
+	selector: "app-dashboard",
+	standalone: true,
+	imports: [CommonModule, RouterLink, FormsModule, GlobalStatsComponent],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <!-- Header -->
       <div class="mb-8">
@@ -288,8 +307,10 @@ export function categorizeGuilds(
                 (drop)="onDrop($event)"
                 (dragover)="onDragOver($event)"
                 (dragleave)="onDragLeave($event)"
-                [class.border-blue-500]="isDragging"
-                [class.bg-blue-900/20]="isDragging"
+                [ngClass]="{
+                  'border-blue-500': isDragging,
+                  'bg-blue-900/20': isDragging
+                }"
                 class="border-2 border-dashed border-gray-600 rounded-lg p-6 transition-colors"
               >
                 @if (!selectedFile) {
@@ -356,267 +377,278 @@ export function categorizeGuilds(
         </div>
       }
     </div>
-  `
+  `,
 })
 export class DashboardComponent implements OnInit, OnDestroy {
-  private authService = inject(AuthService);
-  private discordServerService = inject(DiscordServerControllerService);
-  private discordGuildService = inject(DiscordGuildService);
-  private cdnService = inject(CdnService);
-  private cdr = inject(ChangeDetectorRef);
+	private authService = inject(AuthService);
+	private discordServerService = inject(DiscordServerControllerService);
+	private discordGuildService = inject(DiscordGuildService);
+	private cdnService = inject(CdnService);
+	private cdr = inject(ChangeDetectorRef);
 
-  guilds: DiscordGuild[] = [];
-  viewOnlyGuilds: DiscordGuild[] = [];
-  guildsNeedingInvite: DiscordGuild[] = [];
-  userInfo: any;
-  loading = true;
-  error: string | null = null;
+	guilds: DiscordGuild[] = [];
+	viewOnlyGuilds: DiscordGuild[] = [];
+	guildsNeedingInvite: DiscordGuild[] = [];
+	userInfo: AuthUserInfo | null = null;
+	loading = true;
+	error: string | null = null;
 
-  // CDN Upload
-  hasCdnPermission = false;
-  showUploadModal = false;
-  uploadFilename = '';
-  selectedFile: File | null = null;
-  isUploading = false;
-  uploadError: string | null = null;
-  uploadHistory: Array<{url: string, filename: string, timestamp: Date}> = [];
-  isDragging = false;
+	// CDN Upload
+	hasCdnPermission = false;
+	showUploadModal = false;
+	uploadFilename = "";
+	selectedFile: File | null = null;
+	isUploading = false;
+	uploadError: string | null = null;
+	uploadHistory: Array<{ url: string; filename: string; timestamp: Date }> = [];
+	isDragging = false;
 
-  ngOnInit() {
-    this.userInfo = this.authService.getUserInfo();
-    this.checkCdnPermission();
-    this.loadGuilds();
-    this.setupPasteListener();
-  }
+	ngOnInit() {
+		this.userInfo = this.authService.getUserInfo();
+		this.checkCdnPermission();
+		this.loadGuilds();
+		this.setupPasteListener();
+	}
 
-  ngOnDestroy() {
-    this.removePasteListener();
-  }
+	ngOnDestroy() {
+		this.removePasteListener();
+	}
 
-  private pasteHandler = (event: ClipboardEvent) => {
-    if (!this.showUploadModal || !this.hasCdnPermission) return;
+	private pasteHandler = (event: ClipboardEvent) => {
+		if (!this.showUploadModal || !this.hasCdnPermission) return;
 
-    const items = event.clipboardData?.items;
-    if (!items) return;
+		const items = event.clipboardData?.items;
+		if (!items) return;
 
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        const file = item.getAsFile();
-        if (file) {
-          this.selectedFile = file;
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (item.type.startsWith("image/")) {
+				const file = item.getAsFile();
+				if (file) {
+					this.selectedFile = file;
 
-          // Always populate filename for pasted images
-          this.uploadFilename = `pasted-image-${Date.now()}`;
+					// Always populate filename for pasted images
+					this.uploadFilename = `pasted-image-${Date.now()}`;
 
-          this.cdr.detectChanges();
-          event.preventDefault();
-          break;
-        }
-      }
-    }
-  };
+					this.cdr.detectChanges();
+					event.preventDefault();
+					break;
+				}
+			}
+		}
+	};
 
-  private setupPasteListener() {
-    document.addEventListener('paste', this.pasteHandler);
-  }
+	private setupPasteListener() {
+		document.addEventListener("paste", this.pasteHandler);
+	}
 
-  private removePasteListener() {
-    document.removeEventListener('paste', this.pasteHandler);
-  }
+	private removePasteListener() {
+		document.removeEventListener("paste", this.pasteHandler);
+	}
 
-  checkCdnPermission() {
-    const claims = this.authService.getUserInfo() ?? {};
-    const permissions: string[] = claims['permissions'] || [];
-    this.hasCdnPermission = permissions.includes('CDN');
-  }
+	checkCdnPermission() {
+		const claims = this.authService.getUserInfo() ?? {};
+		const permissions: string[] = claims.permissions || [];
+		this.hasCdnPermission = permissions.includes("CDN");
+	}
 
-  loadGuilds() {
-    // Get guilds and permissions from user info (from Keycloak token)
-    const claims = this.authService.getUserInfo() ?? {};
+	loadGuilds() {
+		// Get guilds and permissions from user info (from Keycloak token)
+		const claims = this.authService.getUserInfo() ?? {};
 
-    const allGuilds: DiscordGuild[] = this.discordGuildService.getAllGuilds();
+		const allGuilds: DiscordGuild[] = this.discordGuildService.getAllGuilds();
 
-    // Get permissions claim and extract server IDs where user has admin permissions
-    const permissions: string[] = claims['permissions'] || [];
-    const adminServerIds = new Set(
-      permissions
-        .filter(p => p.startsWith('server_'))
-        .map(p => p.substring('server_'.length)) // Remove 'server_' prefix
-    );
+		// Get permissions claim and extract server IDs where user has admin permissions
+		const permissions: string[] = claims.permissions || [];
+		const adminServerIds = new Set(
+			permissions
+				.filter((p) => p.startsWith("server_"))
+				.map((p) => p.substring("server_".length)), // Remove 'server_' prefix
+		);
 
-    // Load servers from API
-    this.discordServerService.getAllServers().subscribe({
-      next: (servers) => {
-        // Handle case where API might return object instead of array
-        let serverArray: any[] = [];
-        if (Array.isArray(servers)) {
-          serverArray = servers;
-        } else if (servers && typeof servers === 'object') {
-          serverArray = (servers as any).content || (servers as any).data || (servers as any).servers || [];
-        }
+		// Load servers from API
+		this.discordServerService.getAllServers().subscribe({
+			next: (servers) => {
+				// Handle case where API might return object instead of array
+				let serverArray: any[] = [];
+				if (Array.isArray(servers)) {
+					serverArray = servers;
+				} else if (servers && typeof servers === "object") {
+					serverArray =
+						(servers as any).content ||
+						(servers as any).data ||
+						(servers as any).servers ||
+						[];
+				}
 
-        // Get server IDs where bot has access
-        const serverIds = new Set(serverArray.map((s: any) => s.id?.toString()));
+				// Get server IDs where bot has access
+				const serverIds = new Set(
+					serverArray.map((s: any) => s.id?.toString()),
+				);
 
-        const categorizedGuilds = categorizeGuilds(allGuilds, adminServerIds, serverIds);
-        this.guilds = categorizedGuilds.editable;
-        this.viewOnlyGuilds = categorizedGuilds.viewOnly;
-        this.guildsNeedingInvite = categorizedGuilds.needingInvite;
+				const categorizedGuilds = categorizeGuilds(
+					allGuilds,
+					adminServerIds,
+					serverIds,
+				);
+				this.guilds = categorizedGuilds.editable;
+				this.viewOnlyGuilds = categorizedGuilds.viewOnly;
+				this.guildsNeedingInvite = categorizedGuilds.needingInvite;
 
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.error = err.status === 401
-          ? 'Unauthorized: Please log out and log in again'
-          : `Failed to load servers: ${err.message || err.statusText || 'Unknown error'}`;
-        this.loading = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+				this.loading = false;
+				this.cdr.detectChanges();
+			},
+			error: (err) => {
+				this.error =
+					err.status === 401
+						? "Unauthorized: Please log out and log in again"
+						: `Failed to load servers: ${err.message || err.statusText || "Unknown error"}`;
+				this.loading = false;
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  getIconUrl(guild: DiscordGuild): string {
-    return this.discordGuildService.getIconUrl(guild);
-  }
+	getIconUrl(guild: DiscordGuild): string {
+		return this.discordGuildService.getIconUrl(guild);
+	}
 
-  getGuildColor(guild: DiscordGuild): string {
-    return this.discordGuildService.getGuildColor(guild);
-  }
+	getGuildColor(guild: DiscordGuild): string {
+		return this.discordGuildService.getGuildColor(guild);
+	}
 
-  getDisplayName(guild: DiscordGuild): string {
-    return this.discordGuildService.getDisplayName(guild);
-  }
+	getDisplayName(guild: DiscordGuild): string {
+		return this.discordGuildService.getDisplayName(guild);
+	}
 
-  logout() {
-    this.authService.logout();
-  }
+	logout() {
+		this.authService.logout();
+	}
 
-  onFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      this.selectedFile = input.files[0];
+	onFileSelected(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (input.files && input.files.length > 0) {
+			this.selectedFile = input.files[0];
 
-      // Always populate filename from the new file
-      if (this.selectedFile) {
-        // Remove extension from filename
-        const nameWithoutExt = this.selectedFile.name.replace(/\.[^/.]+$/, '');
-        this.uploadFilename = nameWithoutExt;
-      }
-    }
-  }
+			// Always populate filename from the new file
+			if (this.selectedFile) {
+				// Remove extension from filename
+				this.uploadFilename = this.selectedFile.name.replace(/\.[^/.]+$/, "");
+			}
+		}
+	}
 
-  removeSelectedFile() {
-    this.selectedFile = null;
-    this.uploadFilename = '';
-    this.cdr.detectChanges();
-  }
+	removeSelectedFile() {
+		this.selectedFile = null;
+		this.uploadFilename = "";
+		this.cdr.detectChanges();
+	}
 
-  onDragOver(event: DragEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragging = true;
-  }
+	onDragOver(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		this.isDragging = true;
+	}
 
-  onDragLeave(event: DragEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragging = false;
-  }
+	onDragLeave(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		this.isDragging = false;
+	}
 
-  onDrop(event: DragEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-    this.isDragging = false;
+	onDrop(event: DragEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+		this.isDragging = false;
 
-    const files = event.dataTransfer?.files;
-    if (files && files.length > 0) {
-      this.selectedFile = files[0];
+		const files = event.dataTransfer?.files;
+		if (files && files.length > 0) {
+			this.selectedFile = files[0];
 
-      // Always populate filename from the new file
-      if (this.selectedFile) {
-        // Remove extension from filename
-        const nameWithoutExt = this.selectedFile.name.replace(/\.[^/.]+$/, '');
-        this.uploadFilename = nameWithoutExt;
-      }
+			// Always populate filename from the new file
+			if (this.selectedFile) {
+				// Remove extension from filename
+				this.uploadFilename = this.selectedFile.name.replace(/\.[^/.]+$/, "");
+			}
 
-      this.cdr.detectChanges();
-    }
-  }
+			this.cdr.detectChanges();
+		}
+	}
 
-  uploadFile() {
-    if (!this.selectedFile || this.isUploading) return;
+	uploadFile() {
+		if (!this.selectedFile || this.isUploading) return;
 
-    this.isUploading = true;
-    this.uploadError = null;
+		this.isUploading = true;
+		this.uploadError = null;
 
-    // Use filename from input (if cleared, CDN will generate random UUID)
-    const filename = this.uploadFilename.trim();
-    const originalFilename = this.selectedFile.name;
+		// Use filename from input (if cleared, CDN will generate random UUID)
+		const filename = this.uploadFilename.trim();
+		const originalFilename = this.selectedFile.name;
 
-    this.cdnService.uploadFile(filename, this.selectedFile).subscribe({
-      next: (url) => {
-        // Add to upload history
-        this.uploadHistory.unshift({
-          url,
-          filename: filename || originalFilename,
-          timestamp: new Date()
-        });
+		this.cdnService.uploadFile(filename, this.selectedFile).subscribe({
+			next: (url) => {
+				// Add to upload history
+				this.uploadHistory.unshift({
+					url,
+					filename: filename || originalFilename,
+					timestamp: new Date(),
+				});
 
-        // Keep only the last 10 uploads
-        if (this.uploadHistory.length > 10) {
-          this.uploadHistory = this.uploadHistory.slice(0, 10);
-        }
+				// Keep only the last 10 uploads
+				if (this.uploadHistory.length > 10) {
+					this.uploadHistory = this.uploadHistory.slice(0, 10);
+				}
 
-        // Reset uploading state and close modal
-        this.isUploading = false;
-        this.closeUploadModal();
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.uploadError = err.error?.message || 'Failed to upload file';
-        this.isUploading = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+				// Reset uploading state and close modal
+				this.isUploading = false;
+				this.closeUploadModal();
+				this.cdr.detectChanges();
+			},
+			error: (err) => {
+				this.uploadError = err.error?.message || "Failed to upload file";
+				this.isUploading = false;
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  closeUploadModal() {
-    this.showUploadModal = false;
-    this.uploadFilename = '';
-    this.selectedFile = null;
-    this.uploadError = null;
-    this.isDragging = false;
-  }
+	closeUploadModal() {
+		this.showUploadModal = false;
+		this.uploadFilename = "";
+		this.selectedFile = null;
+		this.uploadError = null;
+		this.isDragging = false;
+	}
 
-  formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  }
+	formatFileSize(bytes: number): string {
+		if (bytes === 0) return "0 Bytes";
+		const k = 1024;
+		const sizes = ["Bytes", "KB", "MB", "GB"];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return `${Math.round((bytes / k ** i) * 100) / 100} ${sizes[i]}`;
+	}
 
-  formatTimestamp(date: Date): string {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+	formatTimestamp(date: Date): string {
+		const now = new Date();
+		const diffMs = now.getTime() - date.getTime();
+		const diffMins = Math.floor(diffMs / 60000);
+		const diffHours = Math.floor(diffMs / 3600000);
+		const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+		if (diffMins < 1) return "Just now";
+		if (diffMins < 60)
+			return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+		if (diffHours < 24)
+			return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+		if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
 
-    return date.toLocaleDateString();
-  }
+		return date.toLocaleDateString();
+	}
 
-  copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      // Could add a toast notification here if desired
-      console.log('Copied to clipboard:', text);
-    });
-  }
+	copyToClipboard(text: string) {
+		navigator.clipboard.writeText(text).then(() => {
+			// Could add a toast notification here if desired
+			console.log("Copied to clipboard:", text);
+		});
+	}
 }
