@@ -1,4 +1,11 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+} from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { DiscordServerControllerService } from '@dungeon-hub/api-client';
 import { Subscription, forkJoin } from 'rxjs';
@@ -10,6 +17,14 @@ export interface ServerStats {
   totalCarries: string;
   userMoneySpent: string;
   userMoneyEarned: string;
+}
+
+interface StatCard {
+  borderClass: string;
+  titleClass: string;
+  title: string;
+  value: string;
+  description: string;
 }
 
 const COMPACT_SUFFIXES = [
@@ -75,6 +90,7 @@ export function getDiscordUserId(token: string | null): string {
   selector: 'app-server-stats',
   standalone: true,
   imports: [RouterLink],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
@@ -124,6 +140,7 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private routeSubscription?: Subscription;
   private statsSubscription?: Subscription;
+  private destroyed = false;
 
   protected serverId = '';
   protected serverName = 'Server';
@@ -131,22 +148,22 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   protected loading = true;
   protected error = '';
 
-  protected get statCards() {
-    if (!this.stats) return [];
+  protected statCards: StatCard[] = [];
 
+  private buildStatCards(stats: ServerStats): StatCard[] {
     return [
       {
         borderClass: 'border-blue-500/40',
         titleClass: 'text-blue-400',
         title: 'Total money spent',
-        value: formatCompactValue(this.stats.totalMoneySpent),
+        value: formatCompactValue(stats.totalMoneySpent),
         description: 'Across all completed services',
       },
       {
         borderClass: 'border-purple-500/40',
         titleClass: 'text-purple-400',
         title: 'Total carries',
-        value: formatCompactValue(this.stats.totalCarries),
+        value: formatCompactValue(stats.totalCarries),
         description: 'Completed by this server',
       },
       {
@@ -160,14 +177,14 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         borderClass: 'border-amber-500/40',
         titleClass: 'text-amber-400',
         title: 'Your money spent',
-        value: formatCompactValue(this.stats.userMoneySpent),
+        value: formatCompactValue(stats.userMoneySpent),
         description: 'As the user receiving a service',
       },
       {
         borderClass: 'border-emerald-500/40',
         titleClass: 'text-emerald-400',
         title: 'Your money earned',
-        value: formatCompactValue(this.stats.userMoneyEarned),
+        value: formatCompactValue(stats.userMoneyEarned),
         description: 'As the carrier providing a service',
       },
     ];
@@ -175,14 +192,19 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.routeSubscription = this.route.paramMap.subscribe((paramMap) => {
-      this.serverId = paramMap.get('serverId') ?? '';
-      const guild = this.discordGuildService.getGuildById(this.serverId);
-      this.serverName = guild ? this.discordGuildService.getDisplayName(guild) : 'Server';
-      this.loadStats();
+      queueMicrotask(() => {
+        if (this.destroyed) return;
+        this.serverId = paramMap.get('serverId') ?? '';
+        const guild = this.discordGuildService.getGuildById(this.serverId);
+        this.serverName = guild ? this.discordGuildService.getDisplayName(guild) : 'Server';
+        this.loadStats();
+        this.cdr.markForCheck();
+      });
     });
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.routeSubscription?.unsubscribe();
     this.statsSubscription?.unsubscribe();
   }
@@ -191,13 +213,16 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
     // Read the claim directly from the encoded JWT. Parsing the payload as JSON first would
     // round Discord snowflakes because they are larger than Number.MAX_SAFE_INTEGER.
     const userId = getDiscordUserId(this.authService.getIdToken());
+    this.statsSubscription?.unsubscribe();
+    this.stats = null;
+    this.statCards = [];
+
     if (!this.serverId || !userId) {
       this.loading = false;
       this.error = 'Your server or Discord user could not be identified.';
       return;
     }
 
-    this.statsSubscription?.unsubscribe();
     this.loading = true;
     this.error = '';
 
@@ -218,14 +243,16 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (stats) => {
         this.stats = stats;
+        this.statCards = this.buildStatCards(stats);
         this.loading = false;
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       },
       error: () => {
         this.stats = null;
+        this.statCards = [];
         this.loading = false;
         this.error = 'The statistics service did not return a result. Please try again.';
-        this.cdr.detectChanges();
+        this.cdr.markForCheck();
       },
     });
   }

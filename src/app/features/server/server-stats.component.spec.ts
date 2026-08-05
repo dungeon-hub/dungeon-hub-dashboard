@@ -1,5 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import { formatCompactValue, getDiscordUserId } from './server-stats.component';
+import { TestBed } from '@angular/core/testing';
+import { convertToParamMap, ActivatedRoute, provideRouter } from '@angular/router';
+import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { BehaviorSubject, Subject } from 'rxjs';
+import { describe, expect, it, vi } from 'vitest';
+import { AuthService } from '../../core/services/auth.service';
+import { DiscordGuildService } from '../../core/services/discord-guild.service';
+import {
+  formatCompactValue,
+  getDiscordUserId,
+  ServerStatsComponent,
+} from './server-stats.component';
 
 function tokenWithPayload(payload: string): string {
   const encodedPayload = btoa(payload).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -35,5 +45,53 @@ describe('formatCompactValue', () => {
   it('rounds to at most four decimal places without losing precision', () => {
     expect(formatCompactValue('356134481452597250')).toBe('356134.4815t');
     expect(formatCompactValue('1500.25')).toBe('1.5003k');
+  });
+});
+
+describe('ServerStatsComponent carry count', () => {
+  it('cancels an active request and clears stats when routing to a missing server ID', async () => {
+    const paramMap = new BehaviorSubject(convertToParamMap({ serverId: 'server-1' }));
+    const activeRequest = new Subject<string>();
+    const service = {
+      getTotalAmountOfMoneySpentOnServices: vi.fn(() => activeRequest),
+      countCarries: vi.fn(() => activeRequest),
+    };
+
+    TestBed.configureTestingModule({
+      imports: [ServerStatsComponent],
+      providers: [
+        provideRouter([]),
+        { provide: ActivatedRoute, useValue: { paramMap } },
+        {
+          provide: AuthService,
+          useValue: { getIdToken: () => tokenWithPayload('{"discord-id":1}') },
+        },
+        {
+          provide: DiscordGuildService,
+          useValue: {
+            getGuildById: () => undefined,
+            getDisplayName: (guild: { name: string }) => guild.name,
+          },
+        },
+        { provide: DiscordServerControllerService, useValue: service },
+      ],
+    });
+    const fixture = TestBed.createComponent(ServerStatsComponent);
+    fixture.detectChanges();
+    await Promise.resolve();
+    const instance = fixture.componentInstance as unknown as {
+      stats: unknown;
+      loading: boolean;
+      error: string;
+    };
+
+    paramMap.next(convertToParamMap({}));
+    fixture.detectChanges();
+    await Promise.resolve();
+    expect(() => fixture.detectChanges()).not.toThrow();
+    expect(activeRequest.observed).toBe(false);
+    expect(instance.stats).toBeNull();
+    expect(instance.loading).toBe(false);
+    expect(instance.error).toBe('Your server or Discord user could not be identified.');
   });
 });
