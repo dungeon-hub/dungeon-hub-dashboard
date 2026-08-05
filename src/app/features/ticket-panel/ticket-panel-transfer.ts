@@ -75,6 +75,10 @@ function isPermissions(value: unknown): boolean {
   );
 }
 
+function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
+  return value ?? undefined;
+}
+
 const ticketPanelFieldValidators = {
   name: (value: unknown) => typeof value === 'string' && !!value.trim(),
   displayName: isOptionalString,
@@ -120,14 +124,14 @@ function copyTicketPanelCreation(panel: TicketPanelCreationModel): TicketPanelCr
     closeTranscriptTarget: panel.closeTranscriptTarget,
     deleteTranscriptTarget: panel.deleteTranscriptTarget,
     userTranscriptDm: panel.userTranscriptDm,
-    formQuestions: panel.formQuestions,
+    formQuestions: undefinedIfNull(panel.formQuestions),
     relatedCarryTier: panel.relatedCarryTier,
     relatedCarryDifficulty: panel.relatedCarryDifficulty,
-    supportRoles: panel.supportRoles,
-    additionalRoles: panel.additionalRoles,
-    openCategories: panel.openCategories,
-    closedCategories: panel.closedCategories,
-    permissions: panel.permissions,
+    supportRoles: undefinedIfNull(panel.supportRoles),
+    additionalRoles: undefinedIfNull(panel.additionalRoles),
+    openCategories: undefinedIfNull(panel.openCategories),
+    closedCategories: undefinedIfNull(panel.closedCategories),
+    permissions: undefinedIfNull(panel.permissions),
   } satisfies TicketPanelCreationModel & Record<keyof TicketPanelCreationModel, unknown>);
 }
 

@@ -234,6 +234,25 @@ describe('ticket panel transfer', () => {
     );
   });
 
+  it('normalizes accepted null collection values to undefined before API use', () => {
+    const exported = exportTicketPanel(panel()) as any;
+    exported.panel.formQuestions = null;
+    exported.panel.supportRoles = null;
+    exported.panel.additionalRoles = null;
+    exported.panel.openCategories = null;
+    exported.panel.closedCategories = null;
+    exported.panel.permissions = null;
+
+    const imported = parseTicketPanelExport(JSON.stringify(exported));
+
+    expect(imported.panel.formQuestions).toBeUndefined();
+    expect(imported.panel.supportRoles).toBeUndefined();
+    expect(imported.panel.additionalRoles).toBeUndefined();
+    expect(imported.panel.openCategories).toBeUndefined();
+    expect(imported.panel.closedCategories).toBeUndefined();
+    expect(imported.panel.permissions).toBeUndefined();
+  });
+
   it('drops unknown imported properties from accepted panel data', () => {
     const exported = exportTicketPanel(panel()) as any;
     exported.panel.unknownSetting = 'must not reach the API';
