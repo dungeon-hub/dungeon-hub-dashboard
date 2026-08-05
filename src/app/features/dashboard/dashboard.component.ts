@@ -6,6 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { DiscordGuildService, DiscordGuild } from '../../core/services/discord-guild.service';
 import { CdnService } from '../../core/services/cdn.service';
 import { DiscordServerControllerService } from '@dungeon-hub/api-client';
+import { GlobalStatsComponent } from '../../shared/components/global-stats/global-stats.component';
 
 export function categorizeGuilds(
   allGuilds: DiscordGuild[],
@@ -25,7 +26,7 @@ export function categorizeGuilds(
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, GlobalStatsComponent],
   template: `
     <div class="container mx-auto px-4 py-8">
       <!-- Header -->
@@ -202,6 +203,8 @@ export function categorizeGuilds(
           </p>
         </div>
       }
+
+      <app-global-stats class="block mt-8" />
 
       <!-- CDN Upload Section (only for users with CDN permission) -->
       @if (hasCdnPermission) {
