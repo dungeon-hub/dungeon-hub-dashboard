@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { StatsControllerService } from '@dungeon-hub/api-client';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { DiscordGuildService } from '../../core/services/discord-guild.service';
 import { ServerStatsComponent, formatCompactValue } from './server-stats.component';
@@ -116,6 +116,51 @@ describe('ServerStatsComponent carry count', () => {
     expect(component.error).toBe(
       'The statistics service did not return a result. Please try again.',
     );
+    expect(fixture.nativeElement.textContent).toContain('Unable to load stats');
+  });
+
+  it('cancels an active request and clears stats when routing to a missing server ID', async () => {
+    const paramMap = new Subject<ReturnType<typeof convertToParamMap>>();
+    const statsRequest = new Subject<any>();
+    const getServerStats = vi.fn().mockReturnValue(statsRequest);
+
+    await TestBed.configureTestingModule({
+      imports: [ServerStatsComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: ActivatedRoute,
+          useValue: { paramMap },
+        },
+        { provide: DiscordGuildService, useValue: { getGuildById: () => undefined } },
+        { provide: StatsControllerService, useValue: { getServerStats } },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(ServerStatsComponent);
+    fixture.detectChanges();
+
+    paramMap.next(convertToParamMap({ serverId: 'server-1' }));
+    fixture.detectChanges();
+    expect(getServerStats).toHaveBeenCalledWith('server-1');
+    expect(statsRequest.observed).toBe(true);
+
+    (fixture.componentInstance as any).stats = {
+      totalMoneySpent: '1000',
+      totalCarries: '2000',
+      totalTickets: '4000',
+      totalCarriers: '50',
+      totalScore: '3000',
+      activeWarns: 2,
+      totalWarns: 10,
+    };
+
+    paramMap.next(convertToParamMap({}));
+    fixture.detectChanges();
+
+    expect(statsRequest.observed).toBe(false);
+    expect((fixture.componentInstance as any).stats).toBeNull();
+    expect((fixture.componentInstance as any).error).toBe('Your server could not be identified.');
     expect(fixture.nativeElement.textContent).toContain('Unable to load stats');
   });
 

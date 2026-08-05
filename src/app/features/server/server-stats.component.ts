@@ -230,13 +230,15 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
   }
 
   protected loadStats(): void {
+    this.statsSubscription?.unsubscribe();
+    this.stats = null;
+
     if (!this.serverId) {
       this.loading = false;
       this.error = 'Your server could not be identified.';
       return;
     }
 
-    this.statsSubscription?.unsubscribe();
     this.loading = true;
     this.error = '';
 
