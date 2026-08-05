@@ -97,9 +97,12 @@ describe('GlobalStatsComponent', () => {
         'last30Days',
       ),
     ).toBe(true);
-    expect(
-      component.getTrendValue({ stat, last7TrendUsesPrecedingWindow: true }, 'last7Days'),
-    ).toBe('+12.3%');
+    expect(component.getTrendValue({ stat, usesPrecedingWindows: true }, 'last30Days')).toBe(
+      '-39.9%',
+    );
+    expect(component.getTrendValue({ stat, usesPrecedingWindows: true }, 'last7Days')).toBe(
+      '+12.3%',
+    );
   });
 
   it('shows errors and retries through the rendered button', () => {

@@ -31,7 +31,7 @@ interface GlobalStatCard {
   description: string;
   stat?: PeriodStat | null;
   singleValue?: string | number | null;
-  last7TrendUsesPrecedingWindow?: boolean;
+  usesPrecedingWindows?: boolean;
 }
 
 const COMING_SOON = 'Coming soon';
@@ -167,7 +167,7 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
         title: 'Unique carriers',
         description: 'People who gained score by completing at least one carry.',
         stat: this.stats?.carrierStatsModel,
-        last7TrendUsesPrecedingWindow: true,
+        usesPrecedingWindows: true,
       },
       {
         borderClass: 'border-rose-500/40',
@@ -222,13 +222,13 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
     if (!stat || key === 'lifetime') return null;
 
     if (key === 'last30Days') {
-      return trendPercentage(
-        stat.last30Days,
-        numericValue(stat.last60Days) - numericValue(stat.last30Days),
-      );
+      const previousThirtyDays = card.usesPrecedingWindows
+        ? stat.last60Days
+        : numericValue(stat.last60Days) - numericValue(stat.last30Days);
+      return trendPercentage(stat.last30Days, previousThirtyDays);
     }
 
-    const previousSevenDays = card.last7TrendUsesPrecedingWindow
+    const previousSevenDays = card.usesPrecedingWindows
       ? stat.last14Days
       : numericValue(stat.last14Days) - numericValue(stat.last7Days);
     return trendPercentage(stat.last7Days, previousSevenDays);
