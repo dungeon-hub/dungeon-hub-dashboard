@@ -4,7 +4,11 @@ import { TicketPanelControllerService, TicketPanelModel } from '@dungeon-hub/api
 import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TicketPanelListComponent } from './ticket-panel-list.component';
-import { serializeTicketPanel, toTicketPanelCreation } from './ticket-panel-transfer';
+import {
+  serializeTicketPanel,
+  serializeTicketPanels,
+  toTicketPanelCreation,
+} from './ticket-panel-transfer';
 
 function panel(): TicketPanelModel {
   return {
@@ -94,6 +98,55 @@ describe('TicketPanelListComponent transfers', () => {
 
     expect(existing).toEqual(snapshot);
     expect(instance.ticketPanels[0]).toEqual(snapshot);
+  });
+
+  it('copies an all-panel backup to the clipboard without mutating current panels', async () => {
+    const second = {
+      ...structuredClone(existing),
+      id: 'panel-2',
+      name: 'billing',
+      displayName: 'Billing',
+    };
+    const snapshot = structuredClone([existing, second]);
+    clipboard.writeText.mockResolvedValueOnce(undefined);
+    const instance = component();
+    instance.ticketPanels = [existing, second];
+
+    instance.openExportAllModal();
+    await instance.copyExportToClipboard();
+
+    expect(clipboard.writeText).toHaveBeenCalledWith(serializeTicketPanels([existing, second]));
+    expect(instance.transferMessage).toBe('Ticket panel backup copied to the clipboard.');
+    expect([existing, second]).toEqual(snapshot);
+    expect(instance.ticketPanels).toEqual(snapshot);
+  });
+
+  it('downloads an all-panel backup file and defers URL revocation', async () => {
+    const instance = component();
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:panels');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const link = { click: vi.fn(), href: '', download: '' };
+    vi.spyOn(document, 'createElement').mockReturnValue(link as any);
+
+    instance.openExportAllModal();
+    instance.downloadExport();
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(link.download).toBe('ticket-panels.backup.json');
+    expect(link.click).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:panels');
+    expect(instance.showExportModal).toBe(false);
+  });
+
+  it('does not open an all-panel export when there are no panels to back up', () => {
+    const instance = component();
+    instance.ticketPanels = [];
+
+    instance.openExportAllModal();
+
+    expect(instance.showExportModal).toBe(false);
   });
 
   it('reports clipboard write failures without changing or closing the export', async () => {
@@ -223,20 +276,23 @@ describe('TicketPanelListComponent transfers', () => {
       (instance: TicketPanelListComponent, file: any) =>
         instance.onFileDrop({ preventDefault: vi.fn(), dataTransfer: { files: [file] } } as any),
     ],
-  ])('reports a %s file read failure without changing existing panels', async (_source, importFile) => {
-    const snapshot = structuredClone(existing);
-    const instance = component();
-    instance.showImportSourceModal = true;
+  ])(
+    'reports a %s file read failure without changing existing panels',
+    async (_source, importFile) => {
+      const snapshot = structuredClone(existing);
+      const instance = component();
+      instance.showImportSourceModal = true;
 
-    await importFile(instance, { text: () => Promise.reject(new Error('read failed')) });
+      await importFile(instance, { text: () => Promise.reject(new Error('read failed')) });
 
-    expect(instance.transferMessage).toBe(
-      'Could not read ticket panel export. Choose a valid ticket panel JSON file.',
-    );
-    expect(instance.showImportSourceModal).toBe(true);
-    expect(instance.pendingPanel).toBeNull();
-    expect(existing).toEqual(snapshot);
-  });
+      expect(instance.transferMessage).toBe(
+        'Could not read ticket panel export. Choose a valid ticket panel JSON file.',
+      );
+      expect(instance.showImportSourceModal).toBe(true);
+      expect(instance.pendingPanel).toBeNull();
+      expect(existing).toEqual(snapshot);
+    },
+  );
 
   it('leaves file import unchanged when no file was selected', async () => {
     const instance = component();

@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { TicketPanelModel } from '@dungeon-hub/api-client';
 import {
   exportTicketPanel,
+  exportTicketPanels,
   findImportConflict,
   hasDuplicatePanelName,
   isTicketPanelExport,
   parseTicketPanelExport,
   serializeTicketPanel,
+  serializeTicketPanels,
   toTicketPanelCreation,
   toTicketPanelUpdate,
 } from './ticket-panel-transfer';
@@ -100,6 +102,37 @@ describe('ticket panel transfer', () => {
       closedCategories: original.closedCategories,
       permissions: original.permissions,
     });
+  });
+
+  it('exports all panels as a detached backup without mutating source data', () => {
+    const first = panel();
+    const second = { ...structuredClone(first), id: '2', name: 'billing', displayName: 'Billing' };
+    const source = [first, second];
+    const snapshot = structuredClone(source);
+
+    const backup = exportTicketPanels(source);
+    backup.panels[0].panel.permissions!['Everyone']['Denied'] = '0';
+
+    expect(backup).toMatchObject({
+      version: 1,
+      panels: [
+        { id: '1', name: 'support', panel: { name: 'support' } },
+        { id: '2', name: 'billing', panel: { name: 'billing' } },
+      ],
+    });
+    expect(source).toEqual(snapshot);
+  });
+
+  it('serializes an all-panel backup as reusable pretty JSON', () => {
+    const first = panel();
+    const second = { ...structuredClone(first), id: '2', name: 'billing', displayName: 'Billing' };
+    const serialized = serializeTicketPanels([first, second]);
+    const parsed = JSON.parse(serialized);
+
+    expect(serialized).toContain('"panels": [');
+    expect(parsed.panels).toHaveLength(2);
+    expect(parseTicketPanelExport(JSON.stringify(parsed.panels[0])).panel.name).toBe('support');
+    expect(parseTicketPanelExport(JSON.stringify(parsed.panels[1])).panel.name).toBe('billing');
   });
 
   it('serializes pretty JSON that can be used by file and clipboard import', () => {

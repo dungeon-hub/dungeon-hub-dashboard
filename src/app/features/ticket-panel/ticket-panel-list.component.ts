@@ -13,6 +13,7 @@ import {
   isTicketPanelExport,
   parseTicketPanelExport,
   serializeTicketPanel,
+  serializeTicketPanels,
   toTicketPanelCreation,
   toTicketPanelUpdate,
 } from './ticket-panel-transfer';
@@ -43,6 +44,14 @@ import {
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-2xl font-semibold">Ticket Panels</h3>
           <div class="flex gap-2">
+            <button
+              (click)="openExportAllModal()"
+              [disabled]="ticketPanels.length === 0"
+              class="btn btn-secondary"
+              title="Export all ticket panels"
+            >
+              ⇩ Export All
+            </button>
             <button (click)="openImportSourceModal()" class="btn btn-secondary">⇧ Import</button>
             <button (click)="openCreateModal()" class="btn btn-primary">＋ New Panel</button>
           </div>
@@ -102,10 +111,12 @@ import {
         }
       </div>
 
-      @if (showExportModal && exportTarget) {
+      @if (showExportModal && (exportTarget || exportAllSelected)) {
         <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div class="card max-w-md w-full mx-4">
-            <h3 class="text-xl font-semibold mb-3">Export Ticket Panel</h3>
+            <h3 class="text-xl font-semibold mb-3">
+              {{ exportAllSelected ? 'Export All Ticket Panels' : 'Export Ticket Panel' }}
+            </h3>
             <p class="text-gray-400 mb-6">Where should the panel data be sent?</p>
             <div class="flex gap-3">
               <button (click)="closeExportModal()" class="btn btn-secondary">Cancel</button>
@@ -326,6 +337,7 @@ export class TicketPanelListComponent implements OnInit {
   showExportModal = false;
   showImportSourceModal = false;
   exportTarget: TicketPanelModel | null = null;
+  exportAllSelected = false;
   clipboardContents = '';
   clipboardHasValidPanel = false;
   clipboardAccessDenied = false;
@@ -478,6 +490,16 @@ export class TicketPanelListComponent implements OnInit {
 
   openExportModal(panel: TicketPanelModel) {
     this.exportTarget = panel;
+    this.exportAllSelected = false;
+    this.showExportModal = true;
+    this.transferMessage = null;
+    this.transferError = false;
+  }
+
+  openExportAllModal() {
+    if (this.ticketPanels.length === 0) return;
+    this.exportTarget = null;
+    this.exportAllSelected = true;
     this.showExportModal = true;
     this.transferMessage = null;
     this.transferError = false;
@@ -486,14 +508,18 @@ export class TicketPanelListComponent implements OnInit {
   closeExportModal() {
     this.showExportModal = false;
     this.exportTarget = null;
+    this.exportAllSelected = false;
     this.transferMessage = null;
   }
 
   async copyExportToClipboard() {
-    if (!this.exportTarget) return;
+    const serialized = this.getExportContents();
+    if (!serialized) return;
     try {
-      await navigator.clipboard.writeText(serializeTicketPanel(this.exportTarget));
-      this.transferMessage = 'Ticket panel data copied to the clipboard.';
+      await navigator.clipboard.writeText(serialized);
+      this.transferMessage = this.exportAllSelected
+        ? 'Ticket panel backup copied to the clipboard.'
+        : 'Ticket panel data copied to the clipboard.';
       this.transferError = false;
     } catch {
       this.transferMessage = 'Clipboard access was denied. Please download the JSON file instead.';
@@ -503,17 +529,19 @@ export class TicketPanelListComponent implements OnInit {
   }
 
   downloadExport() {
-    if (!this.exportTarget) return;
-    const panel = this.exportTarget;
+    const serialized = this.getExportContents();
+    if (!serialized) return;
     let url: string | null = null;
     try {
-      const blob = new Blob([serializeTicketPanel(panel)], {
+      const blob = new Blob([serialized], {
         type: 'application/json',
       });
       url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${panel.name}.ticket-panel.json`;
+      link.download = this.exportAllSelected
+        ? 'ticket-panels.backup.json'
+        : `${this.exportTarget!.name}.ticket-panel.json`;
       link.click();
       this.closeExportModal();
     } catch {
@@ -525,6 +553,11 @@ export class TicketPanelListComponent implements OnInit {
         setTimeout(() => URL.revokeObjectURL(allocatedUrl), 0);
       }
     }
+  }
+
+  private getExportContents(): string | null {
+    if (this.exportAllSelected) return serializeTicketPanels(this.ticketPanels);
+    return this.exportTarget ? serializeTicketPanel(this.exportTarget) : null;
   }
 
   ngOnInit() {

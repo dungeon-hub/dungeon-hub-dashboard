@@ -19,6 +19,11 @@ export interface TicketPanelImport {
   panel: TicketPanelCreationModel;
 }
 
+export interface TicketPanelBackup {
+  version: number;
+  panels: TicketPanelExport[];
+}
+
 type UntrustedTicketPanel = Partial<Record<keyof TicketPanelCreationModel, unknown>>;
 
 interface UntrustedTicketPanelExport {
@@ -165,6 +170,17 @@ export function exportTicketPanel(panel: TicketPanelModel): TicketPanelExport {
 
 export function serializeTicketPanel(panel: TicketPanelModel): string {
   return JSON.stringify(exportTicketPanel(panel), null, 2);
+}
+
+export function exportTicketPanels(panels: TicketPanelModel[]): TicketPanelBackup {
+  return {
+    version: TICKET_PANEL_EXPORT_VERSION,
+    panels: panels.map((panel) => exportTicketPanel(panel)),
+  };
+}
+
+export function serializeTicketPanels(panels: TicketPanelModel[]): string {
+  return JSON.stringify(exportTicketPanels(panels), null, 2);
 }
 
 export function isTicketPanelExport(contents: string): boolean {
