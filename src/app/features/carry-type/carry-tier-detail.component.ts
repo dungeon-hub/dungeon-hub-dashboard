@@ -450,9 +450,9 @@ export class CarryTierDetailComponent implements OnInit {
 	deleteTierError: string | null = null;
 
 	ngOnInit() {
-		this.serverId = this.route.snapshot.params.serverId;
-		this.carryTypeId = this.route.snapshot.params.carryTypeId;
-		this.carryTierId = this.route.snapshot.params.carryTierId;
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.carryTypeId = this.route.snapshot.params["carryTypeId"];
+		this.carryTierId = this.route.snapshot.params["carryTierId"];
 		this.loadData();
 	}
 

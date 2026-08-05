@@ -293,10 +293,10 @@ export class CarryDifficultyDetailComponent implements OnInit {
 	deleteError: string | null = null;
 
 	ngOnInit() {
-		this.serverId = this.route.snapshot.params.serverId;
-		this.carryTypeId = this.route.snapshot.params.carryTypeId;
-		this.carryTierId = this.route.snapshot.params.carryTierId;
-		this.difficultyId = this.route.snapshot.params.difficultyId;
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.carryTypeId = this.route.snapshot.params["carryTypeId"];
+		this.carryTierId = this.route.snapshot.params["carryTierId"];
+		this.difficultyId = this.route.snapshot.params["difficultyId"];
 		this.loadData();
 	}
 

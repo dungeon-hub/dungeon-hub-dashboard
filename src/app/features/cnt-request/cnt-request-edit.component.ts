@@ -150,9 +150,9 @@ export class CntRequestEditComponent implements OnInit {
 	requestTypeLabels = CNT_REQUEST_TYPE_LABELS;
 
 	ngOnInit() {
-		this.serverId = this.route.snapshot.params.serverId;
-		this.requestId = this.route.snapshot.params.requestId;
-		this.returnPage = Number(this.route.snapshot.queryParams.page) || 0;
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.requestId = this.route.snapshot.params["requestId"];
+		this.returnPage = Number(this.route.snapshot.queryParams["page"]) || 0;
 
 		this.initForm();
 		this.loadRequest();

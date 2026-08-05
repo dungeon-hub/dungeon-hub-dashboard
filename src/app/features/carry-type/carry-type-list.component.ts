@@ -276,7 +276,7 @@ export class CarryTypeListComponent implements OnInit {
 	deletingCarryType: CarryTypeModel | null = null;
 
 	ngOnInit() {
-		this.serverId = this.route.snapshot.params.serverId;
+		this.serverId = this.route.snapshot.params["serverId"];
 		this.loadCarryTypes();
 	}
 

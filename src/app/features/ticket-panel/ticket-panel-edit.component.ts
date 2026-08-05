@@ -329,8 +329,8 @@ export class TicketPanelEditComponent implements OnInit {
 	selectedTranscriptChannel: DiscordChannelModel | null = null;
 
 	ngOnInit() {
-		this.serverId = this.route.snapshot.params.serverId;
-		this.panelId = this.route.snapshot.params.panelId;
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.panelId = this.route.snapshot.params["panelId"];
 
 		this.initForm();
 		this.loadAllCarryTiers();

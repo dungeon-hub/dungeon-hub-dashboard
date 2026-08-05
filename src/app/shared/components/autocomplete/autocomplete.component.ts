@@ -171,7 +171,7 @@ export class AutocompleteComponent implements OnInit, OnChanges {
 	}
 
 	ngOnChanges(changes: SimpleChanges) {
-		if (changes.items) {
+		if (changes["items"]) {
 			this.filterItems();
 		}
 	}

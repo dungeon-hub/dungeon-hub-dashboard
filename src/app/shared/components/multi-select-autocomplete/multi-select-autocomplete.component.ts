@@ -90,7 +90,7 @@ export class MultiSelectAutocompleteComponent implements OnInit, OnChanges {
 	}
 
 	ngOnChanges(changes: SimpleChanges): void {
-		if (changes.items) {
+		if (changes["items"]) {
 			this.filterItems();
 		}
 	}

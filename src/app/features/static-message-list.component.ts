@@ -193,7 +193,7 @@ export class StaticMessageListComponent implements OnInit {
 	};
 
 	ngOnInit(): void {
-		this.serverId = this.route.snapshot.params.serverId;
+		this.serverId = this.route.snapshot.params["serverId"];
 		this.loadChannels();
 		this.loadObjectNameMaps();
 		this.loadStaticMessages();

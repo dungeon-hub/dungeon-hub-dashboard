@@ -353,8 +353,8 @@ export class CarryTypeDetailComponent implements OnInit {
 	deleteTypeError: string | null = null;
 
 	ngOnInit() {
-		this.serverId = this.route.snapshot.params.serverId;
-		this.carryTypeId = this.route.snapshot.params.carryTypeId;
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.carryTypeId = this.route.snapshot.params["carryTypeId"];
 		this.loadData();
 	}
 

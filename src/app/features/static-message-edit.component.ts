@@ -203,8 +203,8 @@ export class StaticMessageEditComponent implements OnInit {
 	});
 
 	ngOnInit(): void {
-		this.serverId = this.route.snapshot.params.serverId;
-		this.staticMessageId = this.route.snapshot.params.staticMessageId;
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.staticMessageId = this.route.snapshot.params["staticMessageId"];
 		this.form.get("channelId")?.valueChanges.subscribe((channelId) => {
 			this.selectedChannel =
 				this.discordChannels.find((channel) => channel.id === channelId) ||

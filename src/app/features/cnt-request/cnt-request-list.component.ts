@@ -122,8 +122,8 @@ export class CntRequestListComponent implements OnInit {
 	getRequestTypeLabel = getCntRequestTypeLabel;
 
 	ngOnInit() {
-		this.serverId = this.route.snapshot.params.serverId;
-		const pageParam = this.route.snapshot.queryParams.page;
+		this.serverId = this.route.snapshot.params["serverId"];
+		const pageParam = this.route.snapshot.queryParams["page"];
 		const parsedPage = parseInt(pageParam, 10);
 		this.currentPage = Math.max(0, Number.isNaN(parsedPage) ? 0 : parsedPage);
 		this.loadRequests();

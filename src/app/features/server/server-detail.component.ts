@@ -235,7 +235,7 @@ export class ServerDetailComponent implements OnInit {
 	currentCarryTypePage = 0;
 
 	ngOnInit() {
-		this.serverId = this.route.snapshot.params.serverId;
+		this.serverId = this.route.snapshot.params["serverId"];
 
 		// Load server name from guild info
 		const guild = this.discordGuildService.getGuildById(this.serverId);
