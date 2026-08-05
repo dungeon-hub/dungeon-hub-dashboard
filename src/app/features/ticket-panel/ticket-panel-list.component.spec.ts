@@ -263,6 +263,60 @@ describe('TicketPanelListComponent transfers', () => {
     expect(existing).toEqual(snapshot);
   });
 
+  it('accepts legacy clipboard exports and still offers overwrite for matching normalized names', async () => {
+    const legacyExport = {
+      version: 1,
+      id: 4,
+      name: ' SUPPORT ',
+      panel: {
+        name: 'support',
+        displayName: 'Support Import',
+        emoji: '<:thorn:792055545204310046>',
+        closeable: true,
+        closeConfirmation: true,
+        claimable: true,
+        openChannelName: 'support-{ticket.id}',
+        transcriptChannel: '1036375112619937792',
+        ticketMessage: '{"content":"ticket"}',
+        requiresLinking: true,
+        closeTranscriptTarget: 'User',
+        deleteTranscriptTarget: 'TranscriptChannel',
+        formQuestions: [{ type: 'Predefined', data: '"carry-difficulty"' }],
+        relatedCarryTier: 28,
+        supportRoles: ['1061116185132933240'],
+        additionalRoles: ['1036373005720358972'],
+        openCategories: ['1026291896336793631'],
+        closedCategories: [],
+        permissions: {
+          Everyone: { Denied: 1024 },
+          TicketCreator: { Allowed: 68608 },
+        },
+      },
+    };
+    clipboard.readText.mockResolvedValueOnce(JSON.stringify(legacyExport));
+    const instance = component();
+
+    await instance.openImportSourceModal();
+    expect(instance.clipboardHasValidPanel).toBe(true);
+    instance.importFromClipboard();
+    await Promise.resolve();
+
+    expect(instance.importConflict).toBe(existing);
+    expect(instance.showCreateModal).toBe(false);
+    expect(instance.pendingPanel).toEqual(
+      expect.objectContaining({
+        name: 'support',
+        transcriptChannel: undefined,
+        relatedCarryTier: undefined,
+        supportRoles: undefined,
+        permissions: {
+          Everyone: { Denied: '1024' },
+          TicketCreator: { Allowed: '68608' },
+        },
+      }),
+    );
+  });
+
   it('offers overwrite when an import has the same internal name but a different source ID', async () => {
     const imported = structuredClone(existing);
     imported.id = 'panel-from-another-server';
