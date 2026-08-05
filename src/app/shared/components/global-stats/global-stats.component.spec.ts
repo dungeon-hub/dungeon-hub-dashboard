@@ -87,13 +87,19 @@ describe('GlobalStatsComponent', () => {
       last7Days: '363',
     };
 
-    expect(component.getTrendValue(stat, 'last30Days')).toBe('+50.4%');
-    expect(component.isPositiveTrend(stat, 'last30Days')).toBe(true);
-    expect(component.getTrendValue(stat, 'last7Days')).toBe('-9.2%');
-    expect(component.isNegativeTrend(stat, 'last7Days')).toBe(true);
+    expect(component.getTrendValue({ stat }, 'last30Days')).toBe('+50.4%');
+    expect(component.isPositiveTrend({ stat }, 'last30Days')).toBe(true);
+    expect(component.getTrendValue({ stat }, 'last7Days')).toBe('-9.2%');
+    expect(component.isNegativeTrend({ stat }, 'last7Days')).toBe(true);
     expect(
-      component.isNeutralTrend({ ...stat, last60Days: '200', last30Days: '101' }, 'last30Days'),
+      component.isNeutralTrend(
+        { stat: { ...stat, last60Days: '200', last30Days: '101' } },
+        'last30Days',
+      ),
     ).toBe(true);
+    expect(
+      component.getTrendValue({ stat, last7TrendUsesPrecedingWindow: true }, 'last7Days'),
+    ).toBe('+12.3%');
   });
 
   it('shows errors and retries through the rendered button', () => {

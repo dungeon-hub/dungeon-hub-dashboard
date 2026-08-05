@@ -31,6 +31,7 @@ interface GlobalStatCard {
   description: string;
   stat?: PeriodStat | null;
   singleValue?: string | number | null;
+  last7TrendUsesPrecedingWindow?: boolean;
 }
 
 const COMING_SOON = 'Coming soon';
@@ -40,12 +41,9 @@ function numericValue(value: string | number | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function trendPercentage(
-  currentValue: string | number,
-  doublePeriodValue: string | number,
-): number {
+function trendPercentage(currentValue: string | number, previousValue: string | number): number {
   const current = numericValue(currentValue);
-  const previous = Math.max(numericValue(doublePeriodValue) - current, 0);
+  const previous = Math.max(numericValue(previousValue), 0);
 
   if (previous === 0) return current > 0 ? 100 : 0;
 
@@ -107,12 +105,12 @@ function pickStatValue(stat: PeriodStat | null | undefined, key: PeriodKey): str
                       <dt class="text-gray-400">{{ period.label }}</dt>
                       <dd class="text-right">
                         <p class="font-semibold">{{ getPeriodValue(card.stat, period.key) }}</p>
-                        @if (getTrendValue(card.stat, period.key); as trend) {
+                        @if (getTrendValue(card, period.key); as trend) {
                           <p
                             class="text-xs"
-                            [class.text-green-400]="isPositiveTrend(card.stat, period.key)"
-                            [class.text-red-400]="isNegativeTrend(card.stat, period.key)"
-                            [class.text-gray-500]="isNeutralTrend(card.stat, period.key)"
+                            [class.text-green-400]="isPositiveTrend(card, period.key)"
+                            [class.text-red-400]="isNegativeTrend(card, period.key)"
+                            [class.text-gray-500]="isNeutralTrend(card, period.key)"
                           >
                             {{ trend }}
                           </p>
@@ -169,6 +167,7 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
         title: 'Unique carriers',
         description: 'People who gained score by completing at least one carry.',
         stat: this.stats?.carrierStatsModel,
+        last7TrendUsesPrecedingWindow: true,
       },
       {
         borderClass: 'border-rose-500/40',
@@ -198,32 +197,41 @@ export class GlobalStatsComponent implements OnInit, OnDestroy {
     return pickStatValue(stat, key);
   }
 
-  protected getTrendValue(stat: PeriodStat | null | undefined, key: PeriodKey): string | null {
-    const trend = this.getTrendPercentage(stat, key);
+  protected getTrendValue(card: GlobalStatCard, key: PeriodKey): string | null {
+    const trend = this.getTrendPercentage(card, key);
     return trend === null ? null : formatTrend(trend);
   }
 
-  protected isPositiveTrend(stat: PeriodStat | null | undefined, key: PeriodKey): boolean {
-    const trend = this.getTrendPercentage(stat, key);
+  protected isPositiveTrend(card: GlobalStatCard, key: PeriodKey): boolean {
+    const trend = this.getTrendPercentage(card, key);
     return trend !== null && trend >= 2;
   }
 
-  protected isNegativeTrend(stat: PeriodStat | null | undefined, key: PeriodKey): boolean {
-    const trend = this.getTrendPercentage(stat, key);
+  protected isNegativeTrend(card: GlobalStatCard, key: PeriodKey): boolean {
+    const trend = this.getTrendPercentage(card, key);
     return trend !== null && trend <= -2;
   }
 
-  protected isNeutralTrend(stat: PeriodStat | null | undefined, key: PeriodKey): boolean {
-    const trend = this.getTrendPercentage(stat, key);
+  protected isNeutralTrend(card: GlobalStatCard, key: PeriodKey): boolean {
+    const trend = this.getTrendPercentage(card, key);
     return trend !== null && trend > -2 && trend < 2;
   }
 
-  private getTrendPercentage(stat: PeriodStat | null | undefined, key: PeriodKey): number | null {
+  private getTrendPercentage(card: GlobalStatCard, key: PeriodKey): number | null {
+    const stat = card.stat;
     if (!stat || key === 'lifetime') return null;
 
-    return key === 'last30Days'
-      ? trendPercentage(stat.last30Days, stat.last60Days)
-      : trendPercentage(stat.last7Days, stat.last14Days);
+    if (key === 'last30Days') {
+      return trendPercentage(
+        stat.last30Days,
+        numericValue(stat.last60Days) - numericValue(stat.last30Days),
+      );
+    }
+
+    const previousSevenDays = card.last7TrendUsesPrecedingWindow
+      ? stat.last14Days
+      : numericValue(stat.last14Days) - numericValue(stat.last7Days);
+    return trendPercentage(stat.last7Days, previousSevenDays);
   }
 
   protected formatStatValue(value: string | number | null | undefined): string {

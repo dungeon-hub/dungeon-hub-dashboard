@@ -73,6 +73,8 @@ describe('ServerStatsComponent carry count', () => {
     expect(getServerStats).toHaveBeenCalledWith('server-1');
     expect((fixture.componentInstance as any).stats.yourCompletedCarries).toBe(1250);
     const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Total carries');
+    expect(text).toContain('Completed on this server');
     expect(text).toContain('Your completed carries');
     expect(text).toContain('1.25k');
     expect(text).toContain('Total carriers');
@@ -80,7 +82,7 @@ describe('ServerStatsComponent carry count', () => {
     expect(text).toContain('People who gained score by completing at least one carry');
     expect(text).toContain('Total score');
     expect(text).toContain('3k');
-    expect(text).toContain('Points earned by carriers based on carry difficulty');
+    expect(text).toContain('Points earned by the service team');
     expect(text).toContain('Your bought carries');
     expect(text).toContain('9');
     expect(text).toContain('Received as a customer on this server');

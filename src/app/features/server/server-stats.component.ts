@@ -154,14 +154,14 @@ export class ServerStatsComponent implements OnInit, OnDestroy {
         titleClass: 'text-purple-400',
         title: 'Total carries',
         value: formatCompactValue(this.stats.totalCarries),
-        description: 'Completed by this server',
+        description: 'Completed on this server',
       },
       {
         borderClass: 'border-violet-500/40',
         titleClass: 'text-violet-400',
         title: 'Total score',
         value: formatStatValue(this.stats.totalScore),
-        description: 'Points earned by carriers based on carry difficulty',
+        description: 'Points earned by the service team',
       },
       {
         borderClass: 'border-cyan-500/40',
