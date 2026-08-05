@@ -6,10 +6,12 @@ import {
 	type OnInit,
 } from "@angular/core";
 import {
+	type AbstractControl,
 	FormBuilder,
 	type FormGroup,
 	FormsModule,
 	ReactiveFormsModule,
+	type ValidationErrors,
 	Validators,
 } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
@@ -21,9 +23,11 @@ import {
 	type DiscordChannelModel,
 	DiscordServerControllerService,
 	TicketPanelControllerService,
+	type TicketPanelModel,
 	type TicketPanelUpdateModel,
 } from "@dungeon-hub/api-client";
 import { AutocompleteComponent } from "../../shared/components/autocomplete/autocomplete.component";
+import { wasCleared } from "../../shared/utils/form-utils";
 
 @Component({
 	selector: "app-ticket-panel-edit",
@@ -318,7 +322,7 @@ export class TicketPanelEditComponent implements OnInit {
 
 	serverId!: string;
 	panelId!: string;
-	panel: any;
+	panel: TicketPanelModel | null = null;
 	form!: FormGroup;
 	loading = true;
 	saving = false;
@@ -367,7 +371,7 @@ export class TicketPanelEditComponent implements OnInit {
 		});
 	}
 
-	jsonValidator(control: any) {
+	jsonValidator(control: AbstractControl): ValidationErrors | null {
 		if (!control.value || control.value.trim() === "") {
 			return null;
 		}
@@ -394,7 +398,7 @@ export class TicketPanelEditComponent implements OnInit {
 		});
 	}
 
-	populateForm(panel: any) {
+	populateForm(panel: TicketPanelModel) {
 		// Parse ticket message JSON
 		let ticketMessage: any = {};
 		try {
@@ -433,15 +437,14 @@ export class TicketPanelEditComponent implements OnInit {
 			closeTranscriptTarget: panel.closeTranscriptTarget || "None",
 			deleteTranscriptTarget: panel.deleteTranscriptTarget || "None",
 			supportRoles:
-				panel.supportRoles?.map((r: any) => r.id?.toString()).join(", ") || "",
+				panel.supportRoles?.map((role) => role.id.toString()).join(", ") || "",
 			additionalRoles:
-				panel.additionalRoles?.map((r: any) => r.id?.toString()).join(", ") ||
+				panel.additionalRoles?.map((role) => role.id.toString()).join(", ") ||
 				"",
 			openCategories:
-				panel.openCategories?.map((id: any) => id?.toString()).join(", ") || "",
+				panel.openCategories?.map((id) => id.toString()).join(", ") || "",
 			closedCategories:
-				panel.closedCategories?.map((id: any) => id?.toString()).join(", ") ||
-				"",
+				panel.closedCategories?.map((id) => id.toString()).join(", ") || "",
 			relatedCarryTier: panel.relatedCarryTier?.id || null,
 			relatedCarryDifficulty: panel.relatedCarryDifficulty?.id || null,
 			formQuestions: panel.formQuestions
@@ -516,7 +519,7 @@ export class TicketPanelEditComponent implements OnInit {
 	}
 
 	save() {
-		if (!this.form.valid || this.saving) return;
+		if (!this.form.valid || this.saving || !this.panel) return;
 
 		this.saving = true;
 		const formValue = this.form.value;
@@ -541,11 +544,6 @@ export class TicketPanelEditComponent implements OnInit {
 		if (formValue.formQuestions) {
 			formQuestions = JSON.parse(formValue.formQuestions);
 		}
-
-		// Helper to check if a field was cleared (had value before, now empty)
-		const wasCleared = (currentValue: any, formValue: any) => {
-			return currentValue != null && (formValue == null || formValue === "");
-		};
 
 		const updateModel: TicketPanelUpdateModel = {
 			name: formValue.name ?? null,

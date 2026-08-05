@@ -6,6 +6,7 @@ import {
 	inject,
 	type OnInit,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, RouterLink } from "@angular/router";
 import {
@@ -16,15 +17,38 @@ import {
 import { DiscordGuildService } from "../../core/services/discord-guild.service";
 import type { TicketPanelImport } from "./ticket-panel-transfer";
 import {
+	detachServerBoundFields,
 	findImportConflict,
 	hasDuplicatePanelName,
 	isTicketPanelExport,
 	parseTicketPanelExports,
+	SERVER_BOUND_TICKET_PANEL_FIELDS,
 	serializeTicketPanel,
 	serializeTicketPanels,
 	toTicketPanelCreation,
 	toTicketPanelUpdate,
 } from "./ticket-panel-transfer";
+
+const DEFAULT_TICKET_PANEL: Omit<
+	TicketPanelCreationModel,
+	"name" | "displayName" | "emoji"
+> = {
+	closeable: false,
+	closeConfirmation: false,
+	claimable: false,
+	requiresLinking: false,
+	openChannelName: "{panel.name}-{ticket.count}",
+	ticketMessage:
+		'{"content":"Welcome, {user.mention}!\\nPlease describe your {panel.name} request below further."}',
+	userTranscriptDm: '["transcript"]',
+	permissions: {
+		SupportTeam: { Allowed: "68608" },
+		AdditionalRoles: { Allowed: "68608" },
+		TicketCreator: { Allowed: "68608" },
+		TicketClaimer: { Allowed: "68608" },
+		Everyone: { Denied: "1024" },
+	},
+};
 
 @Component({
 	selector: "app-ticket-panel-list",
@@ -374,6 +398,7 @@ export class TicketPanelListComponent implements OnInit {
 		emoji: "",
 	};
 	pendingPanel: TicketPanelCreationModel | null = null;
+	pendingImportServer: string | undefined;
 	importConflict: TicketPanelModel | null = null;
 	importCandidates: {
 		index: number;
@@ -411,6 +436,7 @@ export class TicketPanelListComponent implements OnInit {
 
 	openCreateModal() {
 		this.pendingPanel = null;
+		this.pendingImportServer = undefined;
 		this.createdPanelNames = [];
 		this.newPanel = { name: "", displayName: "", emoji: "" };
 		this.createError = null;
@@ -419,6 +445,7 @@ export class TicketPanelListComponent implements OnInit {
 
 	openCopyModal(panel: TicketPanelModel) {
 		this.pendingPanel = toTicketPanelCreation(panel);
+		this.pendingImportServer = this.serverId;
 		this.modalTitle = "Clone Ticket Panel";
 		this.newPanel = { name: "", displayName: "", emoji: panel.emoji || "" };
 		this.createError = null;
@@ -529,10 +556,12 @@ export class TicketPanelListComponent implements OnInit {
 		const imported = this.pendingImportQueue.shift();
 		if (!imported) {
 			this.pendingPanel = null;
+			this.pendingImportServer = undefined;
 			this.importConflict = null;
 			return;
 		}
 		this.pendingPanel = imported.panel;
+		this.pendingImportServer = imported.server;
 		this.importConflict =
 			findImportConflict(this.ticketPanels, imported) || null;
 		if (!this.importConflict) this.openImportedNameModal();
@@ -541,6 +570,7 @@ export class TicketPanelListComponent implements OnInit {
 	private finishCurrentImport() {
 		this.importConflict = null;
 		this.pendingPanel = null;
+		this.pendingImportServer = undefined;
 		if (this.pendingImportQueue.length > 0) {
 			this.openNextPendingImport();
 		}
@@ -561,8 +591,14 @@ export class TicketPanelListComponent implements OnInit {
 			.updateTicketPanel(
 				this.serverId,
 				this.importConflict.id,
-				toTicketPanelUpdate(this.pendingPanel),
+				toTicketPanelUpdate(
+					this.pendingPanel,
+					this.pendingImportServer === this.serverId
+						? undefined
+						: SERVER_BOUND_TICKET_PANEL_FIELDS,
+				),
 			)
+			.pipe(takeUntilDestroyed(this.destroyRef))
 			.subscribe({
 				next: () => {
 					this.isCreating = false;
@@ -581,6 +617,7 @@ export class TicketPanelListComponent implements OnInit {
 	cancelImport() {
 		this.importConflict = null;
 		this.pendingPanel = null;
+		this.pendingImportServer = undefined;
 		this.pendingImportQueue = [];
 		this.importCandidates = [];
 		this.createdPanelNames = [];
@@ -654,7 +691,12 @@ export class TicketPanelListComponent implements OnInit {
 			link.download = this.exportAllSelected
 				? "ticket-panels.backup.json"
 				: `${this.exportTarget?.name}.ticket-panel.json`;
-			link.click();
+			document.body.appendChild(link);
+			try {
+				link.click();
+			} finally {
+				link.remove();
+			}
 			this.closeExportModal();
 		} catch {
 			this.transferMessage =
@@ -684,17 +726,20 @@ export class TicketPanelListComponent implements OnInit {
 
 	loadTicketPanels() {
 		this.loadError = null;
-		this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
-			next: (panels) => {
-				this.ticketPanels = panels || [];
-				this.cdr.detectChanges();
-			},
-			error: (err) => {
-				this.loadError = "Failed to load ticket panels. Please try again.";
-				console.error("Error loading ticket panels:", err);
-				this.cdr.detectChanges();
-			},
-		});
+		this.ticketPanelService
+			.getAllTicketPanels(this.serverId)
+			.pipe(takeUntilDestroyed(this.destroyRef))
+			.subscribe({
+				next: (panels) => {
+					this.ticketPanels = panels || [];
+					this.cdr.detectChanges();
+				},
+				error: (err) => {
+					this.loadError = "Failed to load ticket panels. Please try again.";
+					console.error("Error loading ticket panels:", err);
+					this.cdr.detectChanges();
+				},
+			});
 	}
 
 	createPanel() {
@@ -713,45 +758,21 @@ export class TicketPanelListComponent implements OnInit {
 		this.isCreating = true;
 		this.createError = null;
 
-		const defaults: TicketPanelCreationModel = {
+		const pendingPanel =
+			this.pendingPanel && this.pendingImportServer !== this.serverId
+				? detachServerBoundFields(this.pendingPanel)
+				: this.pendingPanel;
+		const creationModel: TicketPanelCreationModel = structuredClone({
+			...DEFAULT_TICKET_PANEL,
+			...pendingPanel,
 			name: trimmedName,
-			displayName: this.newPanel.displayName || undefined,
-			emoji: this.newPanel.emoji || undefined,
-			closeable: false,
-			closeConfirmation: false,
-			claimable: false,
-			requiresLinking: false,
-			openChannelName: "{panel.name}-{ticket.count}",
-			ticketMessage:
-				'{"content":"Welcome, {user.mention}!\\nPlease describe your {panel.name} request below further."}',
-			userTranscriptDm: '["transcript"]',
-			permissions: {
-				SupportTeam: {
-					Allowed: "68608",
-				},
-				AdditionalRoles: {
-					Allowed: "68608",
-				},
-				TicketCreator: {
-					Allowed: "68608",
-				},
-				TicketClaimer: {
-					Allowed: "68608",
-				},
-				Everyone: {
-					Denied: "1024",
-				},
-			},
-		};
-		const creationModel: TicketPanelCreationModel = structuredClone(
-			this.pendingPanel || defaults,
-		);
-		creationModel.name = trimmedName;
-		creationModel.displayName = this.newPanel.displayName.trim() || undefined;
-		creationModel.emoji = this.newPanel.emoji.trim() || undefined;
+			displayName: this.newPanel.displayName.trim() || undefined,
+			emoji: this.newPanel.emoji.trim() || undefined,
+		});
 
 		this.ticketPanelService
 			.createNewTicketPanel(this.serverId, creationModel)
+			.pipe(takeUntilDestroyed(this.destroyRef))
 			.subscribe({
 				next: () => {
 					this.showCreateModal = false;

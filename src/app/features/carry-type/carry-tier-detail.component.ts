@@ -17,6 +17,7 @@ import {
 	CarryTypeControllerService,
 	type CarryTypeModel,
 } from "@dungeon-hub/api-client";
+import { wasCleared } from "../../shared/utils/form-utils";
 import {
 	getIngameCarryTypeLabel,
 	INGAME_CARRY_TYPE_LABELS,
@@ -587,10 +588,6 @@ export class CarryTierDetailComponent implements OnInit {
 			});
 	}
 
-	wasCleared(currentValue: unknown, formValue: unknown): boolean {
-		return currentValue != null && (formValue == null || formValue === "");
-	}
-
 	openEditTierModal() {
 		if (!this.carryTier) return;
 		this.editTierForm = {
@@ -611,23 +608,23 @@ export class CarryTierDetailComponent implements OnInit {
 		this.isUpdatingTier = true;
 		this.updateTierError = null;
 
-		const resetCategory = this.wasCleared(
+		const resetCategory = wasCleared(
 			this.carryTier.category,
 			this.editTierForm.category,
 		);
-		const resetDescriptiveName = this.wasCleared(
+		const resetDescriptiveName = wasCleared(
 			this.carryTier.descriptiveName,
 			this.editTierForm.descriptiveName,
 		);
-		const resetThumbnailUrl = this.wasCleared(
+		const resetThumbnailUrl = wasCleared(
 			this.carryTier.thumbnailUrl,
 			this.editTierForm.thumbnailUrl,
 		);
-		const resetPriceTitle = this.wasCleared(
+		const resetPriceTitle = wasCleared(
 			this.carryTier.priceTitle,
 			this.editTierForm.priceTitle,
 		);
-		const resetPriceDescription = this.wasCleared(
+		const resetPriceDescription = wasCleared(
 			this.carryTier.priceDescription,
 			this.editTierForm.priceDescription,
 		);

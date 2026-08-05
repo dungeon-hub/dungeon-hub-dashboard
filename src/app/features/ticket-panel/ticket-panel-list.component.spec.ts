@@ -89,9 +89,11 @@ describe("TicketPanelListComponent transfers", () => {
 	}
 
 	it("shows the current server name in the holographic header", () => {
-		const instance = component();
+		const fixture = TestBed.createComponent(TicketPanelListComponent);
+		fixture.detectChanges();
+		const header = fixture.nativeElement.querySelector("h2.holographic");
 
-		expect(instance.serverName).toBe("Dungeon Server");
+		expect(header?.textContent).toContain("Dungeon Server");
 		expect(guildService.getGuildById).toHaveBeenCalledWith("server-1");
 	});
 
@@ -190,15 +192,17 @@ describe("TicketPanelListComponent transfers", () => {
 		const revokeObjectURL = vi
 			.spyOn(URL, "revokeObjectURL")
 			.mockImplementation(() => undefined);
-		const link = { click: vi.fn(), href: "", download: "" };
-		vi.spyOn(document, "createElement").mockReturnValue(link as any);
+		const link = document.createElement("a");
+		const click = vi.spyOn(link, "click").mockImplementation(() => undefined);
+		vi.spyOn(document, "createElement").mockReturnValue(link);
 
 		instance.openExportAllModal();
 		instance.downloadExport();
 
 		expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
 		expect(link.download).toBe("ticket-panels.backup.json");
-		expect(link.click).toHaveBeenCalledOnce();
+		expect(click).toHaveBeenCalledOnce();
+		expect(link.isConnected).toBe(false);
 		expect(revokeObjectURL).not.toHaveBeenCalled();
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(revokeObjectURL).toHaveBeenCalledWith("blob:panels");
@@ -234,13 +238,15 @@ describe("TicketPanelListComponent transfers", () => {
 		const revokeObjectURL = vi
 			.spyOn(URL, "revokeObjectURL")
 			.mockImplementation(() => undefined);
-		const click = vi.fn();
-		vi.spyOn(document, "createElement").mockReturnValue({ click } as any);
+		const link = document.createElement("a");
+		const click = vi.spyOn(link, "click").mockImplementation(() => undefined);
+		vi.spyOn(document, "createElement").mockReturnValue(link);
 		instance.openExportModal(existing);
 		instance.downloadExport();
 
 		expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
 		expect(click).toHaveBeenCalledOnce();
+		expect(link.isConnected).toBe(false);
 		expect(revokeObjectURL).not.toHaveBeenCalled();
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(revokeObjectURL).toHaveBeenCalledWith("blob:panel");
@@ -254,11 +260,11 @@ describe("TicketPanelListComponent transfers", () => {
 		const revokeObjectURL = vi
 			.spyOn(URL, "revokeObjectURL")
 			.mockImplementation(() => undefined);
-		vi.spyOn(document, "createElement").mockReturnValue({
-			click: () => {
-				throw new Error("download blocked");
-			},
-		} as any);
+		const link = document.createElement("a");
+		vi.spyOn(link, "click").mockImplementation(() => {
+			throw new Error("download blocked");
+		});
+		vi.spyOn(document, "createElement").mockReturnValue(link);
 		instance.openExportModal(existing);
 
 		instance.downloadExport();
@@ -335,15 +341,16 @@ describe("TicketPanelListComponent transfers", () => {
 		expect(instance.pendingPanel).toEqual(
 			expect.objectContaining({
 				name: "support",
-				transcriptChannel: undefined,
-				relatedCarryTier: undefined,
-				supportRoles: undefined,
+				transcriptChannel: "1036375112619937792",
+				relatedCarryTier: "28",
+				supportRoles: ["1061116185132933240"],
 				permissions: {
 					Everyone: { Denied: "1024" },
 					TicketCreator: { Allowed: "68608" },
 				},
 			}),
 		);
+		expect(instance.pendingImportServer).toBeUndefined();
 	});
 
 	it("offers overwrite when an import has the same internal name but a different source ID", async () => {
@@ -677,6 +684,10 @@ describe("TicketPanelListComponent transfers", () => {
 			}),
 		);
 		expect(existing).toEqual(snapshot);
+		expect(instance.createdPanelNames).toContainEqual({
+			name: "support-copy",
+			displayName: "Support Copy",
+		});
 		expect(instance.pendingPanel).toBeNull();
 	});
 

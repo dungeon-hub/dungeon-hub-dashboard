@@ -10,12 +10,14 @@ export interface TicketPanelExport {
 	version: number;
 	id?: string;
 	name?: string;
+	server?: string;
 	panel: TicketPanelCreationModel;
 }
 
 export interface TicketPanelImport {
 	id?: string;
 	name?: string;
+	server?: string;
 	panel: TicketPanelCreationModel;
 }
 
@@ -32,6 +34,7 @@ interface UntrustedTicketPanelExport {
 	version?: unknown;
 	id?: unknown;
 	name?: unknown;
+	server?: unknown;
 	panel?: unknown;
 	panels?: unknown;
 }
@@ -121,6 +124,12 @@ function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
 	return value ?? undefined;
 }
 
+function stringIfNotNull(
+	value: string | number | null | undefined,
+): string | undefined {
+	return value == null ? undefined : String(value);
+}
+
 function normalizePermissions(
 	permissions: TicketPanelCreationModel["permissions"] | null | undefined,
 ): TicketPanelCreationModel["permissions"] | undefined {
@@ -139,7 +148,7 @@ function normalizePermissions(
 }
 
 function normalizePanelName(name: string): string {
-	return name.trim().toLocaleLowerCase();
+	return name.trim().toLowerCase();
 }
 
 const ticketPanelFieldValidators = {
@@ -185,19 +194,19 @@ function copyTicketPanelCreation(
 		openChannelName: undefinedIfNull(panel.openChannelName),
 		claimedChannelName: undefinedIfNull(panel.claimedChannelName),
 		closedChannelName: undefinedIfNull(panel.closedChannelName),
-		transcriptChannel: undefined,
+		transcriptChannel: undefinedIfNull(panel.transcriptChannel),
 		ticketMessage: undefinedIfNull(panel.ticketMessage),
 		requiresLinking: panel.requiresLinking,
 		closeTranscriptTarget: undefinedIfNull(panel.closeTranscriptTarget),
 		deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
 		userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
 		formQuestions: undefinedIfNull(panel.formQuestions),
-		relatedCarryTier: undefined,
-		relatedCarryDifficulty: undefined,
-		supportRoles: undefined,
-		additionalRoles: undefined,
-		openCategories: undefined,
-		closedCategories: undefined,
+		relatedCarryTier: stringIfNotNull(panel.relatedCarryTier),
+		relatedCarryDifficulty: stringIfNotNull(panel.relatedCarryDifficulty),
+		supportRoles: undefinedIfNull(panel.supportRoles),
+		additionalRoles: undefinedIfNull(panel.additionalRoles),
+		openCategories: undefinedIfNull(panel.openCategories),
+		closedCategories: undefinedIfNull(panel.closedCategories),
 		permissions: normalizePermissions(panel.permissions),
 	} satisfies TicketPanelCreationModel &
 		Record<keyof TicketPanelCreationModel, unknown>);
@@ -240,6 +249,7 @@ export function exportTicketPanel(panel: TicketPanelModel): TicketPanelExport {
 		version: TICKET_PANEL_EXPORT_VERSION,
 		id: panel.id,
 		name: panel.name,
+		server: panel.discordServer.id,
 		panel: toTicketPanelCreation(panel),
 	};
 }
@@ -322,6 +332,7 @@ function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
 		candidate.version !== TICKET_PANEL_EXPORT_VERSION ||
 		!isOptionalExportId(candidate.id) ||
 		!isOptionalString(candidate.name) ||
+		!isOptionalString(candidate.server) ||
 		hasInvalidPanelField ||
 		typeof panel.name !== "string" ||
 		(candidate.name !== undefined &&
@@ -332,6 +343,7 @@ function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
 	return {
 		id: candidate.id === undefined ? undefined : String(candidate.id),
 		name: panel.name,
+		server: candidate.server,
 		panel: copyTicketPanelCreation(
 			panel as unknown as TicketPanelCreationModel,
 		),
@@ -355,11 +367,40 @@ export function findImportConflict(
 	return panels.find(nameMatch);
 }
 
-/** Converts every imported setting into an update, including resets for omitted optional values. */
+type ServerBoundTicketPanelField =
+	| "transcriptChannel"
+	| "relatedCarryTier"
+	| "relatedCarryDifficulty"
+	| "supportRoles"
+	| "additionalRoles"
+	| "openCategories"
+	| "closedCategories";
+
+export const SERVER_BOUND_TICKET_PANEL_FIELDS: ReadonlySet<ServerBoundTicketPanelField> =
+	new Set([
+		"transcriptChannel",
+		"relatedCarryTier",
+		"relatedCarryDifficulty",
+		"supportRoles",
+		"additionalRoles",
+		"openCategories",
+		"closedCategories",
+	]);
+
+export function detachServerBoundFields(
+	panel: TicketPanelCreationModel,
+): TicketPanelCreationModel {
+	const detached = structuredClone(panel);
+	for (const field of SERVER_BOUND_TICKET_PANEL_FIELDS) delete detached[field];
+	return detached;
+}
+
+/** Converts imported settings into an update, including resets for omitted optional values. */
 export function toTicketPanelUpdate(
 	panel: TicketPanelCreationModel,
+	preservedFields: ReadonlySet<ServerBoundTicketPanelField> = new Set(),
 ): TicketPanelUpdateModel {
-	return {
+	const update: Partial<TicketPanelUpdateModel> = {
 		...structuredClone(panel),
 		resetDisplayName: panel.displayName == null,
 		resetEmoji: panel.emoji == null,
@@ -372,6 +413,23 @@ export function toTicketPanelUpdate(
 		resetRelatedCarryTier: panel.relatedCarryTier == null,
 		resetRelatedCarryDifficulty: panel.relatedCarryDifficulty == null,
 	};
+	if (preservedFields.has("transcriptChannel")) {
+		delete update.transcriptChannel;
+		delete update.resetTranscriptChannel;
+	}
+	if (preservedFields.has("relatedCarryTier")) {
+		delete update.relatedCarryTier;
+		delete update.resetRelatedCarryTier;
+	}
+	if (preservedFields.has("relatedCarryDifficulty")) {
+		delete update.relatedCarryDifficulty;
+		delete update.resetRelatedCarryDifficulty;
+	}
+	if (preservedFields.has("supportRoles")) delete update.supportRoles;
+	if (preservedFields.has("additionalRoles")) delete update.additionalRoles;
+	if (preservedFields.has("openCategories")) delete update.openCategories;
+	if (preservedFields.has("closedCategories")) delete update.closedCategories;
+	return update as TicketPanelUpdateModel;
 }
 
 export function hasDuplicatePanelName(
@@ -379,13 +437,14 @@ export function hasDuplicatePanelName(
 	name: string,
 	displayName: string,
 ): boolean {
-	const normalizedName = name.trim().toLocaleLowerCase();
-	const normalizedDisplayName = displayName.trim().toLocaleLowerCase();
+	const normalizedName = normalizePanelName(name);
+	const normalizedDisplayName = normalizePanelName(displayName);
 	return panels.some(
 		(panel) =>
-			panel.name.trim().toLocaleLowerCase() === normalizedName ||
+			normalizePanelName(panel.name) === normalizedName ||
 			(!!normalizedDisplayName &&
-				panel.displayName?.trim().toLocaleLowerCase() ===
-					normalizedDisplayName),
+				(panel.displayName == null
+					? undefined
+					: normalizePanelName(panel.displayName)) === normalizedDisplayName),
 	);
 }

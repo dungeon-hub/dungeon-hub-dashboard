@@ -1,6 +1,7 @@
 import type { TicketPanelModel } from "@dungeon-hub/api-client";
 import { describe, expect, it } from "vitest";
 import {
+	detachServerBoundFields,
 	exportTicketPanel,
 	exportTicketPanels,
 	findImportConflict,
@@ -8,6 +9,7 @@ import {
 	isTicketPanelExport,
 	parseTicketPanelExport,
 	parseTicketPanelExports,
+	SERVER_BOUND_TICKET_PANEL_FIELDS,
 	serializeTicketPanel,
 	serializeTicketPanels,
 	toTicketPanelCreation,
@@ -82,6 +84,7 @@ describe("ticket panel transfer", () => {
 
 		expect(imported.id).toBe(original.id);
 		expect(imported.name).toBe(original.name);
+		expect(imported.server).toBe(original.discordServer.id);
 		expect(imported.panel).toEqual({
 			name: original.name,
 			displayName: original.displayName,
@@ -92,19 +95,19 @@ describe("ticket panel transfer", () => {
 			openChannelName: original.openChannelName,
 			claimedChannelName: original.claimedChannelName,
 			closedChannelName: original.closedChannelName,
-			transcriptChannel: undefined,
+			transcriptChannel: original.transcriptChannel?.id,
 			ticketMessage: original.ticketMessage,
 			requiresLinking: original.requiresLinking,
 			closeTranscriptTarget: original.closeTranscriptTarget,
 			deleteTranscriptTarget: original.deleteTranscriptTarget,
 			userTranscriptDm: original.userTranscriptDm,
 			formQuestions: original.formQuestions,
-			relatedCarryTier: undefined,
-			relatedCarryDifficulty: undefined,
-			supportRoles: undefined,
-			additionalRoles: undefined,
-			openCategories: undefined,
-			closedCategories: undefined,
+			relatedCarryTier: original.relatedCarryTier?.id,
+			relatedCarryDifficulty: original.relatedCarryDifficulty?.id,
+			supportRoles: original.supportRoles.map((role) => role.id),
+			additionalRoles: original.additionalRoles.map((role) => role.id),
+			openCategories: original.openCategories,
+			closedCategories: original.closedCategories,
 			permissions: original.permissions,
 		});
 	});
@@ -299,6 +302,24 @@ describe("ticket panel transfer", () => {
 		expect(update.resetRelatedCarryDifficulty).toBe(false);
 	});
 
+	it("does not update or reset detached relations during an import overwrite", () => {
+		const update = toTicketPanelUpdate(
+			toTicketPanelCreation(panel()),
+			SERVER_BOUND_TICKET_PANEL_FIELDS,
+		);
+
+		expect(update).not.toHaveProperty("transcriptChannel");
+		expect(update).not.toHaveProperty("relatedCarryTier");
+		expect(update).not.toHaveProperty("relatedCarryDifficulty");
+		expect(update).not.toHaveProperty("supportRoles");
+		expect(update).not.toHaveProperty("additionalRoles");
+		expect(update).not.toHaveProperty("openCategories");
+		expect(update).not.toHaveProperty("closedCategories");
+		expect(update).not.toHaveProperty("resetTranscriptChannel");
+		expect(update).not.toHaveProperty("resetRelatedCarryTier");
+		expect(update).not.toHaveProperty("resetRelatedCarryDifficulty");
+	});
+
 	it("rejects duplicate internal or display names case-insensitively", () => {
 		const panels = [panel()];
 		expect(hasDuplicatePanelName(panels, " SUPPORT ", "Different")).toBe(true);
@@ -344,8 +365,8 @@ describe("ticket panel transfer", () => {
 
 		expect(imported.id).toBe("4");
 		expect(imported.panel.name).toBe("f4");
-		expect(imported.panel.relatedCarryTier).toBeUndefined();
-		expect(imported.panel.supportRoles).toBeUndefined();
+		expect(imported.panel.relatedCarryTier).toBe("28");
+		expect(imported.panel.supportRoles).toEqual(["1061116185132933240"]);
 		expect(imported.panel.permissions).toEqual({
 			Everyone: { Denied: "1024" },
 			TicketCreator: { Allowed: "68608" },
@@ -359,18 +380,28 @@ describe("ticket panel transfer", () => {
 		).toThrow("not a supported ticket panel export");
 	});
 
-	it("ignores server-specific references when parsing an imported panel", () => {
+	it("retains server-specific references until the destination server is known", () => {
 		const exported = exportTicketPanel(panel());
 
 		const imported = parseTicketPanelExport(JSON.stringify(exported));
 
-		expect(imported.panel.transcriptChannel).toBeUndefined();
-		expect(imported.panel.relatedCarryTier).toBeUndefined();
-		expect(imported.panel.relatedCarryDifficulty).toBeUndefined();
-		expect(imported.panel.supportRoles).toBeUndefined();
-		expect(imported.panel.additionalRoles).toBeUndefined();
-		expect(imported.panel.openCategories).toBeUndefined();
-		expect(imported.panel.closedCategories).toBeUndefined();
+		expect(imported.server).toBe("server");
+		expect(imported.panel.transcriptChannel).toBe("transcripts");
+		expect(imported.panel.relatedCarryTier).toBe("tier-1");
+		expect(imported.panel.relatedCarryDifficulty).toBe("difficulty-1");
+		expect(imported.panel.supportRoles).toEqual(["role-1"]);
+		expect(imported.panel.additionalRoles).toEqual(["role-2"]);
+		expect(imported.panel.openCategories).toEqual(["open"]);
+		expect(imported.panel.closedCategories).toEqual(["closed"]);
+
+		const detached = detachServerBoundFields(imported.panel);
+		expect(detached.transcriptChannel).toBeUndefined();
+		expect(detached.relatedCarryTier).toBeUndefined();
+		expect(detached.relatedCarryDifficulty).toBeUndefined();
+		expect(detached.supportRoles).toBeUndefined();
+		expect(detached.additionalRoles).toBeUndefined();
+		expect(detached.openCategories).toBeUndefined();
+		expect(detached.closedCategories).toBeUndefined();
 	});
 
 	it("accepts null optional strings from exported API data and omits them before API use", () => {

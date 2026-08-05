@@ -8,7 +8,10 @@ import {
 } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { RouterLink } from "@angular/router";
-import { DiscordServerControllerService } from "@dungeon-hub/api-client";
+import {
+	DiscordServerControllerService,
+	type DiscordServerModel,
+} from "@dungeon-hub/api-client";
 import {
 	AuthService,
 	type AuthUserInfo,
@@ -468,22 +471,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
 		// Load servers from API
 		this.discordServerService.getAllServers().subscribe({
-			next: (servers) => {
-				// Handle case where API might return object instead of array
-				let serverArray: any[] = [];
-				if (Array.isArray(servers)) {
-					serverArray = servers;
-				} else if (servers && typeof servers === "object") {
-					serverArray =
-						(servers as any).content ||
-						(servers as any).data ||
-						(servers as any).servers ||
-						[];
-				}
-
+			next: (servers: Set<DiscordServerModel>) => {
 				// Get server IDs where bot has access
 				const serverIds = new Set(
-					serverArray.map((s: any) => s.id?.toString()),
+					[...servers].map((server) => server.id.toString()),
 				);
 
 				const categorizedGuilds = categorizeGuilds(

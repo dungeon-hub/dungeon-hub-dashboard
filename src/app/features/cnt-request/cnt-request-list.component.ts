@@ -9,6 +9,7 @@ import { ActivatedRoute, RouterLink } from "@angular/router";
 import {
 	CntRequestControllerService,
 	type CntRequestModel,
+	type CntRequestPageModel,
 } from "@dungeon-hub/api-client";
 import { getCntRequestTypeLabel } from "./cnt-request-type-labels";
 
@@ -134,7 +135,7 @@ export class CntRequestListComponent implements OnInit {
 		this.cntRequestService
 			.getCntRequests(this.serverId, this.currentPage, this.pageSize)
 			.subscribe({
-				next: (page: any) => {
+				next: (page: CntRequestPageModel) => {
 					this.requests = page.requests || [];
 					this.hasMore = page.page < page.totalPages - 1;
 					this.totalPages = page.totalPages || 0;

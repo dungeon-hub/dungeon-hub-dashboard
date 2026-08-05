@@ -13,6 +13,10 @@ describe("formatLinkedUserCount", () => {
 			"123,456,789,012,345,678",
 		);
 	});
+
+	it("expands numeric exponent input before grouping digits", () => {
+		expect(formatLinkedUserCount(1e21)).toBe("1,000,000,000,000,000,000,000");
+	});
 });
 
 describe("GlobalStatsComponent", () => {

@@ -13,6 +13,7 @@ import {
 	type CarryTypeModel,
 	type CarryTypeUpdateModel,
 } from "@dungeon-hub/api-client";
+import { wasCleared } from "../../shared/utils/form-utils";
 
 @Component({
 	selector: "app-carry-type-list",
@@ -350,17 +351,13 @@ export class CarryTypeListComponent implements OnInit {
 		this.showEditModal = true;
 	}
 
-	wasCleared(currentValue: unknown, formValue: unknown): boolean {
-		return currentValue != null && (formValue == null || formValue === "");
-	}
-
 	updateCarryType() {
 		if (!this.editingCarryType || this.isUpdating) return;
 
 		this.isUpdating = true;
 		this.updateError = null;
 
-		const resetLogChannel = this.wasCleared(
+		const resetLogChannel = wasCleared(
 			this.editingCarryType.logChannel,
 			this.editForm.logChannel,
 		);

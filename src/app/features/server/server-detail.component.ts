@@ -11,6 +11,7 @@ import {
 	type CarryTypeModel,
 	CntRequestControllerService,
 	TicketPanelControllerService,
+	type TicketPanelModel,
 } from "@dungeon-hub/api-client";
 import { DiscordGuildService } from "../../core/services/discord-guild.service";
 
@@ -221,7 +222,7 @@ export class ServerDetailComponent implements OnInit {
 
 	serverId!: string;
 	serverName: string = "";
-	ticketPanels: any[] = [];
+	ticketPanels: TicketPanelModel[] = [];
 	carryTypes: CarryTypeModel[] = [];
 	totalCntRequests = 0;
 	loadError: string | null = null;
@@ -291,7 +292,7 @@ export class ServerDetailComponent implements OnInit {
 	}
 
 	// Ticket Panel Pagination Methods
-	getCurrentTicketPanelPage(): any[] {
+	getCurrentTicketPanelPage(): Array<TicketPanelModel> {
 		const start = this.currentTicketPanelPage * this.MAX_TICKET_PANELS_DISPLAY;
 		const end = start + this.MAX_TICKET_PANELS_DISPLAY;
 		return this.ticketPanels.slice(start, end);

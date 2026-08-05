@@ -11,7 +11,14 @@ import type { Observable, Subscription } from "rxjs";
 export function formatLinkedUserCount(
 	value: string | number | null | undefined,
 ): string {
-	return String(value ?? "0").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+	const decimal =
+		typeof value === "number" && Number.isFinite(value)
+			? value.toLocaleString("en-US", {
+					useGrouping: false,
+					maximumFractionDigits: 20,
+				})
+			: String(value ?? "0");
+	return decimal.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 type PeriodKey = "lifetime" | "last30Days" | "last7Days";
