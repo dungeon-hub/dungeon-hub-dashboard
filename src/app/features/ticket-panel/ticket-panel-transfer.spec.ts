@@ -186,9 +186,11 @@ describe('ticket panel transfer', () => {
     expect(isTicketPanelExport(contents)).toBe(false);
   });
 
-  it('only finds an overwrite conflict when both exported ID and name match', () => {
+  it('finds an overwrite conflict by exact ID and name or by an existing name', () => {
     const existing = panel();
     expect(findImportConflict([existing], { id: '1', name: 'support' })).toBe(existing);
+    expect(findImportConflict([existing], { id: '4', name: 'support' })).toBe(existing);
+    expect(findImportConflict([existing], { name: 'support' })).toBe(existing);
     expect(findImportConflict([existing], { id: '1', name: 'other' })).toBeUndefined();
     expect(findImportConflict([existing], { id: '1' })).toBeUndefined();
   });

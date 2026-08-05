@@ -288,8 +288,13 @@ export function findImportConflict(
   panels: TicketPanelModel[],
   imported: Pick<TicketPanelImport, 'id' | 'name'>,
 ): TicketPanelModel | undefined {
-  if (!imported.id || !imported.name) return undefined;
-  return panels.find((panel) => panel.id === imported.id && panel.name === imported.name);
+  if (!imported.name) return undefined;
+  const nameMatch = (panel: Pick<TicketPanelModel, 'name'>) => panel.name === imported.name;
+  if (imported.id) {
+    const exactMatch = panels.find((panel) => String(panel.id) === imported.id && nameMatch(panel));
+    if (exactMatch) return exactMatch;
+  }
+  return panels.find(nameMatch);
 }
 
 /** Converts every imported setting into an update, including resets for omitted optional values. */

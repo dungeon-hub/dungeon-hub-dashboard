@@ -263,6 +263,20 @@ describe('TicketPanelListComponent transfers', () => {
     expect(existing).toEqual(snapshot);
   });
 
+  it('offers overwrite when an import has the same internal name but a different source ID', async () => {
+    const imported = structuredClone(existing);
+    imported.id = 'panel-from-another-server';
+    const instance = component();
+
+    await instance.onFileDrop({
+      preventDefault: vi.fn(),
+      dataTransfer: { files: [{ text: () => Promise.resolve(serializeTicketPanel(imported)) }] },
+    } as any);
+
+    expect(instance.importConflict).toBe(existing);
+    expect(instance.showCreateModal).toBe(false);
+  });
+
   it('routes dropped non-conflicting exports to the unique-name prompt', async () => {
     const imported = structuredClone(existing);
     imported.id = 'panel-2';
