@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, provideRouter } from '@angular/router';
 import { TicketPanelControllerService, TicketPanelModel } from '@dungeon-hub/api-client';
+import { DiscordGuildService } from '../../core/services/discord-guild.service';
 import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TicketPanelListComponent } from './ticket-panel-list.component';
@@ -40,6 +41,10 @@ describe('TicketPanelListComponent transfers', () => {
     updateTicketPanel: vi.fn(),
   };
   const clipboard = { readText: vi.fn(), writeText: vi.fn() };
+  const guildService = {
+    getGuildById: vi.fn(),
+    getDisplayName: vi.fn(),
+  };
 
   beforeEach(async () => {
     vi.resetAllMocks();
@@ -47,6 +52,8 @@ describe('TicketPanelListComponent transfers', () => {
     service.getAllTicketPanels.mockImplementation(() => of([existing]));
     service.createNewTicketPanel.mockImplementation(() => of(existing));
     service.updateTicketPanel.mockImplementation(() => of(existing));
+    guildService.getGuildById.mockReturnValue({ id: 'server-1', name: 'Dungeon Server' });
+    guildService.getDisplayName.mockImplementation((guild) => guild.name);
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: clipboard });
     await TestBed.configureTestingModule({
       imports: [TicketPanelListComponent],
@@ -54,6 +61,7 @@ describe('TicketPanelListComponent transfers', () => {
         provideRouter([]),
         { provide: ActivatedRoute, useValue: { snapshot: { params: { serverId: 'server-1' } } } },
         { provide: TicketPanelControllerService, useValue: service },
+        { provide: DiscordGuildService, useValue: guildService },
       ],
     }).compileComponents();
   });
@@ -67,6 +75,13 @@ describe('TicketPanelListComponent transfers', () => {
     fixture.detectChanges();
     return fixture.componentInstance;
   }
+
+  it('shows the current server name in the holographic header', () => {
+    const instance = component();
+
+    expect(instance.serverName).toBe('Dungeon Server');
+    expect(guildService.getGuildById).toHaveBeenCalledWith('server-1');
+  });
 
   it('only highlights clipboard import when clipboard contains a valid panel export', async () => {
     clipboard.readText.mockResolvedValueOnce('{"ordinary":"json"}');

@@ -2,6 +2,7 @@ import { ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angul
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { DiscordGuildService } from '../../core/services/discord-guild.service';
 import {
   TicketPanelControllerService,
   TicketPanelCreationModel,
@@ -29,7 +30,7 @@ import type { TicketPanelImport } from './ticket-panel-transfer';
         <a [routerLink]="['/server', serverId]" class="btn btn-secondary mb-4 inline-block">
           ← Back to Server
         </a>
-        <h2 class="text-3xl font-bold holographic">Ticket Panels</h2>
+        <h2 class="text-3xl font-bold holographic">{{ serverName }}</h2>
       </div>
 
       @if (loadError) {
@@ -349,10 +350,12 @@ import type { TicketPanelImport } from './ticket-panel-transfer';
 export class TicketPanelListComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private ticketPanelService = inject(TicketPanelControllerService);
+  private discordGuildService = inject(DiscordGuildService);
   private cdr = inject(ChangeDetectorRef);
   private destroyRef = inject(DestroyRef);
 
   serverId!: string;
+  serverName = 'Server';
   ticketPanels: TicketPanelModel[] = [];
   loadError: string | null = null;
 
@@ -649,6 +652,8 @@ export class TicketPanelListComponent implements OnInit {
 
   ngOnInit() {
     this.serverId = this.route.snapshot.params['serverId'];
+    const guild = this.discordGuildService.getGuildById(this.serverId);
+    this.serverName = guild ? this.discordGuildService.getDisplayName(guild) : 'Server';
     this.loadTicketPanels();
   }
 

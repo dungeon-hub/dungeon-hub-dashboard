@@ -248,6 +248,31 @@ describe('ticket panel transfer', () => {
     expect(imported.panel.closedCategories).toBeUndefined();
   });
 
+  it('accepts null optional strings from exported API data and omits them before API use', () => {
+    const exported = exportTicketPanel(panel()) as any;
+    exported.panel.displayName = null;
+    exported.panel.emoji = null;
+    exported.panel.openChannelName = null;
+    exported.panel.claimedChannelName = null;
+    exported.panel.closedChannelName = null;
+    exported.panel.ticketMessage = null;
+    exported.panel.closeTranscriptTarget = null;
+    exported.panel.deleteTranscriptTarget = null;
+    exported.panel.userTranscriptDm = null;
+
+    const imported = parseTicketPanelExport(JSON.stringify(exported));
+
+    expect(imported.panel.displayName).toBeUndefined();
+    expect(imported.panel.emoji).toBeUndefined();
+    expect(imported.panel.openChannelName).toBeUndefined();
+    expect(imported.panel.claimedChannelName).toBeUndefined();
+    expect(imported.panel.closedChannelName).toBeUndefined();
+    expect(imported.panel.ticketMessage).toBeUndefined();
+    expect(imported.panel.closeTranscriptTarget).toBeUndefined();
+    expect(imported.panel.deleteTranscriptTarget).toBeUndefined();
+    expect(imported.panel.userTranscriptDm).toBeUndefined();
+  });
+
   it('normalizes accepted null collection values to undefined before API use', () => {
     const exported = exportTicketPanel(panel()) as any;
     exported.panel.formQuestions = null;

@@ -45,6 +45,10 @@ function isOptionalString(value: unknown): value is string | undefined {
   return value === undefined || typeof value === 'string';
 }
 
+function isNullableOptionalString(value: unknown): value is string | null | undefined {
+  return value == null || typeof value === 'string';
+}
+
 function isOptionalStringArray(value: unknown): value is string[] | undefined {
   return value == null || (Array.isArray(value) && value.every((item) => typeof item === 'string'));
 }
@@ -81,25 +85,25 @@ function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
 
 const ticketPanelFieldValidators = {
   name: (value: unknown) => typeof value === 'string' && !!value.trim(),
-  displayName: isOptionalString,
-  emoji: isOptionalString,
+  displayName: isNullableOptionalString,
+  emoji: isNullableOptionalString,
   closeable: (value: unknown) => typeof value === 'boolean',
   closeConfirmation: (value: unknown) => typeof value === 'boolean',
   claimable: (value: unknown) => typeof value === 'boolean',
-  openChannelName: isOptionalString,
-  claimedChannelName: isOptionalString,
-  closedChannelName: isOptionalString,
-  transcriptChannel: isOptionalString,
-  ticketMessage: isOptionalString,
+  openChannelName: isNullableOptionalString,
+  claimedChannelName: isNullableOptionalString,
+  closedChannelName: isNullableOptionalString,
+  transcriptChannel: isNullableOptionalString,
+  ticketMessage: isNullableOptionalString,
   requiresLinking: (value: unknown) => typeof value === 'boolean',
   closeTranscriptTarget: (value: unknown) =>
-    value === undefined || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
+    value == null || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
   deleteTranscriptTarget: (value: unknown) =>
-    value === undefined || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
-  userTranscriptDm: isOptionalString,
+    value == null || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
+  userTranscriptDm: isNullableOptionalString,
   formQuestions: isFormQuestions,
-  relatedCarryTier: isOptionalString,
-  relatedCarryDifficulty: isOptionalString,
+  relatedCarryTier: isNullableOptionalString,
+  relatedCarryDifficulty: isNullableOptionalString,
   supportRoles: isOptionalStringArray,
   additionalRoles: isOptionalStringArray,
   openCategories: isOptionalStringArray,
@@ -110,20 +114,20 @@ const ticketPanelFieldValidators = {
 function copyTicketPanelCreation(panel: TicketPanelCreationModel): TicketPanelCreationModel {
   return structuredClone({
     name: panel.name,
-    displayName: panel.displayName,
-    emoji: panel.emoji,
+    displayName: undefinedIfNull(panel.displayName),
+    emoji: undefinedIfNull(panel.emoji),
     closeable: panel.closeable,
     closeConfirmation: panel.closeConfirmation,
     claimable: panel.claimable,
-    openChannelName: panel.openChannelName,
-    claimedChannelName: panel.claimedChannelName,
-    closedChannelName: panel.closedChannelName,
+    openChannelName: undefinedIfNull(panel.openChannelName),
+    claimedChannelName: undefinedIfNull(panel.claimedChannelName),
+    closedChannelName: undefinedIfNull(panel.closedChannelName),
     transcriptChannel: undefined,
-    ticketMessage: panel.ticketMessage,
+    ticketMessage: undefinedIfNull(panel.ticketMessage),
     requiresLinking: panel.requiresLinking,
-    closeTranscriptTarget: panel.closeTranscriptTarget,
-    deleteTranscriptTarget: panel.deleteTranscriptTarget,
-    userTranscriptDm: panel.userTranscriptDm,
+    closeTranscriptTarget: undefinedIfNull(panel.closeTranscriptTarget),
+    deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
+    userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
     formQuestions: undefinedIfNull(panel.formQuestions),
     relatedCarryTier: undefined,
     relatedCarryDifficulty: undefined,
@@ -139,20 +143,20 @@ function copyTicketPanelCreation(panel: TicketPanelCreationModel): TicketPanelCr
 export function toTicketPanelCreation(panel: TicketPanelModel): TicketPanelCreationModel {
   return structuredClone({
     name: panel.name,
-    displayName: panel.displayName,
-    emoji: panel.emoji,
+    displayName: undefinedIfNull(panel.displayName),
+    emoji: undefinedIfNull(panel.emoji),
     closeable: panel.closeable,
     closeConfirmation: panel.closeConfirmation,
     claimable: panel.claimable,
-    openChannelName: panel.openChannelName,
-    claimedChannelName: panel.claimedChannelName,
-    closedChannelName: panel.closedChannelName,
+    openChannelName: undefinedIfNull(panel.openChannelName),
+    claimedChannelName: undefinedIfNull(panel.claimedChannelName),
+    closedChannelName: undefinedIfNull(panel.closedChannelName),
     transcriptChannel: panel.transcriptChannel?.id,
-    ticketMessage: panel.ticketMessage,
+    ticketMessage: undefinedIfNull(panel.ticketMessage),
     requiresLinking: panel.requiresLinking,
-    closeTranscriptTarget: panel.closeTranscriptTarget,
-    deleteTranscriptTarget: panel.deleteTranscriptTarget,
-    userTranscriptDm: panel.userTranscriptDm,
+    closeTranscriptTarget: undefinedIfNull(panel.closeTranscriptTarget),
+    deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
+    userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
     formQuestions: panel.formQuestions,
     relatedCarryTier: panel.relatedCarryTier?.id,
     relatedCarryDifficulty: panel.relatedCarryDifficulty?.id,
