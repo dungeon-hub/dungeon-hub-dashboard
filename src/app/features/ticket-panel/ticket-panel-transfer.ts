@@ -19,6 +19,84 @@ export interface TicketPanelImport {
   panel: TicketPanelCreationModel;
 }
 
+type UntrustedTicketPanel = Partial<Record<keyof TicketPanelCreationModel, unknown>>;
+
+interface UntrustedTicketPanelExport {
+  version?: unknown;
+  id?: unknown;
+  name?: unknown;
+  panel?: unknown;
+}
+
+const TRANSCRIPT_TARGETS = new Set(['None', 'User', 'TranscriptChannel', 'Both']);
+const FORM_TYPES = new Set(['Predefined', 'TextInput', 'StringSelect', 'TextDisplay']);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string';
+}
+
+function isOptionalStringArray(value: unknown): value is string[] | undefined {
+  return value == null || (Array.isArray(value) && value.every((item) => typeof item === 'string'));
+}
+
+function isFormQuestions(value: unknown): boolean {
+  return (
+    value == null ||
+    (Array.isArray(value) &&
+      value.every(
+        (question) =>
+          isRecord(question) &&
+          typeof question['type'] === 'string' &&
+          FORM_TYPES.has(question['type']) &&
+          typeof question['data'] === 'string',
+      ))
+  );
+}
+
+function isPermissions(value: unknown): boolean {
+  return (
+    value == null ||
+    (isRecord(value) &&
+      Object.values(value).every(
+        (permission) =>
+          isRecord(permission) &&
+          Object.values(permission).every((bitSet) => typeof bitSet === 'string'),
+      ))
+  );
+}
+
+const ticketPanelFieldValidators = {
+  name: (value: unknown) => typeof value === 'string' && !!value.trim(),
+  displayName: isOptionalString,
+  emoji: isOptionalString,
+  closeable: (value: unknown) => typeof value === 'boolean',
+  closeConfirmation: (value: unknown) => typeof value === 'boolean',
+  claimable: (value: unknown) => typeof value === 'boolean',
+  openChannelName: isOptionalString,
+  claimedChannelName: isOptionalString,
+  closedChannelName: isOptionalString,
+  transcriptChannel: isOptionalString,
+  ticketMessage: isOptionalString,
+  requiresLinking: (value: unknown) => typeof value === 'boolean',
+  closeTranscriptTarget: (value: unknown) =>
+    value === undefined || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
+  deleteTranscriptTarget: (value: unknown) =>
+    value === undefined || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
+  userTranscriptDm: isOptionalString,
+  formQuestions: isFormQuestions,
+  relatedCarryTier: isOptionalString,
+  relatedCarryDifficulty: isOptionalString,
+  supportRoles: isOptionalStringArray,
+  additionalRoles: isOptionalStringArray,
+  openCategories: isOptionalStringArray,
+  closedCategories: isOptionalStringArray,
+  permissions: isPermissions,
+} satisfies Record<keyof TicketPanelCreationModel, (value: unknown) => boolean>;
+
 function copyTicketPanelCreation(panel: TicketPanelCreationModel): TicketPanelCreationModel {
   return structuredClone({
     name: panel.name,
@@ -44,7 +122,7 @@ function copyTicketPanelCreation(panel: TicketPanelCreationModel): TicketPanelCr
     openCategories: panel.openCategories,
     closedCategories: panel.closedCategories,
     permissions: panel.permissions,
-  });
+  } satisfies TicketPanelCreationModel & Record<keyof TicketPanelCreationModel, unknown>);
 }
 
 /** Builds a detached creation model so transfer operations can never mutate the source panel. */
@@ -73,7 +151,7 @@ export function toTicketPanelCreation(panel: TicketPanelModel): TicketPanelCreat
     openCategories: panel.openCategories,
     closedCategories: panel.closedCategories,
     permissions: panel.permissions,
-  });
+  } satisfies TicketPanelCreationModel & Record<keyof TicketPanelCreationModel, unknown>);
 }
 
 export function exportTicketPanel(panel: TicketPanelModel): TicketPanelExport {
@@ -99,32 +177,32 @@ export function isTicketPanelExport(contents: string): boolean {
 }
 
 export function parseTicketPanelExport(contents: string): TicketPanelImport {
-  const parsed = JSON.parse(contents) as TicketPanelExport;
-  const panel = parsed?.panel;
-  const invalidPermissions =
-    panel?.permissions != null &&
-    (typeof panel.permissions !== 'object' || Array.isArray(panel.permissions));
+  const parsed: unknown = JSON.parse(contents);
+  if (!isRecord(parsed)) {
+    throw new Error('This is not a supported ticket panel export.');
+  }
+  const candidate = parsed as UntrustedTicketPanelExport;
+  if (!isRecord(candidate.panel)) {
+    throw new Error('This is not a supported ticket panel export.');
+  }
+  const panel = candidate.panel as UntrustedTicketPanel;
+  const hasInvalidPanelField = Object.entries(ticketPanelFieldValidators).some(
+    ([field, validate]) => !validate(panel[field as keyof TicketPanelCreationModel]),
+  );
   if (
-    parsed?.version !== TICKET_PANEL_EXPORT_VERSION ||
-    typeof panel?.name !== 'string' ||
-    !panel.name.trim() ||
-    typeof panel.closeable !== 'boolean' ||
-    typeof panel.closeConfirmation !== 'boolean' ||
-    typeof panel.claimable !== 'boolean' ||
-    typeof panel.requiresLinking !== 'boolean' ||
-    (panel.formQuestions != null && !Array.isArray(panel.formQuestions)) ||
-    (panel.supportRoles != null && !Array.isArray(panel.supportRoles)) ||
-    (panel.additionalRoles != null && !Array.isArray(panel.additionalRoles)) ||
-    (panel.openCategories != null && !Array.isArray(panel.openCategories)) ||
-    (panel.closedCategories != null && !Array.isArray(panel.closedCategories)) ||
-    invalidPermissions
+    candidate.version !== TICKET_PANEL_EXPORT_VERSION ||
+    !isOptionalString(candidate.id) ||
+    !isOptionalString(candidate.name) ||
+    hasInvalidPanelField ||
+    (candidate.name !== undefined && candidate.name !== panel.name) ||
+    typeof panel.name !== 'string'
   ) {
     throw new Error('This is not a supported ticket panel export.');
   }
   return {
-    id: parsed.id,
-    name: parsed.name,
-    panel: copyTicketPanelCreation(panel),
+    id: candidate.id,
+    name: candidate.name,
+    panel: copyTicketPanelCreation(panel as unknown as TicketPanelCreationModel),
   };
 }
 

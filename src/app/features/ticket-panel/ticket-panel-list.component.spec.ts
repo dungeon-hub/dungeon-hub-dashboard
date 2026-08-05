@@ -126,6 +126,28 @@ describe('TicketPanelListComponent transfers', () => {
     expect(existing).toEqual(snapshot);
   });
 
+  it('reports download failures and still revokes an allocated URL', async () => {
+    const instance = component();
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:panel');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    vi.spyOn(document, 'createElement').mockReturnValue({
+      click: () => {
+        throw new Error('download blocked');
+      },
+    } as any);
+    instance.openExportModal(existing);
+
+    instance.downloadExport();
+
+    expect(instance.showExportModal).toBe(true);
+    expect(instance.transferError).toBe(true);
+    expect(instance.transferMessage).toBe(
+      'Could not download the ticket panel export. Please try again.',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:panel');
+  });
+
   it('does nothing when export actions have no selected panel', async () => {
     const instance = component();
     await instance.copyExportToClipboard();
@@ -188,6 +210,32 @@ describe('TicketPanelListComponent transfers', () => {
     expect(instance.transferMessage).toBe(
       'Could not read ticket panel export. Choose a valid ticket panel JSON file.',
     );
+  });
+
+  it.each([
+    [
+      'selected',
+      (instance: TicketPanelListComponent, file: any) =>
+        instance.importPanel({ target: { files: [file], value: 'selected' } } as any),
+    ],
+    [
+      'dropped',
+      (instance: TicketPanelListComponent, file: any) =>
+        instance.onFileDrop({ preventDefault: vi.fn(), dataTransfer: { files: [file] } } as any),
+    ],
+  ])('reports a %s file read failure without changing existing panels', async (_source, importFile) => {
+    const snapshot = structuredClone(existing);
+    const instance = component();
+    instance.showImportSourceModal = true;
+
+    await importFile(instance, { text: () => Promise.reject(new Error('read failed')) });
+
+    expect(instance.transferMessage).toBe(
+      'Could not read ticket panel export. Choose a valid ticket panel JSON file.',
+    );
+    expect(instance.showImportSourceModal).toBe(true);
+    expect(instance.pendingPanel).toBeNull();
+    expect(existing).toEqual(snapshot);
   });
 
   it('leaves file import unchanged when no file was selected', async () => {

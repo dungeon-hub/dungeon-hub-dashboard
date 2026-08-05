@@ -30,7 +30,7 @@ function panel(): TicketPanelModel {
     deleteTranscriptTarget: 'User',
     ticketMessage: '{"content":"Help"}',
     userTranscriptDm: '["transcript"]',
-    formQuestions: [{ id: 'question' } as any],
+    formQuestions: [{ type: 'TextInput', data: '{"label":"Question"}' }],
     relatedCarryTier: { id: 'tier-1' } as any,
     relatedCarryDifficulty: { id: 'difficulty-1' } as any,
     supportRoles: [{ id: 'role-1' } as any],
@@ -180,5 +180,46 @@ describe('ticket panel transfer', () => {
     const imported = parseTicketPanelExport(JSON.stringify(exported));
 
     expect(imported.panel).not.toHaveProperty('unknownSetting');
+  });
+
+  it.each([
+    ['source id', (data: any) => (data.id = 123)],
+    ['source name', (data: any) => (data.name = {})],
+    ['mismatched source name', (data: any) => (data.name = 'different-panel')],
+    ['display name', (data: any) => (data.panel.displayName = 123)],
+    ['emoji', (data: any) => (data.panel.emoji = {})],
+    ['transcript target', (data: any) => (data.panel.closeTranscriptTarget = 'Unknown')],
+    ['role id', (data: any) => (data.panel.supportRoles = ['valid', 123])],
+    ['category id', (data: any) => (data.panel.openCategories = [{}])],
+    ['form type', (data: any) => (data.panel.formQuestions = [{ type: 'Unknown', data: '{}' }])],
+    ['form data', (data: any) => (data.panel.formQuestions = [{ type: 'TextInput', data: 123 }])],
+    ['permission group', (data: any) => (data.panel.permissions = { Everyone: [] })],
+    ['permission bit set', (data: any) => (data.panel.permissions = { Everyone: { Denied: 1 } })],
+  ])('rejects invalid %s values before they can reach the API', (_field, invalidate) => {
+    const exported = exportTicketPanel(panel()) as any;
+    invalidate(exported);
+
+    expect(() => parseTicketPanelExport(JSON.stringify(exported))).toThrow(
+      'not a supported ticket panel export',
+    );
+  });
+
+  it('accepts every supported transcript target and form question type', () => {
+    const transcriptTargets = ['None', 'User', 'TranscriptChannel', 'Both'];
+    const formTypes = ['Predefined', 'TextInput', 'StringSelect', 'TextDisplay'];
+
+    for (const target of transcriptTargets) {
+      for (const type of formTypes) {
+        const exported = exportTicketPanel(panel()) as any;
+        exported.panel.closeTranscriptTarget = target;
+        exported.panel.deleteTranscriptTarget = target;
+        exported.panel.formQuestions = [{ type, data: '{}' }];
+        expect(parseTicketPanelExport(JSON.stringify(exported)).panel).toMatchObject({
+          closeTranscriptTarget: target,
+          deleteTranscriptTarget: target,
+          formQuestions: [{ type, data: '{}' }],
+        });
+      }
+    }
   });
 });

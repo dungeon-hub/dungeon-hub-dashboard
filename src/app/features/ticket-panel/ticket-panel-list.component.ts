@@ -363,7 +363,7 @@ export class TicketPanelListComponent implements OnInit {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    await this.processImport(await file.text());
+    await this.importFile(file);
   }
 
   async openImportSourceModal() {
@@ -405,7 +405,16 @@ export class TicketPanelListComponent implements OnInit {
     event.preventDefault();
     this.isDragging = false;
     const file = event.dataTransfer?.files?.[0];
-    if (file) await this.processImport(await file.text());
+    if (file) await this.importFile(file);
+  }
+
+  private async importFile(file: Pick<File, 'text'>) {
+    try {
+      await this.processImport(await file.text());
+    } catch {
+      this.transferMessage =
+        'Could not read ticket panel export. Choose a valid ticket panel JSON file.';
+    }
   }
 
   private async processImport(contents: string) {
@@ -490,22 +499,32 @@ export class TicketPanelListComponent implements OnInit {
       this.transferMessage = 'Clipboard access was denied. Please download the JSON file instead.';
       this.transferError = true;
     }
-    this.cdr.detectChanges();
+    if (!this.destroyRef.destroyed) this.cdr.detectChanges();
   }
 
   downloadExport() {
     if (!this.exportTarget) return;
     const panel = this.exportTarget;
-    const blob = new Blob([serializeTicketPanel(panel)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${panel.name}.ticket-panel.json`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-    this.closeExportModal();
+    let url: string | null = null;
+    try {
+      const blob = new Blob([serializeTicketPanel(panel)], {
+        type: 'application/json',
+      });
+      url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${panel.name}.ticket-panel.json`;
+      link.click();
+      this.closeExportModal();
+    } catch {
+      this.transferMessage = 'Could not download the ticket panel export. Please try again.';
+      this.transferError = true;
+    } finally {
+      if (url) {
+        const allocatedUrl = url;
+        setTimeout(() => URL.revokeObjectURL(allocatedUrl), 0);
+      }
+    }
   }
 
   ngOnInit() {
