@@ -228,6 +228,53 @@ describe('ticket panel transfer', () => {
     expect(hasDuplicatePanelName(panels, 'different', 'Different')).toBe(false);
   });
 
+  it('accepts legacy exports with numeric ids, numeric relations, and numeric permission bits', () => {
+    const legacyExport = {
+      version: 1,
+      id: 4,
+      name: 'f4',
+      panel: {
+        name: 'f4',
+        displayName: 'Floor 4: Thorn',
+        emoji: '<:thorn:792055545204310046>',
+        closeable: true,
+        closeConfirmation: true,
+        claimable: true,
+        openChannelName: 'f4-{user.displayName}-{ticket.id}',
+        transcriptChannel: '1036375112619937792',
+        ticketMessage: '{"content":"ticket"}',
+        requiresLinking: true,
+        closeTranscriptTarget: 'User',
+        deleteTranscriptTarget: 'TranscriptChannel',
+        formQuestions: [
+          { type: 'Predefined', data: '"carry-difficulty"' },
+          { type: 'Predefined', data: '"carry-amount"' },
+        ],
+        relatedCarryTier: 28,
+        supportRoles: ['1061116185132933240'],
+        additionalRoles: ['1036373005720358972'],
+        openCategories: ['1026291896336793631'],
+        closedCategories: [],
+        permissions: {
+          Everyone: { Denied: 1024 },
+          TicketCreator: { Allowed: 68608 },
+        },
+      },
+    };
+
+    const imported = parseTicketPanelExport(JSON.stringify(legacyExport));
+
+    expect(imported.id).toBe('4');
+    expect(imported.panel.name).toBe('f4');
+    expect(imported.panel.relatedCarryTier).toBeUndefined();
+    expect(imported.panel.supportRoles).toBeUndefined();
+    expect(imported.panel.permissions).toEqual({
+      Everyone: { Denied: '1024' },
+      TicketCreator: { Allowed: '68608' },
+    });
+    expect(isTicketPanelExport(JSON.stringify(legacyExport))).toBe(true);
+  });
+
   it('rejects unsupported import files', () => {
     expect(() => parseTicketPanelExport('{"version":999,"panel":{"name":"x"}}')).toThrow(
       'not a supported ticket panel export',
@@ -302,7 +349,7 @@ describe('ticket panel transfer', () => {
   });
 
   it.each([
-    ['source id', (data: any) => (data.id = 123)],
+    ['source id', (data: any) => (data.id = {})],
     ['source name', (data: any) => (data.name = {})],
     ['mismatched source name', (data: any) => (data.name = 'different-panel')],
     ['display name', (data: any) => (data.panel.displayName = 123)],
@@ -313,7 +360,7 @@ describe('ticket panel transfer', () => {
     ['form type', (data: any) => (data.panel.formQuestions = [{ type: 'Unknown', data: '{}' }])],
     ['form data', (data: any) => (data.panel.formQuestions = [{ type: 'TextInput', data: 123 }])],
     ['permission group', (data: any) => (data.panel.permissions = { Everyone: [] })],
-    ['permission bit set', (data: any) => (data.panel.permissions = { Everyone: { Denied: 1 } })],
+    ['permission bit set', (data: any) => (data.panel.permissions = { Everyone: { Denied: {} } })],
   ])('rejects invalid %s values before they can reach the API', (_field, invalidate) => {
     const exported = exportTicketPanel(panel()) as any;
     invalidate(exported);

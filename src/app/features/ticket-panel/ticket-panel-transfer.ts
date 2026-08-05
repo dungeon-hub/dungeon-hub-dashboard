@@ -49,6 +49,16 @@ function isNullableOptionalString(value: unknown): value is string | null | unde
   return value == null || typeof value === 'string';
 }
 
+function isOptionalExportId(value: unknown): value is string | number | undefined {
+  return value === undefined || typeof value === 'string' || typeof value === 'number';
+}
+
+function isNullableOptionalStringOrNumber(
+  value: unknown,
+): value is string | number | null | undefined {
+  return value == null || typeof value === 'string' || typeof value === 'number';
+}
+
 function isOptionalStringArray(value: unknown): value is string[] | undefined {
   return value == null || (Array.isArray(value) && value.every((item) => typeof item === 'string'));
 }
@@ -74,13 +84,27 @@ function isPermissions(value: unknown): boolean {
       Object.values(value).every(
         (permission) =>
           isRecord(permission) &&
-          Object.values(permission).every((bitSet) => typeof bitSet === 'string'),
+          Object.values(permission).every(
+            (bitSet) => typeof bitSet === 'string' || typeof bitSet === 'number',
+          ),
       ))
   );
 }
 
 function undefinedIfNull<T>(value: T | null | undefined): T | undefined {
   return value ?? undefined;
+}
+
+function normalizePermissions(
+  permissions: TicketPanelCreationModel['permissions'] | null | undefined,
+): TicketPanelCreationModel['permissions'] | undefined {
+  if (permissions == null) return undefined;
+  return Object.fromEntries(
+    Object.entries(permissions).map(([scope, values]) => [
+      scope,
+      Object.fromEntries(Object.entries(values).map(([state, bitSet]) => [state, String(bitSet)])),
+    ]),
+  );
 }
 
 const ticketPanelFieldValidators = {
@@ -102,8 +126,8 @@ const ticketPanelFieldValidators = {
     value == null || (typeof value === 'string' && TRANSCRIPT_TARGETS.has(value)),
   userTranscriptDm: isNullableOptionalString,
   formQuestions: isFormQuestions,
-  relatedCarryTier: isNullableOptionalString,
-  relatedCarryDifficulty: isNullableOptionalString,
+  relatedCarryTier: isNullableOptionalStringOrNumber,
+  relatedCarryDifficulty: isNullableOptionalStringOrNumber,
   supportRoles: isOptionalStringArray,
   additionalRoles: isOptionalStringArray,
   openCategories: isOptionalStringArray,
@@ -135,7 +159,7 @@ function copyTicketPanelCreation(panel: TicketPanelCreationModel): TicketPanelCr
     additionalRoles: undefined,
     openCategories: undefined,
     closedCategories: undefined,
-    permissions: undefinedIfNull(panel.permissions),
+    permissions: normalizePermissions(panel.permissions),
   } satisfies TicketPanelCreationModel & Record<keyof TicketPanelCreationModel, unknown>);
 }
 
@@ -245,7 +269,7 @@ function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
   );
   if (
     candidate.version !== TICKET_PANEL_EXPORT_VERSION ||
-    !isOptionalString(candidate.id) ||
+    !isOptionalExportId(candidate.id) ||
     !isOptionalString(candidate.name) ||
     hasInvalidPanelField ||
     (candidate.name !== undefined && candidate.name !== panel.name) ||
@@ -254,7 +278,7 @@ function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
     throw new Error('This is not a supported ticket panel export.');
   }
   return {
-    id: candidate.id,
+    id: candidate.id === undefined ? undefined : String(candidate.id),
     name: candidate.name,
     panel: copyTicketPanelCreation(panel as unknown as TicketPanelCreationModel),
   };
