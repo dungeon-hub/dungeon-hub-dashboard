@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed } from "@angular/core/testing";
+import { type ComponentFixture, TestBed } from "@angular/core/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/services/auth.service";
 import { HeaderComponent } from "./header.component";
@@ -31,9 +31,8 @@ describe("HeaderComponent", () => {
 		const menuButton: HTMLButtonElement = fixture.nativeElement.querySelector(
 			"button[aria-controls='mobile-navigation']",
 		);
-		const mobileNavigation: HTMLElement = fixture.nativeElement.querySelector(
-			"#mobile-navigation",
-		);
+		const mobileNavigation: HTMLElement =
+			fixture.nativeElement.querySelector("#mobile-navigation");
 
 		expect(menuButton).toBeTruthy();
 		expect(menuButton.getAttribute("aria-label")).toBe("Open main menu");
