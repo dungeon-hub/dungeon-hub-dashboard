@@ -1,5 +1,4 @@
 import { type ComponentFixture, TestBed } from "@angular/core/testing";
-import { provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/services/auth.service";
 import { HeaderComponent } from "./header.component";
@@ -23,10 +22,7 @@ describe("HeaderComponent", () => {
 
 		await TestBed.configureTestingModule({
 			imports: [HeaderComponent],
-			providers: [
-				provideRouter([]),
-				{ provide: AuthService, useValue: authService },
-			],
+			providers: [{ provide: AuthService, useValue: authService }],
 		}).compileComponents();
 
 		fixture = TestBed.createComponent(HeaderComponent);
@@ -37,16 +33,44 @@ describe("HeaderComponent", () => {
 		authService.isAuthenticated.mockReturnValue(false);
 		fixture.detectChanges();
 
-		const loginLink: HTMLAnchorElement | null =
-			fixture.nativeElement.querySelector('a[routerLink="/login"]');
+		const loginButton: HTMLButtonElement | null =
+			fixture.nativeElement.querySelector('button[data-testid="desktop-login"]');
 
-		expect(loginLink).not.toBeNull();
-		expect(loginLink?.textContent?.trim()).toBe("Login");
-		expect(loginLink?.getAttribute("href")).toBe("/login");
+		expect(loginButton).not.toBeNull();
+		expect(loginButton?.textContent?.trim()).toBe("Login");
+		expect(loginButton?.type).toBe("button");
 
-		loginLink?.click();
+		loginButton?.click();
 
 		expect(authService.login).toHaveBeenCalledOnce();
+	});
+
+	it("starts login and closes the open mobile menu", () => {
+		authService.isAuthenticated.mockReturnValue(false);
+		fixture.detectChanges();
+
+		const menuButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+			"button[aria-controls='mobile-navigation']",
+		);
+		menuButton.click();
+		fixture.detectChanges();
+
+		const mobileLoginButton: HTMLButtonElement | null =
+			fixture.nativeElement.querySelector(
+				'#mobile-navigation button[data-testid="mobile-login"]',
+			);
+		expect(mobileLoginButton).not.toBeNull();
+
+		mobileLoginButton?.click();
+		fixture.detectChanges();
+
+		expect(authService.login).toHaveBeenCalledOnce();
+		expect(menuButton.getAttribute("aria-expanded")).toBe("false");
+		expect(
+			fixture.nativeElement
+				.querySelector("#mobile-navigation")
+				.hasAttribute("hidden"),
+		).toBe(true);
 	});
 
 	it("exposes a deterministic mobile menu toggle with accessible state", () => {
@@ -86,7 +110,9 @@ describe("HeaderComponent", () => {
 		expect(mobileLogoutButton.textContent).toContain("Logout");
 
 		mobileLogoutButton.click();
+		fixture.detectChanges();
 
 		expect(authService.logout).toHaveBeenCalledOnce();
+		expect(menuButton.getAttribute("aria-expanded")).toBe("false");
 	});
 });

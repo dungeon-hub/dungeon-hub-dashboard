@@ -1,12 +1,11 @@
 import { CommonModule } from "@angular/common";
 import { Component, inject } from "@angular/core";
-import { RouterLink } from "@angular/router";
 import { AuthService } from "../../../core/services/auth.service";
 
 @Component({
 	selector: "app-header",
 	standalone: true,
-	imports: [CommonModule, RouterLink],
+	imports: [CommonModule],
 	template: `
     <header class="bg-gray-800 border-b border-gray-700">
       <nav class="container mx-auto px-4" aria-label="Main navigation">
@@ -73,7 +72,7 @@ import { AuthService } from "../../../core/services/auth.service";
                       <button type="button" (click)="logout()" class="w-full px-4 py-2 text-left text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Logout</button>
                     </li>
                   } @else {
-                    <li><a routerLink="/login" (click)="login($event)" class="block px-4 py-2 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Login</a></li>
+                    <li><button type="button" data-testid="desktop-login" (click)="login()" class="w-full px-4 py-2 text-left text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Login</button></li>
                   }
                 </ul>
               </details>
@@ -93,7 +92,7 @@ import { AuthService } from "../../../core/services/auth.service";
                 <button type="button" data-testid="mobile-logout" class="mobile-nav-link w-full text-left" (click)="logout()">Logout</button>
               </li>
             } @else {
-              <li><a routerLink="/login" class="mobile-nav-link" (click)="login($event)">Login</a></li>
+              <li><button type="button" data-testid="mobile-login" class="mobile-nav-link w-full text-left" (click)="login()">Login</button></li>
             }
           </ul>
         </div>
@@ -150,9 +149,7 @@ export class HeaderComponent {
 		this.isMobileMenuOpen = false;
 	}
 
-	login(event: Event): void {
-		event.preventDefault();
-		event.stopPropagation();
+	login(): void {
 		this.closeMobileMenu();
 		this.authService.login();
 	}
