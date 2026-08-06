@@ -9,6 +9,7 @@ describe("HeaderComponent", () => {
 		getUserInfo: ReturnType<typeof vi.fn>;
 		isAuthenticated: ReturnType<typeof vi.fn>;
 		login: ReturnType<typeof vi.fn>;
+		manageAccount: ReturnType<typeof vi.fn>;
 		logout: ReturnType<typeof vi.fn>;
 	};
 
@@ -17,6 +18,7 @@ describe("HeaderComponent", () => {
 			getUserInfo: vi.fn(() => ({ email: "hero@dungeon-hub.net" })),
 			isAuthenticated: vi.fn(() => true),
 			login: vi.fn(),
+			manageAccount: vi.fn(),
 			logout: vi.fn(),
 		};
 
@@ -91,6 +93,40 @@ describe("HeaderComponent", () => {
 		expect(menuButton.getAttribute("aria-label")).toBe("Close main menu");
 		expect(menuButton.getAttribute("aria-expanded")).toBe("true");
 		expect(mobileNavigation.hasAttribute("hidden")).toBe(false);
+	});
+
+	it("opens account management from the desktop account menu", () => {
+		const manageAccountButton: HTMLButtonElement | null =
+			fixture.nativeElement.querySelector(
+				'button[data-testid="desktop-manage-account"]',
+			);
+
+		expect(manageAccountButton).not.toBeNull();
+		expect(manageAccountButton?.textContent?.trim()).toBe("Manage account");
+
+		manageAccountButton?.click();
+
+		expect(authService.manageAccount).toHaveBeenCalledOnce();
+	});
+
+	it("opens account management and closes the mobile menu", () => {
+		const menuButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+			"button[aria-controls='mobile-navigation']",
+		);
+		menuButton.click();
+		fixture.detectChanges();
+
+		const manageAccountButton: HTMLButtonElement | null =
+			fixture.nativeElement.querySelector(
+				'#mobile-navigation button[data-testid="mobile-manage-account"]',
+			);
+		expect(manageAccountButton).not.toBeNull();
+
+		manageAccountButton?.click();
+		fixture.detectChanges();
+
+		expect(authService.manageAccount).toHaveBeenCalledOnce();
+		expect(menuButton.getAttribute("aria-expanded")).toBe("false");
 	});
 
 	it("makes logout reachable from the mobile menu", () => {

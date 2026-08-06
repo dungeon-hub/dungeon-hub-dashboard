@@ -158,6 +158,14 @@ export class AuthService {
 		this.oauthService.initCodeFlow();
 	}
 
+	manageAccount(): void {
+		if (typeof window === "undefined") {
+			return;
+		}
+
+		window.location.assign(`${environment.keycloak.issuer}/account/`);
+	}
+
 	private clearOAuthStorage() {
 		this.oauthService.logOut(true);
 	}

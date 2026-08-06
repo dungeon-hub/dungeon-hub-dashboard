@@ -69,6 +69,9 @@ import { AuthService } from "../../../core/services/auth.service";
                   @if (isAuthenticated) {
                     <li class="border-b border-gray-700 px-4 py-2 text-sm text-gray-400">{{ userEmail }}</li>
                     <li>
+                      <button type="button" data-testid="desktop-manage-account" (click)="manageAccount()" class="w-full px-4 py-2 text-left text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Manage account</button>
+                    </li>
+                    <li>
                       <button type="button" (click)="logout()" class="w-full px-4 py-2 text-left text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Logout</button>
                     </li>
                   } @else {
@@ -88,6 +91,9 @@ import { AuthService } from "../../../core/services/auth.service";
             <li><a href="https://docs.dungeon-hub.net/" class="mobile-nav-link" (click)="closeMobileMenu()">Documentation</a></li>
             @if (isAuthenticated) {
               <li class="px-3 py-2 text-sm text-gray-400">Signed in as {{ userEmail }}</li>
+              <li>
+                <button type="button" data-testid="mobile-manage-account" class="mobile-nav-link w-full text-left" (click)="manageAccount()">Manage account</button>
+              </li>
               <li>
                 <button type="button" data-testid="mobile-logout" class="mobile-nav-link w-full text-left" (click)="logout()">Logout</button>
               </li>
@@ -152,6 +158,11 @@ export class HeaderComponent {
 	login(): void {
 		this.closeMobileMenu();
 		this.authService.login();
+	}
+
+	manageAccount(): void {
+		this.closeMobileMenu();
+		this.authService.manageAccount();
 	}
 
 	logout(): void {
