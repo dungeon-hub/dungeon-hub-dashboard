@@ -1,4 +1,5 @@
 import { type ComponentFixture, TestBed } from "@angular/core/testing";
+import { provideRouter } from "@angular/router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthService } from "../../../core/services/auth.service";
 import { HeaderComponent } from "./header.component";
@@ -20,11 +21,26 @@ describe("HeaderComponent", () => {
 
 		await TestBed.configureTestingModule({
 			imports: [HeaderComponent],
-			providers: [{ provide: AuthService, useValue: authService }],
+			providers: [
+				provideRouter([]),
+				{ provide: AuthService, useValue: authService },
+			],
 		}).compileComponents();
 
 		fixture = TestBed.createComponent(HeaderComponent);
 		fixture.detectChanges();
+	});
+
+	it("routes logged-out users to the login page from the account menu", () => {
+		authService.isAuthenticated.mockReturnValue(false);
+		fixture.detectChanges();
+
+		const loginLink: HTMLAnchorElement | null =
+			fixture.nativeElement.querySelector('a[routerLink="/login"]');
+
+		expect(loginLink).not.toBeNull();
+		expect(loginLink?.textContent?.trim()).toBe("Login");
+		expect(loginLink?.getAttribute("href")).toBe("/login");
 	});
 
 	it("exposes a deterministic mobile menu toggle with accessible state", () => {

@@ -1,11 +1,12 @@
 import { CommonModule } from "@angular/common";
 import { Component, inject } from "@angular/core";
+import { RouterLink } from "@angular/router";
 import { AuthService } from "../../../core/services/auth.service";
 
 @Component({
 	selector: "app-header",
 	standalone: true,
-	imports: [CommonModule],
+	imports: [CommonModule, RouterLink],
 	template: `
     <header class="bg-gray-800 border-b border-gray-700">
       <nav class="container mx-auto px-4" aria-label="Main navigation">
@@ -72,7 +73,7 @@ import { AuthService } from "../../../core/services/auth.service";
                       <button type="button" (click)="logout()" class="w-full px-4 py-2 text-left text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Logout</button>
                     </li>
                   } @else {
-                    <li><a href="/auth/login" class="block px-4 py-2 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Login</a></li>
+                    <li><a routerLink="/login" class="block px-4 py-2 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Login</a></li>
                   }
                 </ul>
               </details>
@@ -92,7 +93,7 @@ import { AuthService } from "../../../core/services/auth.service";
                 <button type="button" data-testid="mobile-logout" class="mobile-nav-link w-full text-left" (click)="logout()">Logout</button>
               </li>
             } @else {
-              <li><a href="/auth/login" class="mobile-nav-link" (click)="closeMobileMenu()">Login</a></li>
+              <li><a routerLink="/login" class="mobile-nav-link" (click)="closeMobileMenu()">Login</a></li>
             }
           </ul>
         </div>
