@@ -73,7 +73,7 @@ import { AuthService } from "../../../core/services/auth.service";
                       <button type="button" (click)="logout()" class="w-full px-4 py-2 text-left text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Logout</button>
                     </li>
                   } @else {
-                    <li><a routerLink="/login" class="block px-4 py-2 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Login</a></li>
+                    <li><a routerLink="/login" (click)="login($event)" class="block px-4 py-2 text-gray-300 transition-colors hover:bg-gray-700 hover:text-white focus:bg-gray-700 focus:text-white focus:outline-none">Login</a></li>
                   }
                 </ul>
               </details>
@@ -93,7 +93,7 @@ import { AuthService } from "../../../core/services/auth.service";
                 <button type="button" data-testid="mobile-logout" class="mobile-nav-link w-full text-left" (click)="logout()">Logout</button>
               </li>
             } @else {
-              <li><a routerLink="/login" class="mobile-nav-link" (click)="closeMobileMenu()">Login</a></li>
+              <li><a routerLink="/login" class="mobile-nav-link" (click)="login($event)">Login</a></li>
             }
           </ul>
         </div>
@@ -148,6 +148,13 @@ export class HeaderComponent {
 
 	closeMobileMenu(): void {
 		this.isMobileMenuOpen = false;
+	}
+
+	login(event: Event): void {
+		event.preventDefault();
+		event.stopPropagation();
+		this.closeMobileMenu();
+		this.authService.login();
 	}
 
 	logout(): void {

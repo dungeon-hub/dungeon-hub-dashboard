@@ -9,6 +9,7 @@ describe("HeaderComponent", () => {
 	let authService: {
 		getUserInfo: ReturnType<typeof vi.fn>;
 		isAuthenticated: ReturnType<typeof vi.fn>;
+		login: ReturnType<typeof vi.fn>;
 		logout: ReturnType<typeof vi.fn>;
 	};
 
@@ -16,6 +17,7 @@ describe("HeaderComponent", () => {
 		authService = {
 			getUserInfo: vi.fn(() => ({ email: "hero@dungeon-hub.net" })),
 			isAuthenticated: vi.fn(() => true),
+			login: vi.fn(),
 			logout: vi.fn(),
 		};
 
@@ -31,7 +33,7 @@ describe("HeaderComponent", () => {
 		fixture.detectChanges();
 	});
 
-	it("routes logged-out users to the login page from the account menu", () => {
+	it("starts login for logged-out users from the account menu", () => {
 		authService.isAuthenticated.mockReturnValue(false);
 		fixture.detectChanges();
 
@@ -41,6 +43,10 @@ describe("HeaderComponent", () => {
 		expect(loginLink).not.toBeNull();
 		expect(loginLink?.textContent?.trim()).toBe("Login");
 		expect(loginLink?.getAttribute("href")).toBe("/login");
+
+		loginLink?.click();
+
+		expect(authService.login).toHaveBeenCalledOnce();
 	});
 
 	it("exposes a deterministic mobile menu toggle with accessible state", () => {
