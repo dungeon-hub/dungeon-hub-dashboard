@@ -32,11 +32,15 @@ describe("HeaderComponent", () => {
 	});
 
 	it("starts login for logged-out users from the account menu", () => {
+		fixture.destroy();
 		authService.isAuthenticated.mockReturnValue(false);
+		fixture = TestBed.createComponent(HeaderComponent);
 		fixture.detectChanges();
 
 		const loginButton: HTMLButtonElement | null =
-			fixture.nativeElement.querySelector('button[data-testid="desktop-login"]');
+			fixture.nativeElement.querySelector(
+				'button[data-testid="desktop-login"]',
+			);
 
 		expect(loginButton).not.toBeNull();
 		expect(loginButton?.textContent?.trim()).toBe("Login");
@@ -47,8 +51,41 @@ describe("HeaderComponent", () => {
 		expect(authService.login).toHaveBeenCalledOnce();
 	});
 
-	it("starts login and closes the open mobile menu", () => {
+	it("hides authenticated account actions from logged-out users", () => {
+		fixture.destroy();
 		authService.isAuthenticated.mockReturnValue(false);
+		fixture = TestBed.createComponent(HeaderComponent);
+		fixture.detectChanges();
+
+		expect(
+			fixture.nativeElement.querySelector(
+				'button[data-testid="desktop-manage-account"]',
+			),
+		).toBeNull();
+		expect(
+			fixture.nativeElement.querySelector(
+				'button[data-testid="mobile-manage-account"]',
+			),
+		).toBeNull();
+		expect(
+			fixture.nativeElement.querySelector(
+				'button[data-testid="mobile-logout"]',
+			),
+		).toBeNull();
+		expect(
+			fixture.nativeElement.querySelector(
+				'button[data-testid="desktop-login"]',
+			),
+		).not.toBeNull();
+		expect(
+			fixture.nativeElement.querySelector('button[data-testid="mobile-login"]'),
+		).not.toBeNull();
+	});
+
+	it("starts login and closes the open mobile menu", () => {
+		fixture.destroy();
+		authService.isAuthenticated.mockReturnValue(false);
+		fixture = TestBed.createComponent(HeaderComponent);
 		fixture.detectChanges();
 
 		const menuButton: HTMLButtonElement = fixture.nativeElement.querySelector(
