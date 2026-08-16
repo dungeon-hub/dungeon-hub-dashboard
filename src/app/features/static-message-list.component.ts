@@ -14,10 +14,8 @@ import {
   TicketPanelControllerService
 } from '@dungeon-hub/api-client';
 import {AutocompleteComponent} from '../shared/components/autocomplete/autocomplete.component';
-import {MultiSelectAutocompleteComponent} from '../shared/components/multi-select-autocomplete/multi-select-autocomplete.component';
 import {getStaticMessageTypeLabel, STATIC_MESSAGE_TYPES, StaticMessageType} from './static-message/static-message-labels';
 import {
-  StaticMessageObjectOption,
   getObjectOptionTypeLabel,
   supportsObjectIds,
   toCarryTierOption,
@@ -28,7 +26,7 @@ import {
 @Component({
   selector: 'app-static-message-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AutocompleteComponent, MultiSelectAutocompleteComponent],
+  imports: [CommonModule, FormsModule, RouterLink, AutocompleteComponent],
   template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
@@ -103,7 +101,7 @@ import {
             <div class="space-y-4">
               <div>
                 <label class="label">Type *</label>
-                <select [(ngModel)]="newMessage.staticMessageType" (ngModelChange)="onCreateTypeChange($event)" class="input">
+                <select [(ngModel)]="newMessage.staticMessageType" class="input">
                   @for (type of staticMessageTypes; track type) {
                     <option [value]="type">{{ getTypeLabel(type) }}</option>
                   }
@@ -113,12 +111,6 @@ import {
                 <label class="label">Channel *</label>
                 <app-autocomplete [items]="discordChannels" displayKey="name" valueKey="id" placeholder="Search channels..." [selectedItem]="selectedCreateChannel" (selectedItemChange)="onCreateChannelSelected($event)" nullLabel="Select a channel" groupByKey="category.id" groupDisplayKey="category.name"></app-autocomplete>
               </div>
-              @if (shouldShowObjectIds(newMessage.staticMessageType)) {
-                <div>
-                  <label class="label">Object IDs</label>
-                  <app-multi-select-autocomplete [items]="objectOptions" [selectedItems]="selectedCreateObjectOptions" (selectedItemsChange)="onCreateObjectOptionsSelected($event)" displayKey="name" valueKey="id" placeholder="Search objects..." nullLabel="No objects selected"></app-multi-select-autocomplete>
-                </div>
-              }
               <div>
                 <label class="label">Embed Override</label>
                 <textarea [(ngModel)]="newMessage.embedOverride" (ngModelChange)="validateCreateEmbedOverride()" rows="6" class="input font-mono text-sm"></textarea>
@@ -152,11 +144,9 @@ export class StaticMessageListComponent implements OnInit {
   serverId!: string;
   staticMessages: StaticMessageModel[] = [];
   discordChannels: DiscordChannelModel[] = [];
-  objectOptions: StaticMessageObjectOption[] = [];
   private ticketPanelNameById = new Map<string, string>();
   private carryTypeNameById = new Map<string, string>();
   private carryTierNameById = new Map<string, string>();
-  private currentObjectTypeRequest: StaticMessageType | null = null;
   loading = true;
   loadError: string | null = null;
   showCreateModal = false;
@@ -164,12 +154,10 @@ export class StaticMessageListComponent implements OnInit {
   createError: string | null = null;
   createEmbedOverrideError: string | null = null;
   selectedCreateChannel: DiscordChannelModel | null = null;
-  selectedCreateObjectOptions: StaticMessageObjectOption[] = [];
   staticMessageTypes = STATIC_MESSAGE_TYPES;
   newMessage = {
     channelId: '',
     staticMessageType: 'ScoreLeaderboard' as StaticMessageType,
-    objectIds: [] as string[],
     embedOverride: '',
     active: true
   };
@@ -268,58 +256,6 @@ export class StaticMessageListComponent implements OnInit {
 
   openCreateModal(): void {
     this.showCreateModal = true;
-    this.loadObjectOptions(this.newMessage.staticMessageType);
-  }
-
-  onCreateTypeChange(type: StaticMessageType): void {
-    this.selectedCreateObjectOptions = [];
-    this.newMessage.objectIds = [];
-    this.loadObjectOptions(type);
-  }
-
-  shouldShowObjectIds(type: StaticMessageType): boolean {
-    return supportsObjectIds(type);
-  }
-
-  loadObjectOptions(type: StaticMessageType): void {
-    this.currentObjectTypeRequest = type;
-    this.objectOptions = [];
-    if (type === 'TicketPanel') {
-      this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
-        next: panels => {
-          if (this.currentObjectTypeRequest === type) {
-            this.objectOptions = (panels || []).map(toTicketPanelOption);
-          }
-        },
-        error: err => { console.error('Failed to load ticket panels:', err); this.createError = 'Failed to load ticket panels. Please try again.'; this.cdr.detectChanges(); }
-      });
-    } else if (type === 'ScoreLeaderboard') {
-      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
-        next: carryTypes => {
-          if (this.currentObjectTypeRequest === type) {
-            this.objectOptions = (carryTypes || []).map(toCarryTypeOption);
-          }
-        },
-        error: err => { console.error('Failed to load carry types:', err); this.createError = 'Failed to load carry types. Please try again.'; this.cdr.detectChanges(); }
-      });
-    } else if (type === 'PriceMessage') {
-      this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
-        next: carryTypes => {
-          if (this.currentObjectTypeRequest === type) {
-            const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
-            (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
-              next: carryTierGroups => {
-                if (this.currentObjectTypeRequest === type) {
-                  this.objectOptions = carryTierGroups.flat().map(toCarryTierOption);
-                }
-              },
-              error: err => { console.error('Failed to load carry tiers:', err); this.createError = 'Failed to load carry tiers. Please try again.'; this.cdr.detectChanges(); }
-            });
-          }
-        },
-        error: err => { console.error('Failed to load carry types:', err); this.createError = 'Failed to load carry types. Please try again.'; this.cdr.detectChanges(); }
-      });
-    }
   }
 
   onCreateChannelSelected(channel: DiscordChannelModel | null): void {
@@ -327,18 +263,12 @@ export class StaticMessageListComponent implements OnInit {
     this.newMessage.channelId = channel?.id || '';
   }
 
-  onCreateObjectOptionsSelected(options: StaticMessageObjectOption[]): void {
-    this.selectedCreateObjectOptions = options;
-    this.newMessage.objectIds = options.map(option => option.id);
-  }
-
   closeCreateModal(): void {
     this.showCreateModal = false;
     this.createError = null;
     this.createEmbedOverrideError = null;
     this.selectedCreateChannel = null;
-    this.selectedCreateObjectOptions = [];
-    this.newMessage = {channelId: '', staticMessageType: 'ScoreLeaderboard', objectIds: [], embedOverride: '', active: true};
+    this.newMessage = {channelId: '', staticMessageType: 'ScoreLeaderboard', embedOverride: '', active: true};
   }
 
   validateCreateEmbedOverride(): void {
@@ -365,7 +295,7 @@ export class StaticMessageListComponent implements OnInit {
     const creationModel: StaticMessageCreationModel = {
       channelId: this.newMessage.channelId,
       staticMessageType: this.newMessage.staticMessageType,
-      objectIds: supportsObjectIds(this.newMessage.staticMessageType) ? this.newMessage.objectIds : [],
+      objectIds: [],
       embedOverride: embedOverride || undefined
     };
 
@@ -374,8 +304,7 @@ export class StaticMessageListComponent implements OnInit {
         this.isCreating = false;
         this.showCreateModal = false;
         this.selectedCreateChannel = null;
-        this.selectedCreateObjectOptions = [];
-        this.newMessage = {channelId: '', staticMessageType: 'ScoreLeaderboard', objectIds: [], embedOverride: '', active: true};
+        this.newMessage = {channelId: '', staticMessageType: 'ScoreLeaderboard', embedOverride: '', active: true};
         this.loadStaticMessages();
       },
       error: err => {
