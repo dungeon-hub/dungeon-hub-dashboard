@@ -121,11 +121,7 @@ import {
             <div class="space-y-4">
               <div>
                 <label class="label">Type *</label>
-                <select [(ngModel)]="newMessage.staticMessageType" (ngModelChange)="onCreateTypeChange($event)" class="input">
-                  @for (type of staticMessageTypes; track type) {
-                    <option [value]="type">{{ getTypeLabel(type) }}</option>
-                  }
-                </select>
+                <app-autocomplete [items]="staticMessageTypeOptions" displayKey="name" valueKey="id" placeholder="Search message types..." [selectedItem]="selectedCreateType" (selectedItemChange)="onCreateTypeSelected($event)" nullLabel="Select a message type"></app-autocomplete>
               </div>
               <div>
                 <label class="label">Channel *</label>
@@ -184,6 +180,11 @@ export class StaticMessageListComponent implements OnInit {
 	selectedCreateChannel: DiscordChannelModel | null = null;
 	selectedCreateObjectOptions: StaticMessageObjectOption[] = [];
 	staticMessageTypes = STATIC_MESSAGE_TYPES;
+	staticMessageTypeOptions = this.staticMessageTypes.map((type) => ({
+		id: type,
+		name: getStaticMessageTypeLabel(type),
+	}));
+	selectedCreateType = this.staticMessageTypeOptions[0];
 	newMessage = {
 		channelId: "",
 		staticMessageType: "ScoreLeaderboard" as StaticMessageType,
@@ -306,10 +307,19 @@ export class StaticMessageListComponent implements OnInit {
 		this.loadObjectOptions(this.newMessage.staticMessageType);
 	}
 
-	onCreateTypeChange(type: StaticMessageType): void {
+	onCreateTypeSelected(type: AutocompleteItem | null): void {
+		if (
+			!type ||
+			!this.staticMessageTypes.includes(type.id as StaticMessageType)
+		) {
+			return;
+		}
+
+		this.newMessage.staticMessageType = type.id as StaticMessageType;
+		this.selectedCreateType = type as { id: StaticMessageType; name: string };
 		this.selectedCreateObjectOptions = [];
 		this.newMessage.objectIds = [];
-		this.loadObjectOptions(type);
+		this.loadObjectOptions(this.newMessage.staticMessageType);
 	}
 
 	shouldShowObjectIds(type: StaticMessageType): boolean {
@@ -402,6 +412,7 @@ export class StaticMessageListComponent implements OnInit {
 		this.createEmbedOverrideError = null;
 		this.selectedCreateChannel = null;
 		this.selectedCreateObjectOptions = [];
+		this.selectedCreateType = this.staticMessageTypeOptions[0];
 		this.newMessage = {
 			channelId: "",
 			staticMessageType: "ScoreLeaderboard",
@@ -456,6 +467,7 @@ export class StaticMessageListComponent implements OnInit {
 					this.showCreateModal = false;
 					this.selectedCreateChannel = null;
 					this.selectedCreateObjectOptions = [];
+					this.selectedCreateType = this.staticMessageTypeOptions[0];
 					this.newMessage = {
 						channelId: "",
 						staticMessageType: "ScoreLeaderboard",
