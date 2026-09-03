@@ -1,33 +1,53 @@
-import {ChangeDetectorRef, Component, OnInit, inject} from '@angular/core';
-import {forkJoin, of} from 'rxjs';
-import {CommonModule} from '@angular/common';
-import {FormsModule} from '@angular/forms';
-import {ActivatedRoute, RouterLink} from '@angular/router';
+import { CommonModule } from "@angular/common";
 import {
-  CarryTierControllerService,
-  CarryTypeControllerService,
-  DiscordChannelControllerService,
-  DiscordChannelModel,
-  StaticMessageControllerService,
-  StaticMessageCreationModel,
-  StaticMessageModel,
-  TicketPanelControllerService
-} from '@dungeon-hub/api-client';
-import {AutocompleteComponent} from '../shared/components/autocomplete/autocomplete.component';
-import {getStaticMessageTypeLabel, STATIC_MESSAGE_TYPES, StaticMessageType} from './static-message/static-message-labels';
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { ActivatedRoute, RouterLink } from "@angular/router";
 import {
-  getObjectOptionTypeLabel,
-  supportsObjectIds,
-  toCarryTierOption,
-  toCarryTypeOption,
-  toTicketPanelOption
-} from './static-message/static-message-object-options';
+	CarryTierControllerService,
+	CarryTypeControllerService,
+	DiscordChannelControllerService,
+	type DiscordChannelModel,
+	StaticMessageControllerService,
+	type StaticMessageCreationModel,
+	type StaticMessageModel,
+	TicketPanelControllerService,
+} from "@dungeon-hub/api-client";
+import { forkJoin, of } from "rxjs";
+import { AutocompleteComponent } from "../shared/components/autocomplete/autocomplete.component";
+import {
+	type AutocompleteItem,
+	MultiSelectAutocompleteComponent,
+} from "../shared/components/multi-select-autocomplete/multi-select-autocomplete.component";
+import {
+	getStaticMessageTypeLabel,
+	STATIC_MESSAGE_TYPES,
+	type StaticMessageType,
+} from "./static-message/static-message-labels";
+import {
+	getObjectOptionTypeLabel,
+	type StaticMessageObjectOption,
+	supportsObjectIds,
+	toCarryTierOption,
+	toCarryTypeOption,
+	toTicketPanelOption,
+} from "./static-message/static-message-object-options";
 
 @Component({
-  selector: 'app-static-message-list',
-  standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, AutocompleteComponent],
-  template: `
+	selector: "app-static-message-list",
+	standalone: true,
+	imports: [
+		CommonModule,
+		FormsModule,
+		RouterLink,
+		AutocompleteComponent,
+		MultiSelectAutocompleteComponent,
+	],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
         <a [routerLink]="['/server', serverId]" class="btn btn-secondary mb-4 inline-block">← Back to Server</a>
@@ -101,7 +121,7 @@ import {
             <div class="space-y-4">
               <div>
                 <label class="label">Type *</label>
-                <select [(ngModel)]="newMessage.staticMessageType" class="input">
+                <select [(ngModel)]="newMessage.staticMessageType" (ngModelChange)="onCreateTypeChange($event)" class="input">
                   @for (type of staticMessageTypes; track type) {
                     <option [value]="type">{{ getTypeLabel(type) }}</option>
                   }
@@ -111,6 +131,12 @@ import {
                 <label class="label">Channel *</label>
                 <app-autocomplete [items]="discordChannels" displayKey="name" valueKey="id" placeholder="Search channels..." [selectedItem]="selectedCreateChannel" (selectedItemChange)="onCreateChannelSelected($event)" nullLabel="Select a channel" groupByKey="category.id" groupDisplayKey="category.name"></app-autocomplete>
               </div>
+              @if (shouldShowObjectIds(newMessage.staticMessageType)) {
+                <div>
+                  <label class="label">Object IDs</label>
+                  <app-multi-select-autocomplete [items]="objectOptions" [selectedItems]="selectedCreateObjectOptions" (selectedItemsChange)="onCreateObjectOptionsSelected($event)" displayKey="name" valueKey="id" placeholder="Search objects..." nullLabel="No objects selected"></app-multi-select-autocomplete>
+                </div>
+              }
               <div>
                 <label class="label">Embed Override</label>
                 <textarea [(ngModel)]="newMessage.embedOverride" (ngModelChange)="validateCreateEmbedOverride()" rows="6" class="input font-mono text-sm"></textarea>
@@ -130,189 +156,322 @@ import {
         </div>
       }
     </div>
-  `
+  `,
 })
 export class StaticMessageListComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private staticMessageService = inject(StaticMessageControllerService);
-  private discordChannelService = inject(DiscordChannelControllerService);
-  private ticketPanelService = inject(TicketPanelControllerService);
-  private carryTypeService = inject(CarryTypeControllerService);
-  private carryTierService = inject(CarryTierControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private staticMessageService = inject(StaticMessageControllerService);
+	private discordChannelService = inject(DiscordChannelControllerService);
+	private ticketPanelService = inject(TicketPanelControllerService);
+	private carryTypeService = inject(CarryTypeControllerService);
+	private carryTierService = inject(CarryTierControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  staticMessages: StaticMessageModel[] = [];
-  discordChannels: DiscordChannelModel[] = [];
-  private ticketPanelNameById = new Map<string, string>();
-  private carryTypeNameById = new Map<string, string>();
-  private carryTierNameById = new Map<string, string>();
-  loading = true;
-  loadError: string | null = null;
-  showCreateModal = false;
-  isCreating = false;
-  createError: string | null = null;
-  createEmbedOverrideError: string | null = null;
-  selectedCreateChannel: DiscordChannelModel | null = null;
-  staticMessageTypes = STATIC_MESSAGE_TYPES;
-  newMessage = {
-    channelId: '',
-    staticMessageType: 'ScoreLeaderboard' as StaticMessageType,
-    embedOverride: '',
-    active: true
-  };
+	serverId!: string;
+	staticMessages: StaticMessageModel[] = [];
+	discordChannels: DiscordChannelModel[] = [];
+	objectOptions: StaticMessageObjectOption[] = [];
+	private ticketPanelNameById = new Map<string, string>();
+	private carryTypeNameById = new Map<string, string>();
+	private carryTierNameById = new Map<string, string>();
+	private currentObjectTypeRequest: StaticMessageType | null = null;
+	loading = true;
+	loadError: string | null = null;
+	showCreateModal = false;
+	isCreating = false;
+	createError: string | null = null;
+	createEmbedOverrideError: string | null = null;
+	selectedCreateChannel: DiscordChannelModel | null = null;
+	selectedCreateObjectOptions: StaticMessageObjectOption[] = [];
+	staticMessageTypes = STATIC_MESSAGE_TYPES;
+	newMessage = {
+		channelId: "",
+		staticMessageType: "ScoreLeaderboard" as StaticMessageType,
+		objectIds: [] as string[],
+		embedOverride: "",
+		active: true,
+	};
 
-  ngOnInit(): void {
-    this.serverId = this.route.snapshot.params['serverId'];
-    this.loadChannels();
-    this.loadObjectNameMaps();
-    this.loadStaticMessages();
-  }
+	ngOnInit(): void {
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.loadChannels();
+		this.loadObjectNameMaps();
+		this.loadStaticMessages();
+	}
 
-  getTypeLabel(type: StaticMessageType): string {
-    return getStaticMessageTypeLabel(type);
-  }
+	getTypeLabel(type: StaticMessageType): string {
+		return getStaticMessageTypeLabel(type);
+	}
 
-  loadStaticMessages(): void {
-    this.loading = true;
-    this.loadError = null;
-    this.staticMessageService.findStaticMessages(this.serverId).subscribe({
-      next: messages => {
-        this.staticMessages = messages || [];
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: err => {
-        this.loadError = 'Failed to load static messages. Please try again.';
-        console.error('Error loading static messages:', err);
-        this.loading = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+	loadStaticMessages(): void {
+		this.loading = true;
+		this.loadError = null;
+		this.staticMessageService.findStaticMessages(this.serverId).subscribe({
+			next: (messages) => {
+				this.staticMessages = messages || [];
+				this.loading = false;
+				this.cdr.detectChanges();
+			},
+			error: (err) => {
+				this.loadError = "Failed to load static messages. Please try again.";
+				console.error("Error loading static messages:", err);
+				this.loading = false;
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  loadChannels(): void {
-    this.discordChannelService.getAllChannels(this.serverId, false).subscribe({
-      next: channels => {
-        this.discordChannels = channels || [];
-        this.cdr.detectChanges();
-      },
-      error: err => console.error('Failed to load Discord channels:', err)
-    });
-  }
+	loadChannels(): void {
+		this.discordChannelService.getAllChannels(this.serverId, false).subscribe({
+			next: (channels) => {
+				this.discordChannels = channels || [];
+				this.cdr.detectChanges();
+			},
+			error: (err) => console.error("Failed to load Discord channels:", err),
+		});
+	}
 
-  getChannelName(channelId: string): string {
-    return this.discordChannels.find(channel => channel.id === channelId)?.name || 'Unknown channel';
-  }
+	getChannelName(channelId: string): string {
+		return (
+			this.discordChannels.find((channel) => channel.id === channelId)?.name ||
+			"Unknown channel"
+		);
+	}
 
-  getObjectOptionLabel(type: StaticMessageType): string {
-    return getObjectOptionTypeLabel(type) || 'Object';
-  }
+	getObjectOptionLabel(type: StaticMessageType): string {
+		return getObjectOptionTypeLabel(type) || "Object";
+	}
 
-  getObjectNames(message: StaticMessageModel): string[] {
-    if (!supportsObjectIds(message.staticMessageType)) return [];
+	getObjectNames(message: StaticMessageModel): string[] {
+		if (!supportsObjectIds(message.staticMessageType)) return [];
 
-    const nameMap = message.staticMessageType === 'TicketPanel'
-      ? this.ticketPanelNameById
-      : message.staticMessageType === 'ScoreLeaderboard'
-        ? this.carryTypeNameById
-        : this.carryTierNameById;
+		const nameMap =
+			message.staticMessageType === "TicketPanel"
+				? this.ticketPanelNameById
+				: message.staticMessageType === "ScoreLeaderboard"
+					? this.carryTypeNameById
+					: this.carryTierNameById;
 
-    return (message.objectIds || []).map(id => nameMap.get(id) || id);
-  }
+		return (message.objectIds || []).map((id) => nameMap.get(id) || id);
+	}
 
-  loadObjectNameMaps(): void {
-    this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
-      next: panels => {
-        this.ticketPanelNameById = new Map((panels || []).map(panel => [panel.id, toTicketPanelOption(panel).name]));
-        this.cdr.detectChanges();
-      },
-      error: err => console.error('Failed to load ticket panels:', err)
-    });
+	loadObjectNameMaps(): void {
+		this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
+			next: (panels) => {
+				this.ticketPanelNameById = new Map(
+					(panels || []).map((panel) => [
+						panel.id,
+						toTicketPanelOption(panel).name,
+					]),
+				);
+				this.cdr.detectChanges();
+			},
+			error: (err) => console.error("Failed to load ticket panels:", err),
+		});
 
-    this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
-      next: carryTypes => {
-        const carryTypeOptions = (carryTypes || []).map(toCarryTypeOption);
-        this.carryTypeNameById = new Map(carryTypeOptions.map(option => [option.id, option.name]));
-        this.cdr.detectChanges();
+		this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+			next: (carryTypes) => {
+				const carryTypeOptions = (carryTypes || []).map(toCarryTypeOption);
+				this.carryTypeNameById = new Map(
+					carryTypeOptions.map((option) => [option.id, option.name]),
+				);
+				this.cdr.detectChanges();
 
-        const tierRequests = (carryTypes || []).map(carryType => this.carryTierService.getAllCarryTiers(this.serverId, carryType.id));
-        (tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
-          next: carryTierGroups => {
-            const carryTierOptions = carryTierGroups.flat().map(toCarryTierOption);
-            this.carryTierNameById = new Map(carryTierOptions.map(option => [option.id, option.name]));
-            this.cdr.detectChanges();
-          },
-          error: err => console.error('Failed to load carry tiers:', err)
-        });
-      },
-      error: err => console.error('Failed to load carry types:', err)
-    });
-  }
+				const tierRequests = (carryTypes || []).map((carryType) =>
+					this.carryTierService.getAllCarryTiers(this.serverId, carryType.id),
+				);
+				(tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
+					next: (carryTierGroups) => {
+						const carryTierOptions = carryTierGroups
+							.flat()
+							.map(toCarryTierOption);
+						this.carryTierNameById = new Map(
+							carryTierOptions.map((option) => [option.id, option.name]),
+						);
+						this.cdr.detectChanges();
+					},
+					error: (err) => console.error("Failed to load carry tiers:", err),
+				});
+			},
+			error: (err) => console.error("Failed to load carry types:", err),
+		});
+	}
 
-  getDiscordMessageUrl(message: StaticMessageModel): string {
-    return `https://discord.com/channels/${this.serverId}/${message.channelId}/${message.messageId}`;
-  }
+	getDiscordMessageUrl(message: StaticMessageModel): string {
+		return `https://discord.com/channels/${this.serverId}/${message.channelId}/${message.messageId}`;
+	}
 
-  openCreateModal(): void {
-    this.showCreateModal = true;
-  }
+	openCreateModal(): void {
+		this.showCreateModal = true;
+		this.loadObjectOptions(this.newMessage.staticMessageType);
+	}
 
-  onCreateChannelSelected(channel: DiscordChannelModel | null): void {
-    this.selectedCreateChannel = channel;
-    this.newMessage.channelId = channel?.id || '';
-  }
+	onCreateTypeChange(type: StaticMessageType): void {
+		this.selectedCreateObjectOptions = [];
+		this.newMessage.objectIds = [];
+		this.loadObjectOptions(type);
+	}
 
-  closeCreateModal(): void {
-    this.showCreateModal = false;
-    this.createError = null;
-    this.createEmbedOverrideError = null;
-    this.selectedCreateChannel = null;
-    this.newMessage = {channelId: '', staticMessageType: 'ScoreLeaderboard', embedOverride: '', active: true};
-  }
+	shouldShowObjectIds(type: StaticMessageType): boolean {
+		return supportsObjectIds(type);
+	}
 
-  validateCreateEmbedOverride(): void {
-    this.createEmbedOverrideError = this.getJsonValidationError(this.newMessage.embedOverride);
-  }
+	loadObjectOptions(type: StaticMessageType): void {
+		this.currentObjectTypeRequest = type;
+		this.objectOptions = [];
+		if (type === "TicketPanel") {
+			this.ticketPanelService.getAllTicketPanels(this.serverId).subscribe({
+				next: (panels) => {
+					if (this.currentObjectTypeRequest === type) {
+						this.objectOptions = (panels || []).map(toTicketPanelOption);
+					}
+				},
+				error: (err) => {
+					console.error("Failed to load ticket panels:", err);
+					this.createError = "Failed to load ticket panels. Please try again.";
+					this.cdr.detectChanges();
+				},
+			});
+		} else if (type === "ScoreLeaderboard") {
+			this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+				next: (carryTypes) => {
+					if (this.currentObjectTypeRequest === type) {
+						this.objectOptions = (carryTypes || []).map(toCarryTypeOption);
+					}
+				},
+				error: (err) => {
+					console.error("Failed to load carry types:", err);
+					this.createError = "Failed to load carry types. Please try again.";
+					this.cdr.detectChanges();
+				},
+			});
+		} else if (type === "PriceMessage") {
+			this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+				next: (carryTypes) => {
+					if (this.currentObjectTypeRequest === type) {
+						const tierRequests = (carryTypes || []).map((carryType) =>
+							this.carryTierService.getAllCarryTiers(
+								this.serverId,
+								carryType.id,
+							),
+						);
+						(tierRequests.length ? forkJoin(tierRequests) : of([])).subscribe({
+							next: (carryTierGroups) => {
+								if (this.currentObjectTypeRequest === type) {
+									this.objectOptions = carryTierGroups
+										.flat()
+										.map(toCarryTierOption);
+								}
+							},
+							error: (err) => {
+								console.error("Failed to load carry tiers:", err);
+								this.createError =
+									"Failed to load carry tiers. Please try again.";
+								this.cdr.detectChanges();
+							},
+						});
+					}
+				},
+				error: (err) => {
+					console.error("Failed to load carry types:", err);
+					this.createError = "Failed to load carry types. Please try again.";
+					this.cdr.detectChanges();
+				},
+			});
+		}
+	}
 
-  private getJsonValidationError(value: string): string | null {
-    if (!value.trim()) return null;
-    try {
-      JSON.parse(value);
-      return null;
-    } catch {
-      return 'Invalid JSON format';
-    }
-  }
+	onCreateChannelSelected(channel: DiscordChannelModel | null): void {
+		this.selectedCreateChannel = channel;
+		this.newMessage.channelId = channel?.id || "";
+	}
 
-  createStaticMessage(): void {
-    this.validateCreateEmbedOverride();
-    if (!this.newMessage.channelId || this.isCreating || this.createEmbedOverrideError) return;
-    this.isCreating = true;
-    this.createError = null;
+	onCreateObjectOptionsSelected(options: AutocompleteItem[]): void {
+		this.selectedCreateObjectOptions = options.filter(
+			(option): option is StaticMessageObjectOption =>
+				typeof option.id === "string" && typeof option.name === "string",
+		);
+		this.newMessage.objectIds = this.selectedCreateObjectOptions.map(
+			(option) => option.id,
+		);
+	}
 
-    const embedOverride = this.newMessage.embedOverride.trim();
-    const creationModel: StaticMessageCreationModel = {
-      channelId: this.newMessage.channelId,
-      staticMessageType: this.newMessage.staticMessageType,
-      objectIds: [],
-      embedOverride: embedOverride || undefined
-    };
+	closeCreateModal(): void {
+		this.showCreateModal = false;
+		this.createError = null;
+		this.createEmbedOverrideError = null;
+		this.selectedCreateChannel = null;
+		this.selectedCreateObjectOptions = [];
+		this.newMessage = {
+			channelId: "",
+			staticMessageType: "ScoreLeaderboard",
+			objectIds: [],
+			embedOverride: "",
+			active: true,
+		};
+	}
 
-    this.staticMessageService.createStaticMessage(this.serverId, creationModel).subscribe({
-      next: () => {
-        this.isCreating = false;
-        this.showCreateModal = false;
-        this.selectedCreateChannel = null;
-        this.newMessage = {channelId: '', staticMessageType: 'ScoreLeaderboard', embedOverride: '', active: true};
-        this.loadStaticMessages();
-      },
-      error: err => {
-        this.createError = 'Failed to create static message. Please try again.';
-        console.error('Error creating static message:', err);
-        this.isCreating = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+	validateCreateEmbedOverride(): void {
+		this.createEmbedOverrideError = this.getJsonValidationError(
+			this.newMessage.embedOverride,
+		);
+	}
+
+	private getJsonValidationError(value: string): string | null {
+		if (!value.trim()) return null;
+		try {
+			JSON.parse(value);
+			return null;
+		} catch {
+			return "Invalid JSON format";
+		}
+	}
+
+	createStaticMessage(): void {
+		this.validateCreateEmbedOverride();
+		if (
+			!this.newMessage.channelId ||
+			this.isCreating ||
+			this.createEmbedOverrideError
+		)
+			return;
+		this.isCreating = true;
+		this.createError = null;
+
+		const embedOverride = this.newMessage.embedOverride.trim();
+		const creationModel: StaticMessageCreationModel = {
+			channelId: this.newMessage.channelId,
+			staticMessageType: this.newMessage.staticMessageType,
+			objectIds: supportsObjectIds(this.newMessage.staticMessageType)
+				? this.newMessage.objectIds
+				: [],
+			embedOverride: embedOverride || undefined,
+		};
+
+		this.staticMessageService
+			.createStaticMessage(this.serverId, creationModel)
+			.subscribe({
+				next: () => {
+					this.isCreating = false;
+					this.showCreateModal = false;
+					this.selectedCreateChannel = null;
+					this.selectedCreateObjectOptions = [];
+					this.newMessage = {
+						channelId: "",
+						staticMessageType: "ScoreLeaderboard",
+						objectIds: [],
+						embedOverride: "",
+						active: true,
+					};
+					this.loadStaticMessages();
+				},
+				error: (err) => {
+					this.createError =
+						"Failed to create static message. Please try again.";
+					console.error("Error creating static message:", err);
+					this.isCreating = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 }

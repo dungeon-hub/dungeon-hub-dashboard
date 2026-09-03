@@ -1,15 +1,28 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { CntRequestControllerService, CntRequestUpdateModel } from '@dungeon-hub/api-client';
-import { CNT_REQUEST_TYPE_LABELS } from './cnt-request-type-labels';
+import { CommonModule } from "@angular/common";
+import {
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import {
+	FormBuilder,
+	type FormGroup,
+	ReactiveFormsModule,
+} from "@angular/forms";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import {
+	CntRequestControllerService,
+	type CntRequestModel,
+	CntRequestUpdateModel,
+} from "@dungeon-hub/api-client";
+import { CNT_REQUEST_TYPE_LABELS } from "./cnt-request-type-labels";
 
 @Component({
-  selector: 'app-cnt-request-edit',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
-  template: `
+	selector: "app-cnt-request-edit",
+	standalone: true,
+	imports: [CommonModule, ReactiveFormsModule, RouterLink],
+	template: `
     <div class="container mx-auto px-4 py-8 max-w-4xl">
       <!-- Header -->
       <div class="mb-8">
@@ -112,103 +125,109 @@ import { CNT_REQUEST_TYPE_LABELS } from './cnt-request-type-labels';
         </form>
       }
     </div>
-  `
+  `,
 })
 export class CntRequestEditComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private fb = inject(FormBuilder);
-  private cntRequestService = inject(CntRequestControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private router = inject(Router);
+	private fb = inject(FormBuilder);
+	private cntRequestService = inject(CntRequestControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  requestId!: string;
-  returnPage = 0;
-  request: any;
-  form!: FormGroup;
-  loading = true;
-  saving = false;
+	serverId!: string;
+	requestId!: string;
+	returnPage = 0;
+	request: CntRequestModel | null = null;
+	form!: FormGroup;
+	loading = true;
+	saving = false;
 
-  // Expose enum and labels for template
-  requestTypeEnum = CntRequestUpdateModel.RequestTypeEnum;
-  requestTypeKeys = Object.keys(CntRequestUpdateModel.RequestTypeEnum) as Array<keyof typeof CntRequestUpdateModel.RequestTypeEnum>;
-  requestTypeLabels = CNT_REQUEST_TYPE_LABELS;
+	// Expose enum and labels for template
+	requestTypeEnum = CntRequestUpdateModel.RequestTypeEnum;
+	requestTypeKeys = Object.keys(CntRequestUpdateModel.RequestTypeEnum) as Array<
+		keyof typeof CntRequestUpdateModel.RequestTypeEnum
+	>;
+	requestTypeLabels = CNT_REQUEST_TYPE_LABELS;
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
-    this.requestId = this.route.snapshot.params['requestId'];
-    this.returnPage = Number(this.route.snapshot.queryParams['page']) || 0;
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.requestId = this.route.snapshot.params["requestId"];
+		this.returnPage = Number(this.route.snapshot.queryParams["page"]) || 0;
 
-    this.initForm();
-    this.loadRequest();
-  }
+		this.initForm();
+		this.loadRequest();
+	}
 
-  initForm() {
-    this.form = this.fb.group({
-      requestType: [''],
-      description: [''],
-      coinValue: [''],
-      requirement: [''],
-      completed: [false],
-      unclaim: [false]
-    });
-  }
+	initForm() {
+		this.form = this.fb.group({
+			requestType: [""],
+			description: [""],
+			coinValue: [""],
+			requirement: [""],
+			completed: [false],
+			unclaim: [false],
+		});
+	}
 
-  loadRequest() {
-    this.cntRequestService.getCntRequest(this.serverId, this.requestId).subscribe({
-      next: (request) => {
-        this.request = request;
-        this.populateForm(request);
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.loading = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+	loadRequest() {
+		this.cntRequestService
+			.getCntRequest(this.serverId, this.requestId)
+			.subscribe({
+				next: (request) => {
+					this.request = request;
+					this.populateForm(request);
+					this.loading = false;
+					this.cdr.detectChanges();
+				},
+				error: () => {
+					this.loading = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  populateForm(request: any) {
-    this.form.patchValue({
-      requestType: request.requestType ?? '',
-      description: request.description ?? '',
-      coinValue: request.coinValue ?? '',
-      requirement: request.requirement ?? '',
-      completed: request.completed ?? false,
-      unclaim: false
-    });
-  }
+	populateForm(request: CntRequestModel) {
+		this.form.patchValue({
+			requestType: request.requestType ?? "",
+			description: request.description ?? "",
+			coinValue: request.coinValue ?? "",
+			requirement: request.requirement ?? "",
+			completed: request.completed ?? false,
+			unclaim: false,
+		});
+	}
 
-  save() {
-    if (!this.form.valid || this.saving) return;
+	save() {
+		if (!this.form.valid || this.saving) return;
 
-    this.saving = true;
-    const formValue = this.form.value;
+		this.saving = true;
+		const formValue = this.form.value;
 
-    const updateModel: CntRequestUpdateModel = {
-      description: formValue.description ?? null,
-      coinValue: formValue.coinValue ?? null,
-      requirement: formValue.requirement ?? null,
-      completed: formValue.completed,
-      requestType: formValue.requestType,
-      resetClaimer: formValue.unclaim || false,
-    };
+		const updateModel: CntRequestUpdateModel = {
+			description: formValue.description ?? null,
+			coinValue: formValue.coinValue ?? null,
+			requirement: formValue.requirement ?? null,
+			completed: formValue.completed,
+			requestType: formValue.requestType,
+			resetClaimer: formValue.unclaim || false,
+		};
 
-    if (formValue.unclaim) {
-      updateModel.claimer = undefined;
-    }
+		if (formValue.unclaim) {
+			updateModel.claimer = undefined;
+		}
 
-    this.cntRequestService.updateCntRequest(this.serverId, this.requestId, updateModel).subscribe({
-      next: () => {
-        this.saving = false;
-        this.router.navigate(['/server', this.serverId, 'cnt-requests'], {
-          queryParams: { page: this.returnPage }
-        });
-      },
-      error: () => {
-        this.saving = false;
-      }
-    });
-  }
+		this.cntRequestService
+			.updateCntRequest(this.serverId, this.requestId, updateModel)
+			.subscribe({
+				next: () => {
+					this.saving = false;
+					this.router.navigate(["/server", this.serverId, "cnt-requests"], {
+						queryParams: { page: this.returnPage },
+					});
+				},
+				error: () => {
+					this.saving = false;
+				},
+			});
+	}
 }

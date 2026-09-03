@@ -1,12 +1,29 @@
-import {CommonModule} from '@angular/common';
-import {ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Input, OnChanges, OnInit, Output, SimpleChanges, inject} from '@angular/core';
-import {FormsModule} from '@angular/forms';
+import { CommonModule } from "@angular/common";
+import {
+	ChangeDetectorRef,
+	Component,
+	ElementRef,
+	EventEmitter,
+	HostListener,
+	Input,
+	inject,
+	type OnChanges,
+	type OnInit,
+	Output,
+	type SimpleChanges,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+
+export interface AutocompleteItem {
+	id: unknown;
+	name: unknown;
+}
 
 @Component({
-  selector: 'app-multi-select-autocomplete',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
+	selector: "app-multi-select-autocomplete",
+	standalone: true,
+	imports: [CommonModule, FormsModule],
+	template: `
     <div class="relative">
       <button type="button" (click)="toggleDropdown()" class="input flex items-center justify-between w-full text-left min-h-11">
         <span class="flex-1 truncate">{{ getDisplayValue() }}</span>
@@ -50,99 +67,121 @@ import {FormsModule} from '@angular/forms';
         </div>
       }
     </div>
-  `
+  `,
 })
 export class MultiSelectAutocompleteComponent implements OnInit, OnChanges {
-  private elementRef = inject(ElementRef);
-  private cdr = inject(ChangeDetectorRef);
+	private elementRef = inject(ElementRef);
+	private cdr = inject(ChangeDetectorRef);
 
-  @Input() items: any[] = [];
-  @Input() selectedItems: any[] = [];
-  @Input() displayKey = 'name';
-  @Input() valueKey = 'id';
-  @Input() placeholder = 'Search...';
-  @Input() nullLabel = 'None selected';
-  @Output() selectedItemsChange = new EventEmitter<any[]>();
+	@Input() items: AutocompleteItem[] = [];
+	@Input() selectedItems: AutocompleteItem[] = [];
+	@Input() displayKey = "name";
+	@Input() valueKey = "id";
+	@Input() placeholder = "Search...";
+	@Input() nullLabel = "None selected";
+	@Output() selectedItemsChange = new EventEmitter<AutocompleteItem[]>();
 
-  isOpen = false;
-  searchQuery = '';
-  filteredItems: any[] = [];
+	isOpen = false;
+	searchQuery = "";
+	filteredItems: AutocompleteItem[] = [];
 
-  ngOnInit(): void {
-    this.filterItems();
-  }
+	ngOnInit(): void {
+		this.filterItems();
+	}
 
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['items']) {
-      this.filterItems();
-    }
-  }
+	ngOnChanges(changes: SimpleChanges): void {
+		if (changes["items"]) {
+			this.filterItems();
+		}
+	}
 
-  toggleDropdown(): void {
-    this.isOpen = !this.isOpen;
-    if (this.isOpen) {
-      this.searchQuery = '';
-      this.filterItems();
-      setTimeout(() => this.elementRef.nativeElement.querySelector('input[type="text"]')?.focus(), 0);
-    }
-  }
+	toggleDropdown(): void {
+		this.isOpen = !this.isOpen;
+		if (this.isOpen) {
+			this.searchQuery = "";
+			this.filterItems();
+			setTimeout(
+				() =>
+					this.elementRef.nativeElement
+						.querySelector('input[type="text"]')
+						?.focus(),
+				0,
+			);
+		}
+	}
 
-  toggleItem(item: any): void {
-    if (this.isItemSelected(item)) {
-      this.removeItem(item);
-      return;
-    }
+	toggleItem(item: AutocompleteItem): void {
+		if (this.isItemSelected(item)) {
+			this.removeItem(item);
+			return;
+		}
 
-    this.selectedItems = [...this.selectedItems, item];
-    this.selectedItemsChange.emit(this.selectedItems);
-    this.cdr.detectChanges();
-  }
+		this.selectedItems = [...this.selectedItems, item];
+		this.selectedItemsChange.emit(this.selectedItems);
+		this.cdr.detectChanges();
+	}
 
-  removeItem(item: any): void {
-    const value = this.getNestedProperty(item, this.valueKey);
-    this.selectedItems = this.selectedItems.filter(selected => this.getNestedProperty(selected, this.valueKey) !== value);
-    this.selectedItemsChange.emit(this.selectedItems);
-    this.cdr.detectChanges();
-  }
+	removeItem(item: AutocompleteItem): void {
+		const value = this.getNestedProperty(item, this.valueKey);
+		this.selectedItems = this.selectedItems.filter(
+			(selected) => this.getNestedProperty(selected, this.valueKey) !== value,
+		);
+		this.selectedItemsChange.emit(this.selectedItems);
+		this.cdr.detectChanges();
+	}
 
-  isItemSelected(item: any): boolean {
-    const value = this.getNestedProperty(item, this.valueKey);
-    return this.selectedItems.some(selected => this.getNestedProperty(selected, this.valueKey) === value);
-  }
+	isItemSelected(item: AutocompleteItem): boolean {
+		const value = this.getNestedProperty(item, this.valueKey);
+		return this.selectedItems.some(
+			(selected) => this.getNestedProperty(selected, this.valueKey) === value,
+		);
+	}
 
-  getDisplayValue(): string {
-    if (this.selectedItems.length === 0) {
-      return this.nullLabel;
-    }
+	getDisplayValue(): string {
+		if (this.selectedItems.length === 0) {
+			return this.nullLabel;
+		}
 
-    if (this.selectedItems.length === 1) {
-      return this.getNestedProperty(this.selectedItems[0], this.displayKey) || this.nullLabel;
-    }
+		if (this.selectedItems.length === 1) {
+			const displayValue = this.getNestedProperty(
+				this.selectedItems[0],
+				this.displayKey,
+			);
+			return typeof displayValue === "string" && displayValue
+				? displayValue
+				: this.nullLabel;
+		}
 
-    return `${this.selectedItems.length} selected`;
-  }
+		return `${this.selectedItems.length} selected`;
+	}
 
-  filterItems(): void {
-    if (!this.searchQuery) {
-      this.filteredItems = this.items;
-      return;
-    }
+	filterItems(): void {
+		if (!this.searchQuery) {
+			this.filteredItems = this.items;
+			return;
+		}
 
-    const query = this.searchQuery.toLowerCase();
-    this.filteredItems = this.items.filter(item => {
-      const displayValue = this.getNestedProperty(item, this.displayKey);
-      return typeof displayValue === 'string' && displayValue.toLowerCase().includes(query);
-    });
-  }
+		const query = this.searchQuery.toLowerCase();
+		this.filteredItems = this.items.filter((item) => {
+			const displayValue = this.getNestedProperty(item, this.displayKey);
+			return (
+				typeof displayValue === "string" &&
+				displayValue.toLowerCase().includes(query)
+			);
+		});
+	}
 
-  getNestedProperty(obj: any, path: string): any {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
-  }
+	getNestedProperty(obj: AutocompleteItem, path: string): unknown {
+		return path.split(".").reduce<unknown>((current, key) => {
+			if (typeof current !== "object" || current === null) return undefined;
+			return Reflect.get(current, key);
+		}, obj);
+	}
 
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: Event): void {
-    if (!this.elementRef.nativeElement.contains(event.target)) {
-      this.isOpen = false;
-    }
-  }
+	@HostListener("document:click", ["$event"])
+	onDocumentClick(event: Event): void {
+		if (!this.elementRef.nativeElement.contains(event.target)) {
+			this.isOpen = false;
+		}
+	}
 }
