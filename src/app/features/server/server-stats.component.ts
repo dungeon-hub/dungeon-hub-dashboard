@@ -1,89 +1,128 @@
-import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { StatsControllerService } from '@dungeon-hub/api-client';
-import { Observable, Subscription } from 'rxjs';
-import { DiscordGuildService } from '../../core/services/discord-guild.service';
+import {
+	ChangeDetectionStrategy,
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnDestroy,
+	type OnInit,
+} from "@angular/core";
+import { ActivatedRoute, RouterLink } from "@angular/router";
+import { StatsControllerService } from "@dungeon-hub/api-client";
+import type { Observable, Subscription } from "rxjs";
+import { DiscordGuildService } from "../../core/services/discord-guild.service";
 
 export interface ServerStats {
-  totalMoneySpent: string | number;
-  totalCarries: string | number;
-  totalTickets: string | number;
-  totalCarriers: string | number;
-  totalScore: string | number;
-  activeWarns: string | number;
-  totalWarns: string | number;
-  yourMoneySpent?: string | number | null;
-  yourMoneyEarned?: string | number | null;
-  yourCompletedCarries?: string | number | null;
-  yourBoughtCarries?: string | number | null;
+	totalMoneySpent: string | number;
+	totalCarries: string | number;
+	totalTickets: string | number;
+	totalCarriers: string | number;
+	totalScore: string | number;
+	activeWarns: string | number;
+	totalWarns: string | number;
+	yourMoneySpent?: string | number | null;
+	yourMoneyEarned?: string | number | null;
+	yourCompletedCarries?: string | number | null;
+	yourBoughtCarries?: string | number | null;
+}
+
+interface StatCard {
+	borderClass: string;
+	titleClass: string;
+	title: string;
+	value: string;
+	description: string;
 }
 
 const COMPACT_SUFFIXES = [
-  { threshold: 12, suffix: 't' },
-  { threshold: 9, suffix: 'b' },
-  { threshold: 6, suffix: 'm' },
-  { threshold: 3, suffix: 'k' },
+	{ threshold: 12, suffix: "t" },
+	{ threshold: 9, suffix: "b" },
+	{ threshold: 6, suffix: "m" },
+	{ threshold: 3, suffix: "k" },
 ] as const;
 
 export function formatCompactValue(value: string | number): string {
-  const rawText = String(value ?? '0');
-  const exponentMatch = rawText.match(/^(-?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
-  let text = rawText;
+	const rawText = String(value ?? "0");
+	const exponentMatch = rawText.match(/^(-?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
+	let text = rawText;
 
-  if (exponentMatch) {
-    const [, sign, whole, fraction = '', rawExponent] = exponentMatch;
-    const digits = `${whole}${fraction}`;
-    const decimalIndex = whole.length + Number(rawExponent);
-    text =
-      decimalIndex <= 0
-        ? `${sign}0.${'0'.repeat(-decimalIndex)}${digits}`
-        : decimalIndex >= digits.length
-          ? `${sign}${digits}${'0'.repeat(decimalIndex - digits.length)}`
-          : `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
-  }
+	if (exponentMatch) {
+		const [, sign, whole, fraction = "", rawExponent] = exponentMatch;
+		const digits = `${whole}${fraction}`;
+		const decimalIndex = whole.length + Number(rawExponent);
+		text =
+			decimalIndex <= 0
+				? `${sign}0.${"0".repeat(-decimalIndex)}${digits}`
+				: decimalIndex >= digits.length
+					? `${sign}${digits}${"0".repeat(decimalIndex - digits.length)}`
+					: `${sign}${digits.slice(0, decimalIndex)}.${digits.slice(decimalIndex)}`;
+	}
 
-  const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
-  if (!match) return text;
+	const match = text.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+	if (!match) return text;
 
-  const [, sign, rawInteger, fraction = ''] = match;
-  const integer = rawInteger.replace(/^0+(?=\d)/, '');
-  const compactUnit = COMPACT_SUFFIXES.find(({ threshold }) => integer.length > threshold);
+	const [, sign, rawInteger, fraction = ""] = match;
+	const integer = rawInteger.replace(/^0+(?=\d)/, "");
+	const compactUnit = COMPACT_SUFFIXES.find(
+		({ threshold }) => integer.length > threshold,
+	);
 
-  if (!compactUnit) {
-    const groupedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return `${sign}${groupedInteger}${fraction ? `.${fraction}` : ''}`;
-  }
+	if (!compactUnit) {
+		const groupedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+		return `${sign}${groupedInteger}${fraction ? `.${fraction}` : ""}`;
+	}
 
-  // Do the rounding with BigInt so large API values never pass through a lossy Number.
-  const precision = 4;
-  const decimalScale = 10n ** BigInt(fraction.length);
-  const unitScale = 10n ** BigInt(compactUnit.threshold);
-  const precisionScale = 10n ** BigInt(precision);
-  const absoluteValue = BigInt(`${integer}${fraction}`);
-  const divisor = decimalScale * unitScale;
-  const rounded = (absoluteValue * precisionScale + divisor / 2n) / divisor;
-  const whole = rounded / precisionScale;
-  const decimals = (rounded % precisionScale)
-    .toString()
-    .padStart(precision, '0')
-    .replace(/0+$/, '');
+	// Do the rounding with BigInt so large API values never pass through a lossy Number.
+	const precision = 4;
+	const decimalScale = 10n ** BigInt(fraction.length);
+	const unitScale = 10n ** BigInt(compactUnit.threshold);
+	const precisionScale = 10n ** BigInt(precision);
+	const absoluteValue = BigInt(`${integer}${fraction}`);
+	const divisor = decimalScale * unitScale;
+	const rounded = (absoluteValue * precisionScale + divisor / 2n) / divisor;
+	const whole = rounded / precisionScale;
+	const decimals = (rounded % precisionScale)
+		.toString()
+		.padStart(precision, "0")
+		.replace(/0+$/, "");
 
-  return `${sign}${whole}${decimals ? `.${decimals}` : ''}${compactUnit.suffix}`;
+	return `${sign}${whole}${decimals ? `.${decimals}` : ""}${compactUnit.suffix}`;
+}
+
+export function getDiscordUserId(token: string | null): string {
+	if (!token) return "";
+
+	const [, payload] = token.split(".");
+	if (!payload) return "";
+
+	try {
+		const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+		const json = atob(normalizedPayload);
+		const match = json.match(/"discord-id"\s*:\s*"?(\d+)"?/);
+		return match?.[1] ?? "";
+	} catch {
+		return "";
+	}
 }
 
 function formatStatValue(value: string | number | null | undefined): string {
-  return value === null || value === undefined ? 'Coming soon' : formatCompactValue(value);
+	return value === null || value === undefined
+		? "Coming soon"
+		: formatCompactValue(value);
 }
 
-function formatWarnValue(total: string | number, active: string | number): string {
-  return `${formatCompactValue(total)} (${formatCompactValue(active)} active)`;
+function formatWarnValue(
+	total: string | number,
+	active: string | number,
+): string {
+	return `${formatCompactValue(total)} (${formatCompactValue(active)} active)`;
 }
 
 @Component({
-  selector: 'app-server-stats',
-  standalone: true,
-  imports: [RouterLink],
-  template: `
+	selector: "app-server-stats",
+	standalone: true,
+	imports: [RouterLink],
+	changeDetection: ChangeDetectionStrategy.OnPush,
+	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
         <a routerLink="/dashboard" class="btn btn-secondary mb-4 inline-block">
@@ -125,139 +164,150 @@ function formatWarnValue(total: string | number, active: string | number): strin
   `,
 })
 export class ServerStatsComponent implements OnInit, OnDestroy {
-  private route = inject(ActivatedRoute);
-  private discordGuildService = inject(DiscordGuildService);
-  private statsService = inject(StatsControllerService);
-  private cdr = inject(ChangeDetectorRef);
-  private routeSubscription?: Subscription;
-  private statsSubscription?: Subscription;
+	private route = inject(ActivatedRoute);
+	private discordGuildService = inject(DiscordGuildService);
+	private statsService = inject(StatsControllerService);
+	private cdr = inject(ChangeDetectorRef);
+	private routeSubscription?: Subscription;
+	private statsSubscription?: Subscription;
+	private destroyed = false;
 
-  protected serverId = '';
-  protected serverName = 'Server';
-  protected stats: ServerStats | null = null;
-  protected loading = true;
-  protected error = '';
+	protected serverId = "";
+	protected serverName = "Server";
+	protected stats: ServerStats | null = null;
+	protected loading = true;
+	protected error = "";
 
-  protected get statCards() {
-    if (!this.stats) return [];
+	protected statCards: StatCard[] = [];
 
-    return [
-      {
-        borderClass: 'border-blue-500/40',
-        titleClass: 'text-blue-400',
-        title: 'Total money spent',
-        value: formatCompactValue(this.stats.totalMoneySpent),
-        description: 'Across all completed services',
-      },
-      {
-        borderClass: 'border-purple-500/40',
-        titleClass: 'text-purple-400',
-        title: 'Total carries',
-        value: formatCompactValue(this.stats.totalCarries),
-        description: 'Completed on this server',
-      },
-      {
-        borderClass: 'border-violet-500/40',
-        titleClass: 'text-violet-400',
-        title: 'Total score',
-        value: formatStatValue(this.stats.totalScore),
-        description: 'Points earned by the service team',
-      },
-      {
-        borderClass: 'border-cyan-500/40',
-        titleClass: 'text-cyan-400',
-        title: 'Total tickets',
-        value: formatStatValue(this.stats.totalTickets),
-        description: '',
-      },
-      {
-        borderClass: 'border-teal-500/40',
-        titleClass: 'text-teal-400',
-        title: 'Total carriers',
-        value: formatStatValue(this.stats.totalCarriers),
-        description: 'People who gained score by completing at least one carry',
-      },
-      {
-        borderClass: 'border-amber-500/40',
-        titleClass: 'text-amber-400',
-        title: 'Your money spent',
-        value: formatStatValue(this.stats.yourMoneySpent),
-        description: 'As the user receiving a service',
-      },
-      {
-        borderClass: 'border-emerald-500/40',
-        titleClass: 'text-emerald-400',
-        title: 'Your money earned',
-        value: formatStatValue(this.stats.yourMoneyEarned),
-        description: 'As the carrier providing a service',
-      },
-      {
-        borderClass: 'border-pink-500/40',
-        titleClass: 'text-pink-400',
-        title: 'Your completed carries',
-        value: formatStatValue(this.stats.yourCompletedCarries),
-        description: 'Completed as a carrier on this server',
-      },
-      {
-        borderClass: 'border-indigo-500/40',
-        titleClass: 'text-indigo-400',
-        title: 'Your bought carries',
-        value: formatStatValue(this.stats.yourBoughtCarries),
-        description: 'Received as a customer on this server',
-      },
-      {
-        borderClass: 'border-red-500/40',
-        titleClass: 'text-red-400',
-        title: 'Total warns given',
-        value: formatWarnValue(this.stats.totalWarns, this.stats.activeWarns),
-        description: 'Warnings issued on this server',
-      },
-    ];
-  }
+	private buildStatCards(stats: ServerStats): StatCard[] {
+		return [
+			{
+				borderClass: "border-blue-500/40",
+				titleClass: "text-blue-400",
+				title: "Total money spent",
+				value: formatCompactValue(stats.totalMoneySpent),
+				description: "Across all completed services",
+			},
+			{
+				borderClass: "border-purple-500/40",
+				titleClass: "text-purple-400",
+				title: "Total carries",
+				value: formatCompactValue(stats.totalCarries),
+				description: "Completed on this server",
+			},
+			{
+				borderClass: "border-violet-500/40",
+				titleClass: "text-violet-400",
+				title: "Total score",
+				value: formatStatValue(stats.totalScore),
+				description: "Points earned by the service team",
+			},
+			{
+				borderClass: "border-cyan-500/40",
+				titleClass: "text-cyan-400",
+				title: "Total tickets",
+				value: formatStatValue(stats.totalTickets),
+				description: "",
+			},
+			{
+				borderClass: "border-teal-500/40",
+				titleClass: "text-teal-400",
+				title: "Total carriers",
+				value: formatStatValue(stats.totalCarriers),
+				description: "People who gained score by completing at least one carry",
+			},
+			{
+				borderClass: "border-amber-500/40",
+				titleClass: "text-amber-400",
+				title: "Your money spent",
+				value: formatStatValue(stats.yourMoneySpent),
+				description: "As the user receiving a service",
+			},
+			{
+				borderClass: "border-emerald-500/40",
+				titleClass: "text-emerald-400",
+				title: "Your money earned",
+				value: formatStatValue(stats.yourMoneyEarned),
+				description: "As the carrier providing a service",
+			},
+			{
+				borderClass: "border-pink-500/40",
+				titleClass: "text-pink-400",
+				title: "Your completed carries",
+				value: formatStatValue(stats.yourCompletedCarries),
+				description: "Completed as a carrier on this server",
+			},
+			{
+				borderClass: "border-indigo-500/40",
+				titleClass: "text-indigo-400",
+				title: "Your bought carries",
+				value: formatStatValue(stats.yourBoughtCarries),
+				description: "Received as a customer on this server",
+			},
+			{
+				borderClass: "border-red-500/40",
+				titleClass: "text-red-400",
+				title: "Total warns given",
+				value: formatWarnValue(stats.totalWarns, stats.activeWarns),
+				description: "Warnings issued on this server",
+			},
+		];
+	}
 
-  ngOnInit(): void {
-    this.routeSubscription = this.route.paramMap.subscribe((paramMap) => {
-      this.serverId = paramMap.get('serverId') ?? '';
-      const guild = this.discordGuildService.getGuildById(this.serverId);
-      this.serverName = guild ? this.discordGuildService.getDisplayName(guild) : 'Server';
-      this.loadStats();
-    });
-  }
+	ngOnInit(): void {
+		this.routeSubscription = this.route.paramMap.subscribe((paramMap) => {
+			if (this.destroyed) return;
+			this.serverId = paramMap.get("serverId") ?? "";
+			const guild = this.discordGuildService.getGuildById(this.serverId);
+			this.serverName = guild
+				? this.discordGuildService.getDisplayName(guild)
+				: "Server";
+			this.loadStats();
+			this.cdr.markForCheck();
+		});
+	}
 
-  ngOnDestroy(): void {
-    this.routeSubscription?.unsubscribe();
-    this.statsSubscription?.unsubscribe();
-  }
+	ngOnDestroy(): void {
+		this.destroyed = true;
+		this.routeSubscription?.unsubscribe();
+		this.statsSubscription?.unsubscribe();
+	}
 
-  protected loadStats(): void {
-    this.statsSubscription?.unsubscribe();
-    this.stats = null;
+	protected loadStats(): void {
+		this.statsSubscription?.unsubscribe();
+		this.stats = null;
 
-    if (!this.serverId) {
-      this.loading = false;
-      this.error = 'Your server could not be identified.';
-      return;
-    }
+		if (!this.serverId) {
+			this.loading = false;
+			this.error = "Your server could not be identified.";
+			return;
+		}
 
-    this.loading = true;
-    this.error = '';
+		this.loading = true;
+		this.error = "";
 
-    this.statsSubscription = this.loadServerStats().subscribe({
-      next: (stats) => {
-        this.stats = stats;
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.stats = null;
-        this.loading = false;
-        this.error = 'The statistics service did not return a result. Please try again.';
-        this.cdr.detectChanges();
-      },
-    });
-  }
+		this.statsSubscription = this.loadServerStats().subscribe({
+			next: (stats) => {
+				this.stats = stats;
+				this.statCards = this.buildStatCards(stats);
+				this.loading = false;
+				this.cdr.markForCheck();
+			},
+			error: () => {
+				this.stats = null;
+				this.statCards = [];
+				this.loading = false;
+				this.error =
+					"The statistics service did not return a result. Please try again.";
+				this.cdr.markForCheck();
+			},
+		});
+	}
 
-  private loadServerStats(): Observable<ServerStats> {
-    return this.statsService.getServerStats(this.serverId) as Observable<ServerStats>;
-  }
+	private loadServerStats(): Observable<ServerStats> {
+		return this.statsService.getServerStats(
+			this.serverId,
+		) as Observable<ServerStats>;
+	}
 }

@@ -1,21 +1,27 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { CommonModule } from "@angular/common";
 import {
-  CarryTypeControllerService,
-  CarryTierControllerService,
-  CarryTypeModel,
-  CarryTierModel,
-  CarryTierCreationModel,
-  CarryTypeUpdateModel
-} from '@dungeon-hub/api-client';
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import {
+	CarryTierControllerService,
+	type CarryTierCreationModel,
+	type CarryTierModel,
+	CarryTypeControllerService,
+	type CarryTypeModel,
+	type CarryTypeUpdateModel,
+} from "@dungeon-hub/api-client";
+import { wasCleared } from "../../shared/utils/form-utils";
 
 @Component({
-  selector: 'app-carry-type-detail',
-  standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
-  template: `
+	selector: "app-carry-type-detail",
+	standalone: true,
+	imports: [CommonModule, RouterLink, FormsModule],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
         <a [routerLink]="['/server', serverId, 'carry-types']" class="btn btn-secondary mb-4 inline-block">
@@ -306,176 +312,204 @@ import {
         </div>
       }
     </div>
-  `
+  `,
 })
 export class CarryTypeDetailComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private carryTypeService = inject(CarryTypeControllerService);
-  private carryTierService = inject(CarryTierControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private router = inject(Router);
+	private carryTypeService = inject(CarryTypeControllerService);
+	private carryTierService = inject(CarryTierControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  carryTypeId!: string;
-  carryType: CarryTypeModel | null = null;
-  tiers: CarryTierModel[] = [];
-  loadError: string | null = null;
+	serverId!: string;
+	carryTypeId!: string;
+	carryType: CarryTypeModel | null = null;
+	tiers: CarryTierModel[] = [];
+	loadError: string | null = null;
 
-  showCreateModal = false;
-  isCreating = false;
-  createError: string | null = null;
-  newTier = {
-    identifier: '',
-    displayName: '',
-    category: '',
-    descriptiveName: '',
-    thumbnailUrl: '',
-    priceTitle: '',
-    priceDescription: ''
-  };
+	showCreateModal = false;
+	isCreating = false;
+	createError: string | null = null;
+	newTier = {
+		identifier: "",
+		displayName: "",
+		category: "",
+		descriptiveName: "",
+		thumbnailUrl: "",
+		priceTitle: "",
+		priceDescription: "",
+	};
 
-  showEditTypeModal = false;
-  isUpdatingType = false;
-  updateTypeError: string | null = null;
-  editTypeForm = {
-    displayName: '',
-    logChannel: '',
-    eventActive: false
-  };
+	showEditTypeModal = false;
+	isUpdatingType = false;
+	updateTypeError: string | null = null;
+	editTypeForm = {
+		displayName: "",
+		logChannel: "",
+		eventActive: false,
+	};
 
-  showDeleteTypeModal = false;
-  isDeletingType = false;
-  deleteTypeError: string | null = null;
+	showDeleteTypeModal = false;
+	isDeletingType = false;
+	deleteTypeError: string | null = null;
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
-    this.carryTypeId = this.route.snapshot.params['carryTypeId'];
-    this.loadData();
-  }
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.carryTypeId = this.route.snapshot.params["carryTypeId"];
+		this.loadData();
+	}
 
-  loadData() {
-    this.loadError = null;
+	loadData() {
+		this.loadError = null;
 
-    this.carryTypeService.getById6(this.serverId, this.carryTypeId).subscribe({
-      next: (type) => {
-        this.carryType = type;
-        this.loadTiers();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load carry type. Please try again.';
-        console.error('Error loading carry type:', err);
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryTypeService.getById6(this.serverId, this.carryTypeId).subscribe({
+			next: (type) => {
+				this.carryType = type;
+				this.loadTiers();
+			},
+			error: (err) => {
+				this.loadError = "Failed to load carry type. Please try again.";
+				console.error("Error loading carry type:", err);
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  loadTiers() {
-    if (!this.carryType) return;
+	loadTiers() {
+		if (!this.carryType) return;
 
-    this.carryTierService.getAllCarryTiers(this.serverId, this.carryType.id).subscribe({
-      next: (tiers) => {
-        this.tiers = tiers || [];
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load tiers. Please try again.';
-        console.error('Error loading tiers:', err);
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryTierService
+			.getAllCarryTiers(this.serverId, this.carryType.id)
+			.subscribe({
+				next: (tiers) => {
+					this.tiers = tiers || [];
+					this.cdr.detectChanges();
+				},
+				error: (err) => {
+					this.loadError = "Failed to load tiers. Please try again.";
+					console.error("Error loading tiers:", err);
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  createTier() {
-    if (!this.carryType || !this.newTier.identifier || !this.newTier.displayName || this.isCreating) return;
+	createTier() {
+		if (
+			!this.carryType ||
+			!this.newTier.identifier ||
+			!this.newTier.displayName ||
+			this.isCreating
+		)
+			return;
 
-    this.isCreating = true;
-    this.createError = null;
+		this.isCreating = true;
+		this.createError = null;
 
-    const creationModel: CarryTierCreationModel = {
-      identifier: this.newTier.identifier.trim().toLowerCase().replace(/ /g, '_'),
-      displayName: this.newTier.displayName,
-      category: this.newTier.category || undefined,
-      descriptiveName: this.newTier.descriptiveName || undefined,
-      thumbnailUrl: this.newTier.thumbnailUrl || undefined,
-      priceTitle: this.newTier.priceTitle || undefined,
-      priceDescription: this.newTier.priceDescription || undefined
-    };
+		const creationModel: CarryTierCreationModel = {
+			identifier: this.newTier.identifier
+				.trim()
+				.toLowerCase()
+				.replace(/ /g, "_"),
+			displayName: this.newTier.displayName,
+			category: this.newTier.category || undefined,
+			descriptiveName: this.newTier.descriptiveName || undefined,
+			thumbnailUrl: this.newTier.thumbnailUrl || undefined,
+			priceTitle: this.newTier.priceTitle || undefined,
+			priceDescription: this.newTier.priceDescription || undefined,
+		};
 
-    this.carryTierService.createCarryTier(this.serverId, this.carryType.id, creationModel).subscribe({
-      next: () => {
-        this.showCreateModal = false;
-        this.newTier = { identifier: '', displayName: '', category: '', descriptiveName: '', thumbnailUrl: '', priceTitle: '', priceDescription: '' };
-        this.isCreating = false;
-        this.loadTiers();
-      },
-      error: (err) => {
-        this.createError = err.error?.message || 'Failed to create tier';
-        this.isCreating = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryTierService
+			.createCarryTier(this.serverId, this.carryType.id, creationModel)
+			.subscribe({
+				next: () => {
+					this.showCreateModal = false;
+					this.newTier = {
+						identifier: "",
+						displayName: "",
+						category: "",
+						descriptiveName: "",
+						thumbnailUrl: "",
+						priceTitle: "",
+						priceDescription: "",
+					};
+					this.isCreating = false;
+					this.loadTiers();
+				},
+				error: (err) => {
+					this.createError = err.error?.message || "Failed to create tier";
+					this.isCreating = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  openEditTypeModal() {
-    if (!this.carryType) return;
-    this.editTypeForm = {
-      displayName: this.carryType.displayName,
-      logChannel: this.carryType.logChannel || '',
-      eventActive: this.carryType.isEventActive || false
-    };
-    this.updateTypeError = null;
-    this.showEditTypeModal = true;
-  }
+	openEditTypeModal() {
+		if (!this.carryType) return;
+		this.editTypeForm = {
+			displayName: this.carryType.displayName,
+			logChannel: this.carryType.logChannel || "",
+			eventActive: this.carryType.isEventActive || false,
+		};
+		this.updateTypeError = null;
+		this.showEditTypeModal = true;
+	}
 
-  wasCleared(currentValue: any, formValue: any): boolean {
-    return currentValue != null && (formValue == null || formValue === '');
-  }
+	updateCarryType() {
+		if (!this.carryType || this.isUpdatingType) return;
 
-  updateCarryType() {
-    if (!this.carryType || this.isUpdatingType) return;
+		this.isUpdatingType = true;
+		this.updateTypeError = null;
 
-    this.isUpdatingType = true;
-    this.updateTypeError = null;
+		const resetLogChannel = wasCleared(
+			this.carryType.logChannel,
+			this.editTypeForm.logChannel,
+		);
 
-    const resetLogChannel = this.wasCleared(this.carryType.logChannel, this.editTypeForm.logChannel);
+		const updateModel: CarryTypeUpdateModel = {
+			displayName: this.editTypeForm.displayName || undefined,
+			logChannel: resetLogChannel
+				? undefined
+				: this.editTypeForm.logChannel || undefined,
+			eventActive: this.editTypeForm.eventActive,
+			resetLogChannel: resetLogChannel,
+			resetEventActive: false,
+		};
 
-    const updateModel: CarryTypeUpdateModel = {
-      displayName: this.editTypeForm.displayName || undefined,
-      logChannel: resetLogChannel ? undefined : (this.editTypeForm.logChannel || undefined),
-      eventActive: this.editTypeForm.eventActive,
-      resetLogChannel: resetLogChannel,
-      resetEventActive: false
-    };
+		this.carryTypeService
+			.updateCarryType(this.serverId, this.carryType.id, updateModel)
+			.subscribe({
+				next: () => {
+					this.showEditTypeModal = false;
+					this.isUpdatingType = false;
+					this.loadData();
+				},
+				error: (err) => {
+					this.updateTypeError =
+						err.error?.message || "Failed to update carry type";
+					this.isUpdatingType = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-    this.carryTypeService.updateCarryType(this.serverId, this.carryType.id, updateModel).subscribe({
-      next: () => {
-        this.showEditTypeModal = false;
-        this.isUpdatingType = false;
-        this.loadData();
-      },
-      error: (err) => {
-        this.updateTypeError = err.error?.message || 'Failed to update carry type';
-        this.isUpdatingType = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+	deleteCarryType() {
+		if (!this.carryType || this.isDeletingType) return;
 
-  deleteCarryType() {
-    if (!this.carryType || this.isDeletingType) return;
+		this.isDeletingType = true;
+		this.deleteTypeError = null;
 
-    this.isDeletingType = true;
-    this.deleteTypeError = null;
-
-    this.carryTypeService.deleteById4(this.serverId, this.carryType.id).subscribe({
-      next: () => {
-        this.router.navigate(['/server', this.serverId, 'carry-types']);
-      },
-      error: (err) => {
-        this.deleteTypeError = err.error?.message || 'Failed to delete carry type';
-        this.isDeletingType = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryTypeService
+			.deleteById4(this.serverId, this.carryType.id)
+			.subscribe({
+				next: () => {
+					this.router.navigate(["/server", this.serverId, "carry-types"]);
+				},
+				error: (err) => {
+					this.deleteTypeError =
+						err.error?.message || "Failed to delete carry type";
+					this.isDeletingType = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 }

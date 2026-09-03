@@ -1,12 +1,24 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, HostListener, ElementRef, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { CommonModule } from "@angular/common";
+import {
+	ChangeDetectorRef,
+	Component,
+	ElementRef,
+	EventEmitter,
+	HostListener,
+	Input,
+	inject,
+	type OnChanges,
+	type OnInit,
+	Output,
+	type SimpleChanges,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
 
 @Component({
-  selector: 'app-autocomplete',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
+	selector: "app-autocomplete",
+	standalone: true,
+	imports: [CommonModule, FormsModule],
+	template: `
     <div class="relative">
       <!-- Trigger Button and Clear Button (siblings) -->
       <div class="relative">
@@ -131,153 +143,169 @@ import { FormsModule } from '@angular/forms';
         </div>
       }
     </div>
-  `
+  `,
 })
 export class AutocompleteComponent implements OnInit, OnChanges {
-  private elementRef = inject(ElementRef);
-  private cdr = inject(ChangeDetectorRef);
+	private elementRef = inject(ElementRef);
+	private cdr = inject(ChangeDetectorRef);
 
-  @Input() items: any[] = [];
-  @Input() displayKey: string = 'name';
-  @Input() valueKey: string = 'id';
-  @Input() groupByKey?: string; // Optional: group items by this field (e.g., 'category.id')
-  @Input() groupDisplayKey?: string; // Optional: display key for group labels (e.g., 'category.name')
-  @Input() placeholder: string = 'Search...';
-  @Input() selectedItem: any = null; // The selected object (can be null)
-  @Input() nullLabel: string = 'None';
-  @Output() selectedItemChange = new EventEmitter<any>();
+	@Input() items: any[] = [];
+	@Input() displayKey: string = "name";
+	@Input() valueKey: string = "id";
+	@Input() groupByKey?: string; // Optional: group items by this field (e.g., 'category.id')
+	@Input() groupDisplayKey?: string; // Optional: display key for group labels (e.g., 'category.name')
+	@Input() placeholder: string = "Search...";
+	@Input() selectedItem: any = null; // The selected object (can be null)
+	@Input() nullLabel: string = "None";
+	@Output() selectedItemChange = new EventEmitter<any>();
 
-  isOpen: boolean = false;
-  searchQuery: string = '';
-  filteredItems: any[] = [];
-  groupedItems: { [key: string]: any[] } = {};
-  groupKeys: string[] = [];
-  groupDisplayNames: { [key: string]: string } = {}; // Maps group key to display name
+	isOpen: boolean = false;
+	searchQuery: string = "";
+	filteredItems: any[] = [];
+	groupedItems: { [key: string]: any[] } = {};
+	groupKeys: string[] = [];
+	groupDisplayNames: { [key: string]: string } = {}; // Maps group key to display name
 
-  ngOnInit() {
-    this.filterItems();
-  }
+	ngOnInit() {
+		this.filterItems();
+	}
 
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['items']) {
-      this.filterItems();
-    }
-  }
+	ngOnChanges(changes: SimpleChanges) {
+		if (changes["items"]) {
+			this.filterItems();
+		}
+	}
 
-  toggleDropdown() {
-    this.isOpen = !this.isOpen;
-    if (this.isOpen) {
-      this.searchQuery = '';
-      this.filterItems();
-      // Focus the search input after the view updates
-      setTimeout(() => {
-        const searchInput = this.elementRef.nativeElement.querySelector('input[type="text"]');
-        if (searchInput) {
-          searchInput.focus();
-        }
-      }, 0);
-    }
-  }
+	toggleDropdown() {
+		this.isOpen = !this.isOpen;
+		if (this.isOpen) {
+			this.searchQuery = "";
+			this.filterItems();
+			// Focus the search input after the view updates
+			setTimeout(() => {
+				const searchInput =
+					this.elementRef.nativeElement.querySelector('input[type="text"]');
+				if (searchInput) {
+					searchInput.focus();
+				}
+			}, 0);
+		}
+	}
 
-  selectItem(item: any | null) {
-    this.selectedItem = item;
-    this.selectedItemChange.emit(item);
-    this.isOpen = false;
-    this.cdr.detectChanges();
-  }
+	selectItem(item: any | null) {
+		this.selectedItem = item;
+		this.selectedItemChange.emit(item);
+		this.isOpen = false;
+		this.cdr.detectChanges();
+	}
 
-  clear(event: Event) {
-    event.stopPropagation();
-    this.selectItem(null);
-  }
+	clear(event: Event) {
+		event.stopPropagation();
+		this.selectItem(null);
+	}
 
-  getDisplayValue(): string {
-    if (!this.selectedItem) {
-      return this.nullLabel;
-    }
-    return this.getNestedProperty(this.selectedItem, this.displayKey) || this.nullLabel;
-  }
+	getDisplayValue(): string {
+		if (!this.selectedItem) {
+			return this.nullLabel;
+		}
+		return (
+			this.getNestedProperty(this.selectedItem, this.displayKey) ||
+			this.nullLabel
+		);
+	}
 
-  getSelectedValue(): any {
-    if (!this.selectedItem) {
-      return null;
-    }
-    return this.getNestedProperty(this.selectedItem, this.valueKey);
-  }
+	getSelectedValue(): any {
+		if (!this.selectedItem) {
+			return null;
+		}
+		return this.getNestedProperty(this.selectedItem, this.valueKey);
+	}
 
-  filterItems() {
-    if (!this.searchQuery) {
-      this.filteredItems = this.items;
-    } else {
-      const query = this.searchQuery.toLowerCase();
-      this.filteredItems = this.items.filter(item => {
-        const displayValue = this.getNestedProperty(item, this.displayKey);
-        return typeof displayValue === 'string' && displayValue.toLowerCase().includes(query);
-      });
-    }
+	filterItems() {
+		if (!this.searchQuery) {
+			this.filteredItems = this.items;
+		} else {
+			const query = this.searchQuery.toLowerCase();
+			this.filteredItems = this.items.filter((item) => {
+				const displayValue = this.getNestedProperty(item, this.displayKey);
+				return (
+					typeof displayValue === "string" &&
+					displayValue.toLowerCase().includes(query)
+				);
+			});
+		}
 
-    // Group items if groupByKey is specified
-    if (this.groupByKey) {
-      this.groupItems();
-    }
-  }
+		// Group items if groupByKey is specified
+		if (this.groupByKey) {
+			this.groupItems();
+		}
+	}
 
-  groupItems() {
-    this.groupedItems = {};
-    this.groupKeys = [];
-    this.groupDisplayNames = {};
+	groupItems() {
+		this.groupedItems = {};
+		this.groupKeys = [];
+		this.groupDisplayNames = {};
+		const groupByKey = this.groupByKey;
+		if (!groupByKey) return;
 
-    // Group filtered items by the specified key
-    for (const item of this.filteredItems) {
-      // Get the group value (supports nested properties like 'category.id')
-      const groupValue = this.getNestedProperty(item, this.groupByKey!) || 'Uncategorized';
-      const groupKey = String(groupValue);
+		// Group filtered items by the specified key
+		for (const item of this.filteredItems) {
+			// Get the group value (supports nested properties like 'category.id')
+			const groupValue =
+				this.getNestedProperty(item, groupByKey) || "Uncategorized";
+			const groupKey = String(groupValue);
 
-      if (!this.groupedItems[groupKey]) {
-        this.groupedItems[groupKey] = [];
-        this.groupKeys.push(groupKey);
+			if (!this.groupedItems[groupKey]) {
+				this.groupedItems[groupKey] = [];
+				this.groupKeys.push(groupKey);
 
-        // Get the display name for this group
-        if (groupKey !== 'Uncategorized' && this.groupDisplayKey) {
-          const displayValue = this.getNestedProperty(item, this.groupDisplayKey);
-          this.groupDisplayNames[groupKey] = String(displayValue || groupKey);
-        } else if (groupKey !== 'Uncategorized') {
-          this.groupDisplayNames[groupKey] = groupKey;
-        }
-      }
-      this.groupedItems[groupKey].push(item);
-    }
+				// Get the display name for this group
+				if (groupKey !== "Uncategorized" && this.groupDisplayKey) {
+					const displayValue = this.getNestedProperty(
+						item,
+						this.groupDisplayKey,
+					);
+					this.groupDisplayNames[groupKey] = String(displayValue || groupKey);
+				} else if (groupKey !== "Uncategorized") {
+					this.groupDisplayNames[groupKey] = groupKey;
+				}
+			}
+			this.groupedItems[groupKey].push(item);
+		}
 
-    // Sort group keys alphabetically by display name, but keep 'Uncategorized' at the end
-    this.groupKeys.sort((a, b) => {
-      if (a === 'Uncategorized') return 1;
-      if (b === 'Uncategorized') return -1;
-      const displayA = this.groupDisplayNames[a] || a;
-      const displayB = this.groupDisplayNames[b] || b;
-      return displayA.localeCompare(displayB);
-    });
-  }
+		// Sort group keys alphabetically by display name, but keep 'Uncategorized' at the end
+		this.groupKeys.sort((a, b) => {
+			if (a === "Uncategorized") return 1;
+			if (b === "Uncategorized") return -1;
+			const displayA = this.groupDisplayNames[a] || a;
+			const displayB = this.groupDisplayNames[b] || b;
+			return displayA.localeCompare(displayB);
+		});
+	}
 
-  // Helper method to get nested property values (e.g., 'category.name' or 'category.id')
-  getNestedProperty(obj: any, path: string): any {
-    return path.split('.').reduce((current, prop) => current?.[prop], obj);
-  }
+	// Helper method to get nested property values (e.g., 'category.name' or 'category.id')
+	getNestedProperty(obj: any, path: string): any {
+		return path.split(".").reduce((current, prop) => current?.[prop], obj);
+	}
 
-  // Check if an item is currently selected
-  isItemSelected(item: any): boolean {
-    if (!this.selectedItem || !item) {
-      return false;
-    }
-    const selectedValue = this.getNestedProperty(this.selectedItem, this.valueKey);
-    const itemValue = this.getNestedProperty(item, this.valueKey);
-    return selectedValue === itemValue;
-  }
+	// Check if an item is currently selected
+	isItemSelected(item: any): boolean {
+		if (!this.selectedItem || !item) {
+			return false;
+		}
+		const selectedValue = this.getNestedProperty(
+			this.selectedItem,
+			this.valueKey,
+		);
+		const itemValue = this.getNestedProperty(item, this.valueKey);
+		return selectedValue === itemValue;
+	}
 
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: Event) {
-    if (!this.elementRef.nativeElement.contains(event.target)) {
-      this.isOpen = false;
-      this.cdr.detectChanges();
-    }
-  }
+	@HostListener("document:click", ["$event"])
+	onDocumentClick(event: Event) {
+		if (!this.elementRef.nativeElement.contains(event.target)) {
+			this.isOpen = false;
+			this.cdr.detectChanges();
+		}
+	}
 }

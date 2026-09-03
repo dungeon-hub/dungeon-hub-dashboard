@@ -1,18 +1,25 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { CommonModule } from "@angular/common";
 import {
-  CarryTypeControllerService,
-  CarryTypeModel,
-  CarryTypeCreationModel
-} from '@dungeon-hub/api-client';
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import { FormsModule } from "@angular/forms";
+import { ActivatedRoute, RouterLink } from "@angular/router";
+import {
+	CarryTypeControllerService,
+	type CarryTypeCreationModel,
+	type CarryTypeModel,
+	type CarryTypeUpdateModel,
+} from "@dungeon-hub/api-client";
+import { wasCleared } from "../../shared/utils/form-utils";
 
 @Component({
-  selector: 'app-carry-type-list',
-  standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
-  template: `
+	selector: "app-carry-type-list",
+	standalone: true,
+	imports: [CommonModule, RouterLink, FormsModule],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
         <a [routerLink]="['/server', serverId]" class="btn btn-secondary mb-4 inline-block">
@@ -233,160 +240,183 @@ import {
         </div>
       }
     </div>
-  `
+  `,
 })
 export class CarryTypeListComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private carryTypeService = inject(CarryTypeControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private carryTypeService = inject(CarryTypeControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  carryTypes: CarryTypeModel[] = [];
-  loadError: string | null = null;
+	serverId!: string;
+	carryTypes: CarryTypeModel[] = [];
+	loadError: string | null = null;
 
-  showCreateModal = false;
-  isCreating = false;
-  createError: string | null = null;
-  newCarryType = {
-    identifier: '',
-    displayName: '',
-    logChannel: '',
-    eventActive: false
-  };
+	showCreateModal = false;
+	isCreating = false;
+	createError: string | null = null;
+	newCarryType = {
+		identifier: "",
+		displayName: "",
+		logChannel: "",
+		eventActive: false,
+	};
 
-  showEditModal = false;
-  isUpdating = false;
-  updateError: string | null = null;
-  editingCarryType: CarryTypeModel | null = null;
-  editForm = {
-    displayName: '',
-    logChannel: '',
-    eventActive: false
-  };
+	showEditModal = false;
+	isUpdating = false;
+	updateError: string | null = null;
+	editingCarryType: CarryTypeModel | null = null;
+	editForm = {
+		displayName: "",
+		logChannel: "",
+		eventActive: false,
+	};
 
-  showDeleteModal = false;
-  isDeleting = false;
-  deleteError: string | null = null;
-  deletingCarryType: CarryTypeModel | null = null;
+	showDeleteModal = false;
+	isDeleting = false;
+	deleteError: string | null = null;
+	deletingCarryType: CarryTypeModel | null = null;
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
-    this.loadCarryTypes();
-  }
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.loadCarryTypes();
+	}
 
-  loadCarryTypes() {
-    this.loadError = null;
-    this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
-      next: (types) => {
-        this.carryTypes = types || [];
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        this.loadError = 'Failed to load carry types. Please try again.';
-        console.error('Error loading carry types:', err);
-        this.cdr.detectChanges();
-      }
-    });
-  }
+	loadCarryTypes() {
+		this.loadError = null;
+		this.carryTypeService.getAllCarryTypes(this.serverId).subscribe({
+			next: (types) => {
+				this.carryTypes = types || [];
+				this.cdr.detectChanges();
+			},
+			error: (err) => {
+				this.loadError = "Failed to load carry types. Please try again.";
+				console.error("Error loading carry types:", err);
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  createCarryType() {
-    if (!this.newCarryType.identifier || !this.newCarryType.displayName || this.isCreating) return;
+	createCarryType() {
+		if (
+			!this.newCarryType.identifier ||
+			!this.newCarryType.displayName ||
+			this.isCreating
+		)
+			return;
 
-    this.isCreating = true;
-    this.createError = null;
+		this.isCreating = true;
+		this.createError = null;
 
-    const creationModel: CarryTypeCreationModel = {
-      identifier: this.newCarryType.identifier.trim().toLowerCase().replace(/ /g, '_'),
-      displayName: this.newCarryType.displayName,
-      logChannel: this.newCarryType.logChannel || undefined,
-      eventActive: this.newCarryType.eventActive || undefined
-    };
+		const creationModel: CarryTypeCreationModel = {
+			identifier: this.newCarryType.identifier
+				.trim()
+				.toLowerCase()
+				.replace(/ /g, "_"),
+			displayName: this.newCarryType.displayName,
+			logChannel: this.newCarryType.logChannel || undefined,
+			eventActive: this.newCarryType.eventActive || undefined,
+		};
 
-    this.carryTypeService.createNewCarryType(this.serverId, creationModel).subscribe({
-      next: () => {
-        this.showCreateModal = false;
-        this.newCarryType = { identifier: '', displayName: '', logChannel: '', eventActive: false };
-        this.isCreating = false;
-        this.loadCarryTypes();
-      },
-      error: (err) => {
-        this.createError = err.error?.message || 'Failed to create carry type';
-        this.isCreating = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryTypeService
+			.createNewCarryType(this.serverId, creationModel)
+			.subscribe({
+				next: () => {
+					this.showCreateModal = false;
+					this.newCarryType = {
+						identifier: "",
+						displayName: "",
+						logChannel: "",
+						eventActive: false,
+					};
+					this.isCreating = false;
+					this.loadCarryTypes();
+				},
+				error: (err) => {
+					this.createError =
+						err.error?.message || "Failed to create carry type";
+					this.isCreating = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  openEditModal(carryType: CarryTypeModel) {
-    this.editingCarryType = carryType;
-    this.editForm = {
-      displayName: carryType.displayName,
-      logChannel: carryType.logChannel || '',
-      eventActive: carryType.isEventActive || false
-    };
-    this.updateError = null;
-    this.showEditModal = true;
-  }
+	openEditModal(carryType: CarryTypeModel) {
+		this.editingCarryType = carryType;
+		this.editForm = {
+			displayName: carryType.displayName,
+			logChannel: carryType.logChannel || "",
+			eventActive: carryType.isEventActive || false,
+		};
+		this.updateError = null;
+		this.showEditModal = true;
+	}
 
-  wasCleared(currentValue: any, formValue: any): boolean {
-    return currentValue != null && (formValue == null || formValue === '');
-  }
+	updateCarryType() {
+		if (!this.editingCarryType || this.isUpdating) return;
 
-  updateCarryType() {
-    if (!this.editingCarryType || this.isUpdating) return;
+		this.isUpdating = true;
+		this.updateError = null;
 
-    this.isUpdating = true;
-    this.updateError = null;
+		const resetLogChannel = wasCleared(
+			this.editingCarryType.logChannel,
+			this.editForm.logChannel,
+		);
 
-    const resetLogChannel = this.wasCleared(this.editingCarryType.logChannel, this.editForm.logChannel);
+		const updateModel: CarryTypeUpdateModel = {
+			displayName: this.editForm.displayName || undefined,
+			logChannel: resetLogChannel
+				? undefined
+				: this.editForm.logChannel || undefined,
+			eventActive: this.editForm.eventActive,
+			resetLogChannel: resetLogChannel,
+			resetEventActive: false,
+		};
 
-    const updateModel: any = {
-      displayName: this.editForm.displayName || undefined,
-      logChannel: resetLogChannel ? undefined : (this.editForm.logChannel || undefined),
-      eventActive: this.editForm.eventActive,
-      resetLogChannel: resetLogChannel,
-      resetEventActive: false
-    };
+		this.carryTypeService
+			.updateCarryType(this.serverId, this.editingCarryType.id, updateModel)
+			.subscribe({
+				next: () => {
+					this.showEditModal = false;
+					this.editingCarryType = null;
+					this.isUpdating = false;
+					this.loadCarryTypes();
+				},
+				error: (err) => {
+					this.updateError =
+						err.error?.message || "Failed to update carry type";
+					this.isUpdating = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-    this.carryTypeService.updateCarryType(this.serverId, this.editingCarryType.id, updateModel).subscribe({
-      next: () => {
-        this.showEditModal = false;
-        this.editingCarryType = null;
-        this.isUpdating = false;
-        this.loadCarryTypes();
-      },
-      error: (err) => {
-        this.updateError = err.error?.message || 'Failed to update carry type';
-        this.isUpdating = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+	openDeleteModal(carryType: CarryTypeModel) {
+		this.deletingCarryType = carryType;
+		this.deleteError = null;
+		this.showDeleteModal = true;
+	}
 
-  openDeleteModal(carryType: CarryTypeModel) {
-    this.deletingCarryType = carryType;
-    this.deleteError = null;
-    this.showDeleteModal = true;
-  }
+	deleteCarryType() {
+		if (!this.deletingCarryType || this.isDeleting) return;
 
-  deleteCarryType() {
-    if (!this.deletingCarryType || this.isDeleting) return;
+		this.isDeleting = true;
+		this.deleteError = null;
 
-    this.isDeleting = true;
-    this.deleteError = null;
-
-    this.carryTypeService.deleteById4(this.serverId, this.deletingCarryType.id).subscribe({
-      next: () => {
-        this.showDeleteModal = false;
-        this.deletingCarryType = null;
-        this.isDeleting = false;
-        this.loadCarryTypes();
-      },
-      error: (err) => {
-        this.deleteError = err.error?.message || 'Failed to delete carry type';
-        this.isDeleting = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+		this.carryTypeService
+			.deleteById4(this.serverId, this.deletingCarryType.id)
+			.subscribe({
+				next: () => {
+					this.showDeleteModal = false;
+					this.deletingCarryType = null;
+					this.isDeleting = false;
+					this.loadCarryTypes();
+				},
+				error: (err) => {
+					this.deleteError =
+						err.error?.message || "Failed to delete carry type";
+					this.isDeleting = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 }

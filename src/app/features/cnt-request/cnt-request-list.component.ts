@@ -1,14 +1,23 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import {CntRequestControllerService, CntRequestModel} from '@dungeon-hub/api-client';
-import { getCntRequestTypeLabel } from './cnt-request-type-labels';
+import { CommonModule } from "@angular/common";
+import {
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import { ActivatedRoute, RouterLink } from "@angular/router";
+import {
+	CntRequestControllerService,
+	type CntRequestModel,
+	type CntRequestPageModel,
+} from "@dungeon-hub/api-client";
+import { getCntRequestTypeLabel } from "./cnt-request-type-labels";
 
 @Component({
-  selector: 'app-cnt-request-list',
-  standalone: true,
-  imports: [CommonModule, RouterLink],
-  template: `
+	selector: "app-cnt-request-list",
+	standalone: true,
+	imports: [CommonModule, RouterLink],
+	template: `
     <div class="container mx-auto px-4 py-8">
       <!-- Header -->
       <div class="mb-8">
@@ -95,60 +104,62 @@ import { getCntRequestTypeLabel } from './cnt-request-type-labels';
         </button>
       </div>
     </div>
-  `
+  `,
 })
 export class CntRequestListComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private cntRequestService = inject(CntRequestControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private cntRequestService = inject(CntRequestControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  requests: CntRequestModel[] = [];
-  currentPage = 0;
-  pageSize = 10;
-  totalPages = 0;
-  hasMore = false;
-  loading = true;
+	serverId!: string;
+	requests: CntRequestModel[] = [];
+	currentPage = 0;
+	pageSize = 10;
+	totalPages = 0;
+	hasMore = false;
+	loading = true;
 
-  // Expose utility function for template
-  getRequestTypeLabel = getCntRequestTypeLabel;
+	// Expose utility function for template
+	getRequestTypeLabel = getCntRequestTypeLabel;
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
-    const pageParam = this.route.snapshot.queryParams['page'];
-    const parsedPage = parseInt(pageParam, 10);
-    this.currentPage = Math.max(0, isNaN(parsedPage) ? 0 : parsedPage);
-    this.loadRequests();
-  }
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params["serverId"];
+		const pageParam = this.route.snapshot.queryParams["page"];
+		const parsedPage = parseInt(pageParam, 10);
+		this.currentPage = Math.max(0, Number.isNaN(parsedPage) ? 0 : parsedPage);
+		this.loadRequests();
+	}
 
-  loadRequests() {
-    this.loading = true;
-    this.cntRequestService.getCntRequests(this.serverId, this.currentPage, this.pageSize).subscribe({
-      next: (page: any) => {
-        this.requests = page.requests || [];
-        this.hasMore = page.page < page.totalPages - 1;
-        this.totalPages = page.totalPages || 0;
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.loading = false;
-        this.cdr.detectChanges();
-      }
-    });
-  }
+	loadRequests() {
+		this.loading = true;
+		this.cntRequestService
+			.getCntRequests(this.serverId, this.currentPage, this.pageSize)
+			.subscribe({
+				next: (page: CntRequestPageModel) => {
+					this.requests = page.requests || [];
+					this.hasMore = page.page < page.totalPages - 1;
+					this.totalPages = page.totalPages || 0;
+					this.loading = false;
+					this.cdr.detectChanges();
+				},
+				error: () => {
+					this.loading = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  nextPage() {
-    if (this.hasMore) {
-      this.currentPage++;
-      this.loadRequests();
-    }
-  }
+	nextPage() {
+		if (this.hasMore) {
+			this.currentPage++;
+			this.loadRequests();
+		}
+	}
 
-  previousPage() {
-    if (this.currentPage > 0) {
-      this.currentPage--;
-      this.loadRequests();
-    }
-  }
+	previousPage() {
+		if (this.currentPage > 0) {
+			this.currentPage--;
+			this.loadRequests();
+		}
+	}
 }

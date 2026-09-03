@@ -1,24 +1,45 @@
-import {ChangeDetectorRef, Component, inject, OnInit} from '@angular/core';
-import {CommonModule} from '@angular/common';
-import {FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators} from '@angular/forms';
-import {ActivatedRoute, Router, RouterLink} from '@angular/router';
+import { CommonModule } from "@angular/common";
 import {
-  CarryDifficultyControllerService,
-  CarryDifficultyModel,
-  CarryTierModel,
-  DiscordChannelControllerService,
-  DiscordChannelModel,
-  DiscordServerControllerService,
-  TicketPanelControllerService,
-  TicketPanelUpdateModel
-} from '@dungeon-hub/api-client';
-import {AutocompleteComponent} from '../../shared/components/autocomplete/autocomplete.component';
+	ChangeDetectorRef,
+	Component,
+	inject,
+	type OnInit,
+} from "@angular/core";
+import {
+	type AbstractControl,
+	FormBuilder,
+	type FormGroup,
+	FormsModule,
+	ReactiveFormsModule,
+	type ValidationErrors,
+	Validators,
+} from "@angular/forms";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
+import {
+	CarryDifficultyControllerService,
+	type CarryDifficultyModel,
+	type CarryTierModel,
+	DiscordChannelControllerService,
+	type DiscordChannelModel,
+	DiscordServerControllerService,
+	TicketPanelControllerService,
+	type TicketPanelModel,
+	type TicketPanelUpdateModel,
+} from "@dungeon-hub/api-client";
+import { AutocompleteComponent } from "../../shared/components/autocomplete/autocomplete.component";
+import { wasCleared } from "../../shared/utils/form-utils";
 
 @Component({
-  selector: 'app-ticket-panel-edit',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, RouterLink, AutocompleteComponent],
-  template: `
+	selector: "app-ticket-panel-edit",
+	standalone: true,
+	imports: [
+		CommonModule,
+		ReactiveFormsModule,
+		FormsModule,
+		RouterLink,
+		AutocompleteComponent,
+	],
+	template: `
     <div class="container mx-auto px-4 py-8 max-w-6xl">
       <!-- Header -->
       <div class="mb-8">
@@ -290,297 +311,346 @@ import {AutocompleteComponent} from '../../shared/components/autocomplete/autoco
   `,
 })
 export class TicketPanelEditComponent implements OnInit {
-  private route = inject(ActivatedRoute);
-  private router = inject(Router);
-  private fb = inject(FormBuilder);
-  private ticketPanelService = inject(TicketPanelControllerService);
-  private discordServerService = inject(DiscordServerControllerService);
-  private carryDifficultyService = inject(CarryDifficultyControllerService);
-  private discordChannelService = inject(DiscordChannelControllerService);
-  private cdr = inject(ChangeDetectorRef);
+	private route = inject(ActivatedRoute);
+	private router = inject(Router);
+	private fb = inject(FormBuilder);
+	private ticketPanelService = inject(TicketPanelControllerService);
+	private discordServerService = inject(DiscordServerControllerService);
+	private carryDifficultyService = inject(CarryDifficultyControllerService);
+	private discordChannelService = inject(DiscordChannelControllerService);
+	private cdr = inject(ChangeDetectorRef);
 
-  serverId!: string;
-  panelId!: string;
-  panel: any;
-  form!: FormGroup;
-  loading = true;
-  saving = false;
+	serverId!: string;
+	panelId!: string;
+	panel: TicketPanelModel | null = null;
+	form!: FormGroup;
+	loading = true;
+	saving = false;
 
-  carryTiers: CarryTierModel[] = [];
-  carryDifficulties: CarryDifficultyModel[] = [];
-  discordChannels: DiscordChannelModel[] = [];
-  selectedTranscriptChannel: DiscordChannelModel | null = null;
+	carryTiers: CarryTierModel[] = [];
+	carryDifficulties: CarryDifficultyModel[] = [];
+	discordChannels: DiscordChannelModel[] = [];
+	selectedTranscriptChannel: DiscordChannelModel | null = null;
 
-  ngOnInit() {
-    this.serverId = this.route.snapshot.params['serverId'];
-    this.panelId = this.route.snapshot.params['panelId'];
+	ngOnInit() {
+		this.serverId = this.route.snapshot.params["serverId"];
+		this.panelId = this.route.snapshot.params["panelId"];
 
-    this.initForm();
-    this.loadAllCarryTiers();
-    this.loadDiscordChannels();
-    this.loadPanel();
-  }
+		this.initForm();
+		this.loadAllCarryTiers();
+		this.loadDiscordChannels();
+		this.loadPanel();
+	}
 
-  initForm() {
-    this.form = this.fb.group({
-      name: ['', [Validators.required, Validators.pattern(/^(?!\s*$).+/)]],
-      displayName: [''],
-      emoji: [''],
-      requiresLinking: [false],
-      claimable: [false],
-      closeable: [false],
-      closeConfirmation: [false],
-      ticketMessageContent: [''],
-      ticketMessageEmbeds: ['', this.jsonValidator],
-      ticketMessageButtons: ['', this.jsonValidator],
-      openChannelName: [''],
-      claimedChannelName: [''],
-      closedChannelName: [''],
-      transcriptChannel: [''],
-      userTranscriptDm: ['', this.jsonValidator],
-      closeTranscriptTarget: ['None'],
-      deleteTranscriptTarget: ['None'],
-      supportRoles: [''],
-      additionalRoles: [''],
-      openCategories: [''],
-      closedCategories: [''],
-      relatedCarryTier: [null],
-      relatedCarryDifficulty: [null],
-      formQuestions: ['', this.jsonValidator],
-    });
-  }
+	initForm() {
+		this.form = this.fb.group({
+			name: ["", [Validators.required, Validators.pattern(/^(?!\s*$).+/)]],
+			displayName: [""],
+			emoji: [""],
+			requiresLinking: [false],
+			claimable: [false],
+			closeable: [false],
+			closeConfirmation: [false],
+			ticketMessageContent: [""],
+			ticketMessageEmbeds: ["", this.jsonValidator],
+			ticketMessageButtons: ["", this.jsonValidator],
+			openChannelName: [""],
+			claimedChannelName: [""],
+			closedChannelName: [""],
+			transcriptChannel: [""],
+			userTranscriptDm: ["", this.jsonValidator],
+			closeTranscriptTarget: ["None"],
+			deleteTranscriptTarget: ["None"],
+			supportRoles: [""],
+			additionalRoles: [""],
+			openCategories: [""],
+			closedCategories: [""],
+			relatedCarryTier: [null],
+			relatedCarryDifficulty: [null],
+			formQuestions: ["", this.jsonValidator],
+		});
+	}
 
-  jsonValidator(control: any) {
-    if (!control.value || control.value.trim() === '') {
-      return null;
-    }
-    try {
-      JSON.parse(control.value);
-      return null;
-    } catch (e) {
-      return { invalidJson: true };
-    }
-  }
+	jsonValidator(control: AbstractControl): ValidationErrors | null {
+		if (!control.value || control.value.trim() === "") {
+			return null;
+		}
+		try {
+			JSON.parse(control.value);
+			return null;
+		} catch (_e) {
+			return { invalidJson: true };
+		}
+	}
 
-  loadPanel() {
-    this.ticketPanelService.getById1(this.serverId, this.panelId).subscribe({
-      next: (panel) => {
-        this.panel = panel;
-        this.populateForm(panel);
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.loading = false;
-        this.cdr.detectChanges();
-      },
-    });
-  }
+	loadPanel() {
+		this.ticketPanelService.getById1(this.serverId, this.panelId).subscribe({
+			next: (panel) => {
+				this.panel = panel;
+				this.populateForm(panel);
+				this.loading = false;
+				this.cdr.detectChanges();
+			},
+			error: () => {
+				this.loading = false;
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  populateForm(panel: any) {
-    // Parse ticket message JSON
-    let ticketMessage: any = {};
-    try {
-      ticketMessage = JSON.parse(panel.ticketMessage || '{}');
-    } catch (e) {
-      console.error('Failed to parse ticketMessage JSON:', e);
-      this.loading = false;
-      this.cdr.detectChanges();
-      alert('Error: The ticket panel contains invalid JSON data. Please contact an administrator.');
-      this.router.navigate(['/server', this.serverId, 'ticket-panels']);
-      return;
-    }
+	populateForm(panel: TicketPanelModel) {
+		// Parse ticket message JSON
+		let ticketMessage: any = {};
+		try {
+			ticketMessage = JSON.parse(panel.ticketMessage || "{}");
+		} catch (e) {
+			console.error("Failed to parse ticketMessage JSON:", e);
+			this.loading = false;
+			this.cdr.detectChanges();
+			alert(
+				"Error: The ticket panel contains invalid JSON data. Please contact an administrator.",
+			);
+			this.router.navigate(["/server", this.serverId, "ticket-panels"]);
+			return;
+		}
 
-    this.form.patchValue({
-      name: panel.name,
-      displayName: panel.displayName || '',
-      emoji: panel.emoji || '',
-      requiresLinking: panel.requiresLinking || false,
-      claimable: panel.claimable || false,
-      closeable: panel.closeable || false,
-      closeConfirmation: panel.closeConfirmation || false,
-      ticketMessageContent: ticketMessage.content || '',
-      ticketMessageEmbeds: ticketMessage.embeds
-        ? JSON.stringify(ticketMessage.embeds, null, 2)
-        : '',
-      ticketMessageButtons: ticketMessage['additional-buttons']
-        ? JSON.stringify(ticketMessage['additional-buttons'], null, 2)
-        : '',
-      openChannelName: panel.openChannelName || '',
-      claimedChannelName: panel.claimedChannelName || '',
-      closedChannelName: panel.closedChannelName || '',
-      transcriptChannel: panel.transcriptChannel?.id?.toString() || null,
-      userTranscriptDm: panel.userTranscriptDm || '',
-      closeTranscriptTarget: panel.closeTranscriptTarget || 'None',
-      deleteTranscriptTarget: panel.deleteTranscriptTarget || 'None',
-      supportRoles: panel.supportRoles?.map((r: any) => r.id?.toString()).join(', ') || '',
-      additionalRoles: panel.additionalRoles?.map((r: any) => r.id?.toString()).join(', ') || '',
-      openCategories: panel.openCategories?.map((id: any) => id?.toString()).join(', ') || '',
-      closedCategories: panel.closedCategories?.map((id: any) => id?.toString()).join(', ') || '',
-      relatedCarryTier: panel.relatedCarryTier?.id || null,
-      relatedCarryDifficulty: panel.relatedCarryDifficulty?.id || null,
-      formQuestions: panel.formQuestions ? JSON.stringify(panel.formQuestions, null, 2) : '',
-    });
+		this.form.patchValue({
+			name: panel.name,
+			displayName: panel.displayName || "",
+			emoji: panel.emoji || "",
+			requiresLinking: panel.requiresLinking || false,
+			claimable: panel.claimable || false,
+			closeable: panel.closeable || false,
+			closeConfirmation: panel.closeConfirmation || false,
+			ticketMessageContent: ticketMessage.content || "",
+			ticketMessageEmbeds: ticketMessage.embeds
+				? JSON.stringify(ticketMessage.embeds, null, 2)
+				: "",
+			ticketMessageButtons: ticketMessage["additional-buttons"]
+				? JSON.stringify(ticketMessage["additional-buttons"], null, 2)
+				: "",
+			openChannelName: panel.openChannelName || "",
+			claimedChannelName: panel.claimedChannelName || "",
+			closedChannelName: panel.closedChannelName || "",
+			transcriptChannel: panel.transcriptChannel?.id?.toString() || null,
+			userTranscriptDm: panel.userTranscriptDm || "",
+			closeTranscriptTarget: panel.closeTranscriptTarget || "None",
+			deleteTranscriptTarget: panel.deleteTranscriptTarget || "None",
+			supportRoles:
+				panel.supportRoles?.map((role) => role.id.toString()).join(", ") || "",
+			additionalRoles:
+				panel.additionalRoles?.map((role) => role.id.toString()).join(", ") ||
+				"",
+			openCategories:
+				panel.openCategories?.map((id) => id.toString()).join(", ") || "",
+			closedCategories:
+				panel.closedCategories?.map((id) => id.toString()).join(", ") || "",
+			relatedCarryTier: panel.relatedCarryTier?.id || null,
+			relatedCarryDifficulty: panel.relatedCarryDifficulty?.id || null,
+			formQuestions: panel.formQuestions
+				? JSON.stringify(panel.formQuestions, null, 2)
+				: "",
+		});
 
-    // Set selected channel object for autocomplete
-    this.selectedTranscriptChannel = panel.transcriptChannel || null;
+		// Set selected channel object for autocomplete
+		this.selectedTranscriptChannel = panel.transcriptChannel || null;
 
-    // Load carry difficulties if carry tier is selected
-    if (panel.relatedCarryTier) {
-      this.loadCarryDifficulties(
-        panel.relatedCarryTier.carryType.id,
-        panel.relatedCarryTier.id,
-      );
-    }
-  }
+		// Load carry difficulties if carry tier is selected
+		if (panel.relatedCarryTier) {
+			this.loadCarryDifficulties(
+				panel.relatedCarryTier.carryType.id,
+				panel.relatedCarryTier.id,
+			);
+		}
+	}
 
-  loadAllCarryTiers() {
-    this.discordServerService.getAllCarryTiers1(this.serverId).subscribe({
-      next: (tiers) => {
-        this.carryTiers = tiers.flat().filter((t) => t !== undefined) as CarryTierModel[];
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.cdr.detectChanges();
-      },
-    });
-  }
+	loadAllCarryTiers() {
+		this.discordServerService.getAllCarryTiers1(this.serverId).subscribe({
+			next: (tiers) => {
+				this.carryTiers = tiers
+					.flat()
+					.filter((t) => t !== undefined) as CarryTierModel[];
+				this.cdr.detectChanges();
+			},
+			error: () => {
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  loadDiscordChannels() {
-    this.discordChannelService.getAllChannels(this.serverId).subscribe({
-      next: (channels) => {
-        this.discordChannels = channels || [];
-        this.cdr.detectChanges();
-      },
-      error: () => {
-        this.cdr.detectChanges();
-      },
-    });
-  }
+	loadDiscordChannels() {
+		this.discordChannelService.getAllChannels(this.serverId).subscribe({
+			next: (channels) => {
+				this.discordChannels = channels || [];
+				this.cdr.detectChanges();
+			},
+			error: () => {
+				this.cdr.detectChanges();
+			},
+		});
+	}
 
-  onCarryTierChange() {
-    const tierId = this.form.get('relatedCarryTier')?.value;
-    this.form.patchValue({relatedCarryDifficulty: null});
-    this.carryDifficulties = [];
+	onCarryTierChange() {
+		const tierId = this.form.get("relatedCarryTier")?.value;
+		this.form.patchValue({ relatedCarryDifficulty: null });
+		this.carryDifficulties = [];
 
-    if (tierId) {
-      const tier = this.carryTiers.find((t) => t.id.toString() === tierId);
-      if (tier) {
-        this.loadCarryDifficulties(tier.carryType.id, tier.id);
-      }
-    }
-    this.cdr.detectChanges();
-  }
+		if (tierId) {
+			const tier = this.carryTiers.find((t) => t.id.toString() === tierId);
+			if (tier) {
+				this.loadCarryDifficulties(tier.carryType.id, tier.id);
+			}
+		}
+		this.cdr.detectChanges();
+	}
 
-  loadCarryDifficulties(carryTypeId: string, carryTierId: string) {
-    this.carryDifficultyService
-      .getAllCarryDifficulties(this.serverId, carryTypeId, carryTierId)
-      .subscribe({
-        next: (difficulties) => {
-          this.carryDifficulties = difficulties;
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          this.cdr.detectChanges();
-        },
-      });
-  }
+	loadCarryDifficulties(carryTypeId: string, carryTierId: string) {
+		this.carryDifficultyService
+			.getAllCarryDifficulties(this.serverId, carryTypeId, carryTierId)
+			.subscribe({
+				next: (difficulties) => {
+					this.carryDifficulties = difficulties;
+					this.cdr.detectChanges();
+				},
+				error: () => {
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-  save() {
-    if (!this.form.valid || this.saving) return;
+	save() {
+		if (!this.form.valid || this.saving || !this.panel) return;
 
-    this.saving = true;
-    const formValue = this.form.value;
+		this.saving = true;
+		const formValue = this.form.value;
 
-    // Build ticket message JSON (validators already ensured valid JSON)
-    const ticketMessage: any = {
-      content: formValue.ticketMessageContent || null,
-    };
+		// Build ticket message JSON (validators already ensured valid JSON)
+		const ticketMessage: any = {
+			content: formValue.ticketMessageContent || null,
+		};
 
-    if (formValue.ticketMessageEmbeds) {
-      ticketMessage.embeds = JSON.parse(formValue.ticketMessageEmbeds);
-    }
+		if (formValue.ticketMessageEmbeds) {
+			ticketMessage.embeds = JSON.parse(formValue.ticketMessageEmbeds);
+		}
 
-    if (formValue.ticketMessageButtons) {
-      ticketMessage['additional-buttons'] = JSON.parse(formValue.ticketMessageButtons);
-    }
+		if (formValue.ticketMessageButtons) {
+			ticketMessage["additional-buttons"] = JSON.parse(
+				formValue.ticketMessageButtons,
+			);
+		}
 
-    // Parse form questions
-    let formQuestions: any = undefined;
-    if (formValue.formQuestions) {
-      formQuestions = JSON.parse(formValue.formQuestions);
-    }
+		// Parse form questions
+		let formQuestions: any;
+		if (formValue.formQuestions) {
+			formQuestions = JSON.parse(formValue.formQuestions);
+		}
 
-    // Helper to check if a field was cleared (had value before, now empty)
-    const wasCleared = (currentValue: any, formValue: any) => {
-      return currentValue != null && (formValue == null || formValue === '');
-    };
+		const updateModel: TicketPanelUpdateModel = {
+			name: formValue.name ?? null,
+			displayName: formValue.displayName || null,
+			resetDisplayName: wasCleared(
+				this.panel.displayName,
+				formValue.displayName,
+			),
+			emoji: formValue.emoji || null,
+			resetEmoji: wasCleared(this.panel.emoji, formValue.emoji),
+			requiresLinking: formValue.requiresLinking ?? null,
+			claimable: formValue.claimable ?? null,
+			closeable: formValue.closeable ?? null,
+			closeConfirmation: formValue.closeConfirmation ?? null,
+			ticketMessage: JSON.stringify(ticketMessage),
+			resetTicketMessage: false,
+			openChannelName: formValue.openChannelName || null,
+			resetOpenChannelName: wasCleared(
+				this.panel.openChannelName,
+				formValue.openChannelName,
+			),
+			claimedChannelName: formValue.claimedChannelName || null,
+			resetClaimedChannelName: wasCleared(
+				this.panel.claimedChannelName,
+				formValue.claimedChannelName,
+			),
+			closedChannelName: formValue.closedChannelName || null,
+			resetClosedChannelName: wasCleared(
+				this.panel.closedChannelName,
+				formValue.closedChannelName,
+			),
+			transcriptChannel: this.selectedTranscriptChannel?.id || undefined,
+			resetTranscriptChannel: wasCleared(
+				this.panel.transcriptChannel?.id?.toString(),
+				this.selectedTranscriptChannel?.id,
+			),
+			userTranscriptDm: formValue.userTranscriptDm || null,
+			resetUserTranscriptDm: wasCleared(
+				this.panel.userTranscriptDm,
+				formValue.userTranscriptDm,
+			),
+			closeTranscriptTarget: formValue.closeTranscriptTarget ?? null,
+			deleteTranscriptTarget: formValue.deleteTranscriptTarget ?? null,
+			supportRoles: this.parseIdListOrEmpty(
+				formValue.supportRoles,
+				this.panel.supportRoles,
+			),
+			additionalRoles: this.parseIdListOrEmpty(
+				formValue.additionalRoles,
+				this.panel.additionalRoles,
+			),
+			openCategories: this.parseIdListOrEmpty(
+				formValue.openCategories,
+				this.panel.openCategories,
+			),
+			closedCategories: this.parseIdListOrEmpty(
+				formValue.closedCategories,
+				this.panel.closedCategories,
+			),
+			relatedCarryTier: formValue.relatedCarryTier || null,
+			resetRelatedCarryTier: wasCleared(
+				this.panel.relatedCarryTier?.id,
+				formValue.relatedCarryTier,
+			),
+			relatedCarryDifficulty: formValue.relatedCarryDifficulty || null,
+			resetRelatedCarryDifficulty: wasCleared(
+				this.panel.relatedCarryDifficulty?.id,
+				formValue.relatedCarryDifficulty,
+			),
+			formQuestions: formQuestions ?? null,
+			permissions: undefined,
+		};
 
-    const updateModel: TicketPanelUpdateModel = {
-      name: formValue.name ?? null,
-      displayName: formValue.displayName || null,
-      resetDisplayName: wasCleared(this.panel.displayName, formValue.displayName),
-      emoji: formValue.emoji || null,
-      resetEmoji: wasCleared(this.panel.emoji, formValue.emoji),
-      requiresLinking: formValue.requiresLinking ?? null,
-      claimable: formValue.claimable ?? null,
-      closeable: formValue.closeable ?? null,
-      closeConfirmation: formValue.closeConfirmation ?? null,
-      ticketMessage: JSON.stringify(ticketMessage),
-      resetTicketMessage: false,
-      openChannelName: formValue.openChannelName || null,
-      resetOpenChannelName: wasCleared(this.panel.openChannelName, formValue.openChannelName),
-      claimedChannelName: formValue.claimedChannelName || null,
-      resetClaimedChannelName: wasCleared(this.panel.claimedChannelName, formValue.claimedChannelName),
-      closedChannelName: formValue.closedChannelName || null,
-      resetClosedChannelName: wasCleared(this.panel.closedChannelName, formValue.closedChannelName),
-      transcriptChannel: this.selectedTranscriptChannel?.id || undefined,
-      resetTranscriptChannel: wasCleared(this.panel.transcriptChannel?.id?.toString(), this.selectedTranscriptChannel?.id),
-      userTranscriptDm: formValue.userTranscriptDm || null,
-      resetUserTranscriptDm: wasCleared(this.panel.userTranscriptDm, formValue.userTranscriptDm),
-      closeTranscriptTarget: formValue.closeTranscriptTarget ?? null,
-      deleteTranscriptTarget: formValue.deleteTranscriptTarget ?? null,
-      supportRoles: this.parseIdListOrEmpty(formValue.supportRoles, this.panel.supportRoles),
-      additionalRoles: this.parseIdListOrEmpty(formValue.additionalRoles, this.panel.additionalRoles),
-      openCategories: this.parseIdListOrEmpty(formValue.openCategories, this.panel.openCategories),
-      closedCategories: this.parseIdListOrEmpty(formValue.closedCategories, this.panel.closedCategories),
-      relatedCarryTier: formValue.relatedCarryTier || null,
-      resetRelatedCarryTier: wasCleared(this.panel.relatedCarryTier?.id, formValue.relatedCarryTier),
-      relatedCarryDifficulty: formValue.relatedCarryDifficulty || null,
-      resetRelatedCarryDifficulty: wasCleared(this.panel.relatedCarryDifficulty?.id, formValue.relatedCarryDifficulty),
-      formQuestions: formQuestions ?? null,
-      permissions: undefined,
-    };
+		this.ticketPanelService
+			.updateTicketPanel(this.serverId, this.panelId, updateModel)
+			.subscribe({
+				next: (updated) => {
+					this.panel = updated;
+					this.saving = false;
+					this.cdr.detectChanges();
+					this.router.navigate(["/server", this.serverId, "ticket-panels"]);
+				},
+				error: () => {
+					this.saving = false;
+					this.cdr.detectChanges();
+				},
+			});
+	}
 
-    this.ticketPanelService.updateTicketPanel(this.serverId, this.panelId, updateModel).subscribe({
-      next: (updated) => {
-        this.panel = updated;
-        this.saving = false;
-        this.cdr.detectChanges();
-        this.router.navigate(['/server', this.serverId, 'ticket-panels']);
-      },
-      error: () => {
-        this.saving = false;
-        this.cdr.detectChanges();
-      },
-    });
-  }
+	private parseIdList(value: string): string[] | null {
+		if (!value?.trim()) return null;
+		return value
+			.split(",")
+			.map((id) => id.trim())
+			.filter((id) => id);
+	}
 
-  private parseIdList(value: string): string[] | null {
-    if (!value?.trim()) return null;
-    return value
-      .split(',')
-      .map((id) => id.trim())
-      .filter((id) => id);
-  }
-
-  private parseIdListOrEmpty(value: string, originalValue: any[]): string[] | undefined {
-    const parsed = this.parseIdList(value);
-    // If field is empty and there were original values, send empty array to clear
-    if (parsed === null && originalValue && originalValue.length > 0) {
-      return [];
-    }
-    // If there's a value, send it; if both are empty, send undefined (no change)
-    return parsed ?? undefined;
-  }
+	private parseIdListOrEmpty(
+		value: string,
+		originalValue: any[],
+	): string[] | undefined {
+		const parsed = this.parseIdList(value);
+		// If field is empty and there were original values, send empty array to clear
+		if (parsed === null && originalValue && originalValue.length > 0) {
+			return [];
+		}
+		// If there's a value, send it; if both are empty, send undefined (no change)
+		return parsed ?? undefined;
+	}
 }
