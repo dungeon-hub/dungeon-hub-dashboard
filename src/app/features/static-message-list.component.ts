@@ -143,7 +143,7 @@ import {
             </div>
             <div class="flex gap-3 mt-6">
               <button (click)="closeCreateModal()" class="btn btn-secondary flex-1">Cancel</button>
-              <button (click)="createStaticMessage()" class="btn btn-primary flex-1" [disabled]="!newMessage.channelId || isCreating || !!createEmbedOverrideError">{{ isCreating ? 'Creating...' : 'Create' }}</button>
+              <button (click)="createStaticMessage()" class="btn btn-primary flex-1" [disabled]="!selectedCreateType || !newMessage.channelId || isCreating || !!createEmbedOverrideError">{{ isCreating ? 'Creating...' : 'Create' }}</button>
             </div>
             @if (createError) {
               <p class="text-red-400 text-sm mt-4">{{ createError }}</p>
@@ -184,7 +184,8 @@ export class StaticMessageListComponent implements OnInit {
 		id: type,
 		name: getStaticMessageTypeLabel(type),
 	}));
-	selectedCreateType = this.staticMessageTypeOptions[0];
+	selectedCreateType: { id: StaticMessageType; name: string } | null =
+		this.staticMessageTypeOptions[0];
 	newMessage = {
 		channelId: "",
 		staticMessageType: "ScoreLeaderboard" as StaticMessageType,
@@ -308,10 +309,14 @@ export class StaticMessageListComponent implements OnInit {
 	}
 
 	onCreateTypeSelected(type: AutocompleteItem | null): void {
-		if (
-			!type ||
-			!this.staticMessageTypes.includes(type.id as StaticMessageType)
-		) {
+		if (!type) {
+			this.selectedCreateType = null;
+			this.selectedCreateObjectOptions = [];
+			this.newMessage.objectIds = [];
+			return;
+		}
+
+		if (!this.staticMessageTypes.includes(type.id as StaticMessageType)) {
 			return;
 		}
 
@@ -441,6 +446,7 @@ export class StaticMessageListComponent implements OnInit {
 	createStaticMessage(): void {
 		this.validateCreateEmbedOverride();
 		if (
+			!this.selectedCreateType ||
 			!this.newMessage.channelId ||
 			this.isCreating ||
 			this.createEmbedOverrideError
