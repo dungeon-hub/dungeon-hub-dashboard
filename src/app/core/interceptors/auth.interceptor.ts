@@ -40,7 +40,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 	const authService = inject(AuthService);
 	const token = oauthService.getAccessToken();
 
-	if (token && isAllowedUrl(req.url)) {
+	if (token && oauthService.hasValidAccessToken() && isAllowedUrl(req.url)) {
 		req = req.clone({
 			setHeaders: {
 				Authorization: `Bearer ${token}`,
