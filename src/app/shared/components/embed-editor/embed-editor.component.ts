@@ -24,17 +24,19 @@ import { FormsModule } from "@angular/forms";
         <span class="text-gray-400">
           {{ mode === "editor" ? "Visual editor" : "Raw JSON" }}
         </span>
-        <div
+        <button
+          type="button"
           (click)="toggleMode()"
-          class="relative w-16 h-6 rounded-full border border-gray-500 cursor-pointer"
+          class="w-16 h-6 rounded-full border border-gray-500 cursor-pointer inline-flex items-center"
           title="Toggle between raw JSON and the visual editor"
+          aria-label="Toggle between raw JSON and the visual editor"
         >
-          <div
-            class="absolute w-4 h-4 rounded-full bg-gray-300 my-1"
-            [class.left-1]="mode === 'raw'"
-            [class.left-11]="mode === 'editor'"
-          ></div>
-        </div>
+          <span
+            class="w-4 h-4 rounded-full bg-gray-300"
+            [class.ml-1]="mode === 'raw'"
+            [class.ml-11]="mode === 'editor'"
+          ></span>
+        </button>
       </div>
 
       <div class="card rounded-lg border border-gray-600 p-3">
@@ -199,14 +201,14 @@ import { FormsModule } from "@angular/forms";
                 @for (field of entry.fields; track field.id) {
                   <div class="flex items-center gap-2 mt-2">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div>
-                        <label class="label">Field name</label>
+                      <label class="label">
+                        Field name
                         <input type="text" [(ngModel)]="field.name" class="input" />
-                      </div>
-                      <div>
-                        <label class="label">Field value</label>
+                      </label>
+                      <label class="label">
+                        Field value
                         <input type="text" [(ngModel)]="field.value" class="input" />
-                      </div>
+                      </label>
                     </div>
                     <label class="inline-flex items-center gap-1 text-gray-300">
                       <input type="checkbox" [(ngModel)]="field.inline" class="mr-1" />
@@ -359,7 +361,9 @@ export class EmbedEditorComponent implements OnInit {
 
 	onRawTextInput() {
 		if (this.mode !== "raw") return;
+		this.entries = [];
 		this.parseError = null;
+		this.parse(this.rawText);
 		this.emitChange(this.rawText);
 	}
 
