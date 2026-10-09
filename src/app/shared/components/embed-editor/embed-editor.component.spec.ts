@@ -302,4 +302,18 @@ describe("EmbedEditorComponent", () => {
 		expect(instance.parseError).toBeNull();
 		expect(instance.entries[0].title).toBe("fixed");
 	});
+
+	it("keeps the parse error after another invalid raw input", () => {
+		const instance = component(JSON.stringify({ title: "A" }));
+		instance.toggleMode();
+		instance.rawText = "{oops";
+		instance.toggleMode();
+		expect(instance.parseError).toContain("Invalid JSON");
+		instance.rawText = "{still invalid";
+		instance.onRawTextInput();
+		expect(instance.parseError).toContain("Invalid JSON");
+		instance.rawText = JSON.stringify({ title: "fixed" });
+		instance.onRawTextInput();
+		expect(instance.parseError).toBeNull();
+	});
 });
