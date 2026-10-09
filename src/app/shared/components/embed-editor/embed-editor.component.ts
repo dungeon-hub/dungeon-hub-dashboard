@@ -15,7 +15,7 @@ import { FormsModule } from "@angular/forms";
 	standalone: true,
 	imports: [CommonModule, FormsModule],
 	template: `
-    <div class="space-y-3">
+    <div class="flex flex-col gap-2">
       @if (parseError) {
         <small class="text-red-400 block">{{ parseError }}</small>
       }
@@ -48,31 +48,32 @@ import { FormsModule } from "@angular/forms";
           class="input font-mono text-sm w-full"
         ></textarea>
       } @else {
-        <button
-          type="button"
-          (click)="addEntry()"
-          class="input inline-flex items-center cursor-pointer text-gray-300"
-          title="Add embed at the end"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
-          </svg>
-          <span class="ml-2">Add embed</span>
-        </button>
-
-        @if (allowCustomEmbeds) {
+        <div class="flex items-center gap-2">
           <button
             type="button"
-            (click)="addCustomEntry()"
+            (click)="addEntry()"
             class="input inline-flex items-center cursor-pointer text-gray-300"
-            title="Add custom embed at the end"
+            title="Add embed at the end"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
             </svg>
-            <span class="ml-2">Add custom embed</span>
+            <span class="ml-2">Add embed</span>
           </button>
-        }
+          @if (allowCustomEmbeds) {
+            <button
+              type="button"
+              (click)="addCustomEntry()"
+              class="input inline-flex items-center cursor-pointer text-gray-300"
+              title="Add custom embed at the end"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
+              </svg>
+              <span class="ml-2">Add custom embed</span>
+            </button>
+          }
+        </div>
 
         @for (entry of entries; track entry.id) {
           <div class="card rounded-lg border border-gray-600 p-3">
