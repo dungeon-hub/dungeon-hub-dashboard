@@ -20,15 +20,25 @@ import { FormsModule } from "@angular/forms";
         <small class="text-red-400 block">{{ parseError }}</small>
       }
 
-      <button
-        type="button"
-        (click)="toggleMode()"
-        class="input inline-flex items-center cursor-pointer text-gray-300"
-      >
-        {{ mode === "editor" ? "Switch to raw JSON" : "Edit visually" }}
-      </button>
+      <div class="flex items-center justify-end gap-2">
+        <span class="text-gray-400">
+          {{ mode === "editor" ? "Visual editor" : "Raw JSON" }}
+        </span>
+        <div
+          (click)="toggleMode()"
+          class="relative w-16 h-6 rounded-full border border-gray-500 cursor-pointer"
+          title="Toggle between raw JSON and the visual editor"
+        >
+          <div
+            class="absolute w-4 h-4 rounded-full bg-gray-300 my-1"
+            [class.left-1]="mode === 'raw'"
+            [class.left-11]="mode === 'editor'"
+          ></div>
+        </div>
+      </div>
 
-      @if (mode === "raw") {
+      <div class="card rounded-lg border border-gray-600 p-3">
+        @if (mode === "raw") {
         <textarea
           rows="6"
           [(ngModel)]="rawText"
@@ -47,6 +57,20 @@ import { FormsModule } from "@angular/forms";
           </svg>
           <span class="ml-2">Add embed</span>
         </button>
+
+        @if (allowCustomEmbeds) {
+          <button
+            type="button"
+            (click)="addCustomEntry()"
+            class="input inline-flex items-center cursor-pointer text-gray-300"
+            title="Add custom embed at the end"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
+            </svg>
+            <span class="ml-2">Add custom embed</span>
+          </button>
+        }
 
         @for (entry of entries; track entry.id) {
           <div class="card rounded-lg border border-gray-600 p-3">
@@ -174,8 +198,20 @@ import { FormsModule } from "@angular/forms";
 
                 @for (field of entry.fields; track field.id) {
                   <div class="flex items-center gap-2 mt-2">
-                    <input type="checkbox" [(ngModel)]="field.inline" class="mr-1" />
-                    <span class="text-gray-300">{{ field.name }}: {{ field.value }}</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <label class="label">Field name</label>
+                        <input type="text" [(ngModel)]="field.name" class="input" />
+                      </div>
+                      <div>
+                        <label class="label">Field value</label>
+                        <input type="text" [(ngModel)]="field.value" class="input" />
+                      </div>
+                    </div>
+                    <label class="inline-flex items-center gap-1 text-gray-300">
+                      <input type="checkbox" [(ngModel)]="field.inline" class="mr-1" />
+                      Inline
+                    </label>
                     <div class="flex gap-1">
                       <button
                         type="button"
@@ -216,7 +252,8 @@ import { FormsModule } from "@angular/forms";
             }
           </div>
         }
-      }
+        }
+      </div>
     </div>
   `,
 })
@@ -238,6 +275,12 @@ export class EmbedEditorComponent implements OnInit {
 	ngOnInit() {
 		this.rawText = this.embedJson ?? "";
 		this.lastEmitted = this.rawText;
+		this.mode = "editor";
+		this.entries = [];
+		this.parseError = null;
+		if (!this.parse(this.rawText)) {
+			this.mode = "raw";
+		}
 	}
 
 	toggleMode() {
@@ -260,6 +303,18 @@ export class EmbedEditorComponent implements OnInit {
 
 	addEntry() {
 		this.entries.push(this.wrapEntry(this.createEntry()));
+		this.commit();
+	}
+
+	addCustomEntry() {
+		if (!this.allowCustomEmbeds) return;
+		this.entries.push(
+			this.wrapEntry({
+				...this.createEntry(),
+				kind: "custom",
+				customType: "",
+			}),
+		);
 		this.commit();
 	}
 
@@ -304,6 +359,7 @@ export class EmbedEditorComponent implements OnInit {
 
 	onRawTextInput() {
 		if (this.mode !== "raw") return;
+		this.parseError = null;
 		this.emitChange(this.rawText);
 	}
 
@@ -384,7 +440,7 @@ export class EmbedEditorComponent implements OnInit {
 			value = JSON.parse(trimmed);
 		} catch (_error) {
 			this.parseError =
-				"Invalid JSON. Fix it in raw mode or switch back to raw to keep your changes.";
+				"Invalid JSON. Fix the raw JSON before you switch to the visual editor.";
 			return false;
 		}
 		if (Array.isArray(value)) {
@@ -562,6 +618,11 @@ export class EmbedEditorComponent implements OnInit {
 		return extras;
 	}
 
+	/** Treat cleared (empty-string) inputs as absent so they drop the key. */
+	private val(value: string | null): string | null {
+		return value === null || value === "" ? null : value;
+	}
+
 	serialize(): string {
 		if (this.entries.length === 0) return "";
 		const built = this.entries.map((entry) => this.buildEntry(entry));
@@ -574,10 +635,11 @@ export class EmbedEditorComponent implements OnInit {
 		if (entry.kind === "custom") {
 			if (entry.customWasString && !entry.customData)
 				return entry.customType ?? "";
-			const custom: Record<string, Json> = {
-				customEmbed: entry.customType ?? "",
-			};
-			if (entry.customData !== null) custom["customData"] = entry.customData;
+			const custom: Record<string, Json> = {};
+			const customType = this.val(entry.customType);
+			if (customType !== null) custom["customEmbed"] = customType;
+			const customData = this.val(entry.customData);
+			if (customData !== null) custom["customData"] = customData;
 			return custom;
 		}
 
@@ -595,38 +657,44 @@ export class EmbedEditorComponent implements OnInit {
 				: timestamp;
 		}
 
+		const footerText = this.val(entry.footerText);
+		const footerIcon = this.val(entry.footerIcon);
 		if (
-			entry.footerText !== null ||
-			entry.footerIcon !== null ||
+			footerText !== null ||
+			footerIcon !== null ||
 			Object.keys(entry.footerExtras).length > 0
 		) {
 			const footer: Record<string, Json> = { ...entry.footerExtras };
-			footer["text"] = entry.footerText ?? "";
-			if (entry.footerIcon !== null) footer["icon"] = entry.footerIcon;
+			if (footerText !== null) footer["text"] = footerText;
+			if (footerIcon !== null) footer["icon"] = footerIcon;
 			embed["footer"] = footer;
 		}
 
+		const thumbnailUrl = this.val(entry.thumbnailUrl);
 		if (
-			entry.thumbnailUrl !== null ||
+			thumbnailUrl !== null ||
 			Object.keys(entry.thumbnailExtras).length > 0
 		) {
 			const thumbnail: Record<string, Json> = { ...entry.thumbnailExtras };
-			if (entry.thumbnailUrl !== null) thumbnail["url"] = entry.thumbnailUrl;
+			if (thumbnailUrl !== null) thumbnail["url"] = thumbnailUrl;
 			embed["thumbnail"] = thumbnail;
 		}
 
+		const authorName = this.val(entry.authorName);
+		const authorUrl = this.val(entry.authorUrl);
+		const authorIcon = this.val(entry.authorIcon);
 		if (entry.authorAsString) {
-			embed["author"] = entry.authorName ?? "";
+			embed["author"] = authorName ?? "";
 		} else if (
-			entry.authorName !== null ||
-			entry.authorUrl !== null ||
-			entry.authorIcon !== null ||
+			authorName !== null ||
+			authorUrl !== null ||
+			authorIcon !== null ||
 			Object.keys(entry.authorExtras).length > 0
 		) {
 			const author: Record<string, Json> = { ...entry.authorExtras };
-			if (entry.authorName !== null) author["name"] = entry.authorName;
-			if (entry.authorUrl !== null) author["url"] = entry.authorUrl;
-			if (entry.authorIcon !== null) author["icon"] = entry.authorIcon;
+			if (authorName !== null) author["name"] = authorName;
+			if (authorUrl !== null) author["url"] = authorUrl;
+			if (authorIcon !== null) author["icon"] = authorIcon;
 			embed["author"] = author;
 		}
 

@@ -12,17 +12,17 @@ describe("EmbedEditorComponent", () => {
 		return instance;
 	}
 
-	it("starts in raw mode with the incoming JSON available", () => {
+	it("starts in editor mode with the incoming JSON parsed", () => {
 		const instance = component('{"title":"Hello"}');
-		expect(instance.mode).toBe("raw");
+		expect(instance.mode).toBe("editor");
 		expect(instance.rawText).toBe('{"title":"Hello"}');
 		expect(instance.parseError).toBeNull();
-		expect(instance.entries).toEqual([]);
+		expect(instance.entries).toHaveLength(1);
+		expect(instance.entries[0].title).toBe("Hello");
 	});
 
 	it("treats blank input as valid and empty", () => {
 		const instance = component("  ");
-		instance.toggleMode();
 		expect(instance.mode).toBe("editor");
 		expect(instance.entries).toEqual([]);
 		expect(instance.parseError).toBeNull();
@@ -30,7 +30,6 @@ describe("EmbedEditorComponent", () => {
 
 	it("keeps raw mode and reports an error for invalid JSON", () => {
 		const instance = component("{oops");
-		instance.toggleMode();
 		expect(instance.mode).toBe("raw");
 		expect(instance.entries).toEqual([]);
 		expect(instance.parseError).toContain("Invalid JSON");
@@ -38,7 +37,6 @@ describe("EmbedEditorComponent", () => {
 
 	it("rejects null as embed root without throwing", () => {
 		const instance = component("null");
-		instance.toggleMode();
 		expect(instance.mode).toBe("raw");
 		expect(instance.parseError).toContain("not null");
 	});
@@ -47,7 +45,6 @@ describe("EmbedEditorComponent", () => {
 		const instance = component(
 			JSON.stringify({ title: "T", description: "D" }),
 		);
-		instance.toggleMode();
 		expect(instance.mode).toBe("editor");
 		expect(instance.entries).toHaveLength(1);
 		expect(instance.entries[0].title).toBe("T");
@@ -58,13 +55,11 @@ describe("EmbedEditorComponent", () => {
 		const instance = component(
 			JSON.stringify([{ title: "A" }, { title: "B" }]),
 		);
-		instance.toggleMode();
 		expect(instance.entries.map((entry) => entry.title)).toEqual(["A", "B"]);
 	});
 
 	it("preserves the single-object shape when serializing back", () => {
 		const instance = component(JSON.stringify({ title: "A" }));
-		instance.toggleMode();
 		instance.addEntry();
 		const serialized = JSON.parse(instance.serialize());
 		expect(Array.isArray(serialized)).toBe(true);
@@ -75,7 +70,6 @@ describe("EmbedEditorComponent", () => {
 		const instance = component(
 			JSON.stringify([{ title: "A" }, { title: "B" }]),
 		);
-		instance.toggleMode();
 		instance.removeEntry(instance.entries[1]);
 		const serialized = JSON.parse(instance.serialize());
 		expect(Array.isArray(serialized)).toBe(true);
@@ -86,7 +80,6 @@ describe("EmbedEditorComponent", () => {
 
 	it("adds an entry at the end and notifies the host form", () => {
 		const instance = component(JSON.stringify({ title: "A" }));
-		instance.toggleMode();
 		instance.addEntry();
 		expect(instance.entries).toHaveLength(2);
 		expect(instance.entries[1].title).toBeNull();
@@ -99,14 +92,12 @@ describe("EmbedEditorComponent", () => {
 		const instance = component(
 			JSON.stringify([{ title: "A" }, { title: "B" }]),
 		);
-		instance.toggleMode();
 		instance.removeEntry(instance.entries[0]);
 		expect(instance.entries.map((entry) => entry.title)).toEqual(["B"]);
 	});
 
 	it("ignores removals for entries no longer present", () => {
 		const instance = component(JSON.stringify([{ title: "A" }]));
-		instance.toggleMode();
 		const detached = { ...instance.entries[0] };
 		instance.removeEntry(instance.entries[0]);
 		instance.removeEntry(detached);
@@ -117,7 +108,6 @@ describe("EmbedEditorComponent", () => {
 		const instance = component(
 			JSON.stringify([{ title: "A" }, { title: "B" }, { title: "C" }]),
 		);
-		instance.toggleMode();
 		instance.moveEntry(instance.entries[2], -1);
 		expect(instance.entries.map((entry) => entry.title)).toEqual([
 			"A",
@@ -136,7 +126,6 @@ describe("EmbedEditorComponent", () => {
 		const instance = component(
 			JSON.stringify([{ title: "A" }, { title: "B" }]),
 		);
-		instance.toggleMode();
 		instance.moveEntry(instance.entries[0], -1);
 		expect(instance.entries.map((entry) => entry.title)).toEqual(["A", "B"]);
 		instance.moveEntry(instance.entries[1], 1);
@@ -147,7 +136,6 @@ describe("EmbedEditorComponent", () => {
 		const instance = component(
 			JSON.stringify({ fields: [{ name: "n1", value: "v1", inline: false }] }),
 		);
-		instance.toggleMode();
 		const entry = instance.entries[0];
 
 		instance.addField(entry);
@@ -175,13 +163,11 @@ describe("EmbedEditorComponent", () => {
 			fields: [{ name: "fn", value: "fv", inline: true }],
 		};
 		const instance = component(JSON.stringify(embed));
-		instance.toggleMode();
 		expect(JSON.parse(instance.serialize())).toEqual(embed);
 	});
 
 	it("keeps author short form as a string when it was a string", () => {
 		const instance = component(JSON.stringify({ author: "Someone" }));
-		instance.toggleMode();
 		expect(instance.entries[0].authorAsString).toBe(true);
 		expect(instance.entries[0].authorName).toBe("Someone");
 		expect(JSON.parse(instance.serialize()).author).toBe("Someone");
@@ -189,7 +175,6 @@ describe("EmbedEditorComponent", () => {
 
 	it("keeps string timestamps as strings when serializing back", () => {
 		const instance = component(JSON.stringify({ timestamp: "not-a-number" }));
-		instance.toggleMode();
 		expect(instance.entries[0].timestamp).toBe("not-a-number");
 		expect(JSON.parse(instance.serialize())).toEqual({
 			timestamp: "not-a-number",
@@ -198,14 +183,12 @@ describe("EmbedEditorComponent", () => {
 
 	it("parses numeric timestamps into editor-safe text", () => {
 		const instance = component(JSON.stringify({ timestamp: 42 }));
-		instance.toggleMode();
 		expect(instance.entries[0].timestamp).toBe("42");
 		expect(JSON.parse(instance.serialize())).toEqual({ timestamp: 42 });
 	});
 
 	it("preserves unknown properties through the extras map", () => {
 		const instance = component(JSON.stringify({ title: "t", weird: { a: 1 } }));
-		instance.toggleMode();
 		expect(instance.entries[0].extras).toEqual({ weird: { a: 1 } });
 		expect(JSON.parse(instance.serialize())).toEqual({
 			title: "t",
@@ -220,7 +203,6 @@ describe("EmbedEditorComponent", () => {
 			author: { name: "a", extra: 3 },
 		};
 		const instance = component(JSON.stringify(embed));
-		instance.toggleMode();
 		expect(instance.entries[0].footerExtras).toEqual({ extra: 1 });
 		expect(instance.entries[0].thumbnailExtras).toEqual({ extra: 2 });
 		expect(instance.entries[0].authorExtras).toEqual({ extra: 3 });
@@ -236,7 +218,6 @@ describe("EmbedEditorComponent", () => {
 				fields: "no",
 			}),
 		);
-		instance.toggleMode();
 		const entry = instance.entries[0];
 		expect(entry.footerText).toBeNull();
 		expect(entry.thumbnailUrl).toBeNull();
@@ -249,7 +230,6 @@ describe("EmbedEditorComponent", () => {
 		const instance = component(
 			JSON.stringify({ fields: ["bad", { name: "n", value: "v" }] }),
 		);
-		instance.toggleMode();
 		const serialized = JSON.parse(instance.serialize());
 		expect(serialized.fields).toEqual([
 			{ name: "n", value: "v", inline: false },
@@ -261,7 +241,6 @@ describe("EmbedEditorComponent", () => {
 			JSON.stringify(["ticket-panel", { customEmbed: "x", customData: "y" }]),
 			true,
 		);
-		instance.toggleMode();
 		expect(instance.entries).toHaveLength(2);
 		expect(instance.entries[0].kind).toBe("custom");
 		expect(instance.entries[0].customType).toBe("ticket-panel");
@@ -274,34 +253,27 @@ describe("EmbedEditorComponent", () => {
 
 	it("rejects custom embeds when the host does not allow them", () => {
 		const instance = component(JSON.stringify(["ticket-panel"]));
-		instance.toggleMode();
 		expect(instance.mode).toBe("raw");
 		expect(instance.parseError).toContain("custom embeds");
 	});
 
-	it("rejects a blank custom embed type in the editor without crashing", () => {
+	it("drops a blank custom embed type instead of emitting an empty key", () => {
 		const instance = component(JSON.stringify({ customEmbed: "x" }), true);
-		instance.toggleMode();
 		instance.entries[0].customType = "";
 		const serialized = JSON.parse(instance.serialize());
-		expect(serialized).toEqual({ customEmbed: "" });
+		expect(serialized).toEqual({});
 	});
 
-	it("switching back to raw shows the serialized JSON and emits it", async () => {
+	it("switching back to raw shows the serialized JSON and emits it", () => {
 		const instance = component(JSON.stringify({ title: "A" }));
 		instance.toggleMode();
-		instance.entries[0].title = "Changed";
-		expect(instance.rawText).toBe(
-			JSON.stringify({ title: "Changed" }, null, 2),
-		);
-		expect(instance.embedJson).toBe(
-			JSON.stringify({ title: "Changed" }, null, 2),
-		);
+		expect(instance.mode).toBe("raw");
+		expect(instance.rawText).toBe(JSON.stringify({ title: "A" }, null, 2));
+		expect(instance.embedJson).toBe(JSON.stringify({ title: "A" }, null, 2));
 	});
 
 	it("does not emit when the serialization did not change", () => {
 		const instance = component(JSON.stringify({ title: "A" }));
-		instance.toggleMode();
 		instance.entries[0].title = "A";
 		expect(instance.embedJson).toBe(JSON.stringify({ title: "A" }, null, 2));
 	});
@@ -312,7 +284,6 @@ describe("EmbedEditorComponent", () => {
 			fields: [{ name: "n", value: "v", inline: true }],
 		};
 		const instance = component(JSON.stringify(source));
-		instance.toggleMode();
 		instance.entries[0].title = "B";
 		instance.entries[0].fields[0].name = "m";
 		expect(source).toEqual({
@@ -323,8 +294,8 @@ describe("EmbedEditorComponent", () => {
 
 	it("keeps the component usable after a failed parse by staying in raw mode", () => {
 		const instance = component("{oops");
-		instance.toggleMode();
 		expect(instance.mode).toBe("raw");
+		expect(instance.parseError).toContain("Invalid JSON");
 		instance.rawText = JSON.stringify({ title: "fixed" });
 		instance.toggleMode();
 		expect(instance.mode).toBe("editor");
