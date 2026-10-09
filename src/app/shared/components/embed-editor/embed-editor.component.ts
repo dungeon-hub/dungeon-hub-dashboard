@@ -36,7 +36,7 @@ import { FormsModule } from "@angular/forms";
       </div>
 
       @if (parseError) {
-        <small class="text-red-400 block">{{ parseError }}</small>
+        <small id="embed-editor-parse-error" class="text-red-400 block">{{ parseError }}</small>
       }
 
       <div class="card rounded-lg border border-gray-600 p-3">
@@ -44,6 +44,8 @@ import { FormsModule } from "@angular/forms";
         <textarea
           rows="6"
           [(ngModel)]="rawText"
+          [attr.aria-invalid]="parseError ? 'true' : null"
+          [attr.aria-describedby]="parseError ? 'embed-editor-parse-error' : null"
           (input)="onRawTextInput()"
           class="input font-mono text-sm w-full"
         ></textarea>
