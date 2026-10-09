@@ -15,11 +15,7 @@ import { FormsModule } from "@angular/forms";
 	standalone: true,
 	imports: [CommonModule, FormsModule],
 	template: `
-    <div class="flex flex-col gap-2">
-      @if (parseError) {
-        <small class="text-red-400 block">{{ parseError }}</small>
-      }
-
+    <div class="flex flex-col gap-2 -mt-5">
       <div class="flex items-center justify-end gap-2">
         <span class="text-gray-400">
           {{ mode === "editor" ? "Visual editor" : "Raw JSON" }}
@@ -38,6 +34,10 @@ import { FormsModule } from "@angular/forms";
           ></span>
         </button>
       </div>
+
+      @if (parseError) {
+        <small class="text-red-400 block">{{ parseError }}</small>
+      }
 
       <div class="card rounded-lg border border-gray-600 p-3">
         @if (mode === "raw") {

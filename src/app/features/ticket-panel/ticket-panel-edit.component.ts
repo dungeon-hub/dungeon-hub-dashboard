@@ -126,7 +126,7 @@ import { wasCleared } from "../../shared/utils/form-utils";
                 <textarea formControlName="ticketMessageContent" rows="3" class="input"></textarea>
                 <small class="text-gray-400">Message sent when ticket is created</small>
               </div>
-              <div class="flex items-center justify-between gap-2">
+              <div>
                 <label class="label">Ticket Message Embeds</label>
                 <app-embed-editor
                   [embedJson]="form.get('ticketMessageEmbeds')?.value || ''"
