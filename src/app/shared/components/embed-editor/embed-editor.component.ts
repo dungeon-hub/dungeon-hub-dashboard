@@ -379,7 +379,7 @@ export class EmbedEditorComponent implements OnInit {
 			this.wasArray = false;
 			return true;
 		}
-		let value: any;
+		let value: Json;
 		try {
 			value = JSON.parse(trimmed);
 		} catch (_error) {
@@ -399,7 +399,7 @@ export class EmbedEditorComponent implements OnInit {
 		return this.parseEntries([value]);
 	}
 
-	private parseEntries(list: any[]): boolean {
+	private parseEntries(list: Json[]): boolean {
 		for (const element of list) {
 			if (typeof element === "string") {
 				if (!this.allowCustomEmbeds) {
@@ -417,7 +417,11 @@ export class EmbedEditorComponent implements OnInit {
 				);
 				continue;
 			}
-			if (typeof element !== "object" || Array.isArray(element)) {
+			if (
+				element === null ||
+				typeof element !== "object" ||
+				Array.isArray(element)
+			) {
 				this.parseError =
 					"Each embed must be a JSON object (or a custom embed string).";
 				return false;
@@ -454,7 +458,7 @@ export class EmbedEditorComponent implements OnInit {
 		return true;
 	}
 
-	private parseEmbedEntry(element: any): EmbedEntry {
+	private parseEmbedEntry(element: { [key: string]: Json }): EmbedEntry {
 		const entry = this.createEntry();
 		for (const [key, value] of Object.entries(element)) {
 			switch (key) {
@@ -480,7 +484,7 @@ export class EmbedEditorComponent implements OnInit {
 						Array.isArray(value)
 					)
 						break;
-					const footer = value as any;
+					const footer = value;
 					entry.footerText =
 						typeof footer["text"] === "string" ? footer["text"] : null;
 					entry.footerIcon =
@@ -495,7 +499,7 @@ export class EmbedEditorComponent implements OnInit {
 						Array.isArray(value)
 					)
 						break;
-					const thumbnail = value as any;
+					const thumbnail = value;
 					entry.thumbnailUrl =
 						typeof thumbnail["url"] === "string" ? thumbnail["url"] : null;
 					entry.thumbnailExtras = this.extrasOf(thumbnail, ["url"]);
@@ -510,7 +514,7 @@ export class EmbedEditorComponent implements OnInit {
 						value !== null &&
 						!Array.isArray(value)
 					) {
-						const author = value as any;
+						const author = value;
 						entry.authorName =
 							typeof author["name"] === "string" ? author["name"] : null;
 						entry.authorUrl =
@@ -547,8 +551,11 @@ export class EmbedEditorComponent implements OnInit {
 		return this.wrapEntry(entry);
 	}
 
-	private extrasOf(value: any, knownKeys: string[]): Record<string, any> {
-		const extras: Record<string, any> = {};
+	private extrasOf(
+		value: { [key: string]: Json },
+		knownKeys: string[],
+	): Record<string, Json> {
+		const extras: Record<string, Json> = {};
 		for (const [key, nested] of Object.entries(value)) {
 			if (!knownKeys.includes(key)) extras[key] = nested;
 		}
@@ -563,18 +570,18 @@ export class EmbedEditorComponent implements OnInit {
 		return JSON.stringify(built, null, 2);
 	}
 
-	private buildEntry(entry: EmbedEntry): any {
+	private buildEntry(entry: EmbedEntry): Json {
 		if (entry.kind === "custom") {
 			if (entry.customWasString && !entry.customData)
 				return entry.customType ?? "";
-			const custom: Record<string, any> = {
+			const custom: Record<string, Json> = {
 				customEmbed: entry.customType ?? "",
 			};
 			if (entry.customData !== null) custom["customData"] = entry.customData;
 			return custom;
 		}
 
-		const embed: Record<string, any> = { ...entry.extras };
+		const embed: Record<string, Json> = { ...entry.extras };
 		this.put(embed, "title", entry.title);
 		this.put(embed, "description", entry.description);
 		this.put(embed, "url", entry.url);
@@ -593,7 +600,7 @@ export class EmbedEditorComponent implements OnInit {
 			entry.footerIcon !== null ||
 			Object.keys(entry.footerExtras).length > 0
 		) {
-			const footer: Record<string, any> = { ...entry.footerExtras };
+			const footer: Record<string, Json> = { ...entry.footerExtras };
 			footer["text"] = entry.footerText ?? "";
 			if (entry.footerIcon !== null) footer["icon"] = entry.footerIcon;
 			embed["footer"] = footer;
@@ -603,7 +610,7 @@ export class EmbedEditorComponent implements OnInit {
 			entry.thumbnailUrl !== null ||
 			Object.keys(entry.thumbnailExtras).length > 0
 		) {
-			const thumbnail: Record<string, any> = { ...entry.thumbnailExtras };
+			const thumbnail: Record<string, Json> = { ...entry.thumbnailExtras };
 			if (entry.thumbnailUrl !== null) thumbnail["url"] = entry.thumbnailUrl;
 			embed["thumbnail"] = thumbnail;
 		}
@@ -616,7 +623,7 @@ export class EmbedEditorComponent implements OnInit {
 			entry.authorIcon !== null ||
 			Object.keys(entry.authorExtras).length > 0
 		) {
-			const author: Record<string, any> = { ...entry.authorExtras };
+			const author: Record<string, Json> = { ...entry.authorExtras };
 			if (entry.authorName !== null) author["name"] = entry.authorName;
 			if (entry.authorUrl !== null) author["url"] = entry.authorUrl;
 			if (entry.authorIcon !== null) author["icon"] = entry.authorIcon;
@@ -634,11 +641,13 @@ export class EmbedEditorComponent implements OnInit {
 		return embed;
 	}
 
-	private put(target: Record<string, any>, key: string, value: string | null) {
+	private put(target: Record<string, Json>, key: string, value: string | null) {
 		if (value === null || value === "") return;
 		target[key] = value;
 	}
 }
+
+type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
 
 type EmbedEntry = {
 	id: number;
@@ -651,16 +660,16 @@ type EmbedEntry = {
 	image: string | null;
 	footerText: string | null;
 	footerIcon: string | null;
-	footerExtras: Record<string, any>;
+	footerExtras: Record<string, Json>;
 	thumbnailUrl: string | null;
-	thumbnailExtras: Record<string, any>;
+	thumbnailExtras: Record<string, Json>;
 	authorName: string | null;
 	authorUrl: string | null;
 	authorIcon: string | null;
-	authorExtras: Record<string, any>;
+	authorExtras: Record<string, Json>;
 	authorAsString: boolean;
 	fields: EmbedField[];
-	extras: Record<string, any>;
+	extras: Record<string, Json>;
 	customType: string | null;
 	customData: string | null;
 	customWasString: boolean;

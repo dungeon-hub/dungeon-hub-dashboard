@@ -130,6 +130,7 @@ import { wasCleared } from "../../shared/utils/form-utils";
                 <label class="label">Ticket Message Embeds</label>
                 <app-embed-editor
                   [embedJson]="form.get('ticketMessageEmbeds')?.value || ''"
+                  [allowCustomEmbeds]="true"
                   (embedJsonChange)="onEmbedsChange($event)"
                 ></app-embed-editor>
                 @if (form.get('ticketMessageEmbeds')?.hasError('invalidJson') && form.get('ticketMessageEmbeds')?.touched) {
