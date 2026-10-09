@@ -27,6 +27,7 @@ import {
 	type TicketPanelUpdateModel,
 } from "@dungeon-hub/api-client";
 import { AutocompleteComponent } from "../../shared/components/autocomplete/autocomplete.component";
+import { EmbedEditorComponent } from "../../shared/components/embed-editor/embed-editor.component";
 import { wasCleared } from "../../shared/utils/form-utils";
 
 @Component({
@@ -38,6 +39,7 @@ import { wasCleared } from "../../shared/utils/form-utils";
 		FormsModule,
 		RouterLink,
 		AutocompleteComponent,
+		EmbedEditorComponent,
 	],
 	template: `
     <div class="container mx-auto px-4 py-8 max-w-6xl">
@@ -125,12 +127,12 @@ import { wasCleared } from "../../shared/utils/form-utils";
                 <small class="text-gray-400">Message sent when ticket is created</small>
               </div>
               <div>
-                <label class="label">Ticket Message Embeds (JSON)</label>
-                <textarea
-                  formControlName="ticketMessageEmbeds"
-                  rows="4"
-                  class="input font-mono text-sm"
-                ></textarea>
+                <label class="label">Ticket Message Embeds</label>
+                <app-embed-editor
+                  [embedJson]="form.get('ticketMessageEmbeds')?.value || ''"
+                  [allowCustomEmbeds]="true"
+                  (embedJsonChange)="onEmbedsChange($event)"
+                ></app-embed-editor>
                 @if (form.get('ticketMessageEmbeds')?.hasError('invalidJson') && form.get('ticketMessageEmbeds')?.touched) {
                   <small class="text-red-400">Invalid JSON format</small>
                 }
@@ -369,6 +371,12 @@ export class TicketPanelEditComponent implements OnInit {
 			relatedCarryDifficulty: [null],
 			formQuestions: ["", this.jsonValidator],
 		});
+	}
+
+	onEmbedsChange(json: string) {
+		// The editor re-serializes valid JSON only, so keep the form control in sync.
+		this.form.patchValue({ ticketMessageEmbeds: json });
+		this.cdr.detectChanges();
 	}
 
 	jsonValidator(control: AbstractControl): ValidationErrors | null {
