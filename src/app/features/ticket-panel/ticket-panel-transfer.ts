@@ -8,7 +8,7 @@ import type {
 
 export const TICKET_PANEL_EXPORT_VERSION = 2;
 
-/** Version 1 exports contain the old Kord permission bit sets, which are dropped on import. */
+/** Version 1 exports contain the old Kord permission bit sets, which are replaced by the defaults on import. */
 const LEGACY_TICKET_PANEL_EXPORT_VERSION = 1;
 
 export interface TicketPanelExport {
@@ -73,6 +73,7 @@ const TICKET_ACTIONS = new Set([
 	"AddUser",
 	"GenerateTranscript",
 ]);
+const TICKET_CANDIDATE_PERMISSION_KEYS = new Set(["actions", "channel"]);
 const DISCORD_CHANNEL_PERMISSIONS = new Set([
 	"ViewChannel",
 	"SendMessages",
@@ -166,6 +167,9 @@ function isPermissions(value: unknown): boolean {
 								([candidate, permissions]) =>
 									TICKET_PERMISSION_CANDIDATES.has(candidate) &&
 									isRecord(permissions) &&
+									Object.keys(permissions).every((key) =>
+										TICKET_CANDIDATE_PERMISSION_KEYS.has(key),
+									) &&
 									isBooleanRecord(permissions["actions"], TICKET_ACTIONS) &&
 									isBooleanRecord(
 										permissions["channel"],
@@ -290,8 +294,9 @@ function copyTicketPanelCreation(
 		additionalRoles: undefinedIfNull(panel.additionalRoles),
 		openCategories: undefinedIfNull(panel.openCategories),
 		closedCategories: undefinedIfNull(panel.closedCategories),
+		// empty phases are explicit defaults, so overwriting a panel resets its permissions as well
 		permissions: legacyPermissions
-			? undefined
+			? { open: {}, closed: {} }
 			: normalizePermissions(panel.permissions),
 	} satisfies TicketPanelCreationModel &
 		Record<keyof TicketPanelCreationModel, unknown>);

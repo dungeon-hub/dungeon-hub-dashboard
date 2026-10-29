@@ -347,7 +347,7 @@ describe("TicketPanelListComponent transfers", () => {
 				transcriptChannel: "1036375112619937792",
 				relatedCarryTier: "28",
 				supportRoles: ["1061116185132933240"],
-				permissions: undefined,
+				permissions: { open: {}, closed: {} },
 			}),
 		);
 		expect(instance.pendingImportServer).toBeUndefined();

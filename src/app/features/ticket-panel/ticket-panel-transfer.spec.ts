@@ -339,7 +339,7 @@ describe("ticket panel transfer", () => {
 		expect(hasDuplicatePanelName(panels, "different", "Different")).toBe(false);
 	});
 
-	it("accepts legacy exports with numeric ids and relations, and drops their permission bits", () => {
+	it("accepts legacy exports with numeric ids and relations, and replaces their permission bits with the defaults", () => {
 		const legacyExport = {
 			version: 1,
 			id: 4,
@@ -379,7 +379,12 @@ describe("ticket panel transfer", () => {
 		expect(imported.panel.name).toBe("f4");
 		expect(imported.panel.relatedCarryTier).toBe("28");
 		expect(imported.panel.supportRoles).toEqual(["1061116185132933240"]);
-		expect(imported.panel.permissions).toBeUndefined();
+		expect(imported.panel.permissions).toEqual({ open: {}, closed: {} });
+		// an overwrite replaces the existing permissions with the defaults as well
+		expect(toTicketPanelUpdate(imported.panel).permissions).toEqual({
+			open: {},
+			closed: {},
+		});
 		expect(isTicketPanelExport(JSON.stringify(legacyExport))).toBe(true);
 	});
 
@@ -536,6 +541,13 @@ describe("ticket panel transfer", () => {
 			(data: any) =>
 				(data.panel.permissions = {
 					open: { Everyone: { actions: { Close: "yes" } } },
+				}),
+		],
+		[
+			"candidate permission key",
+			(data: any) =>
+				(data.panel.permissions = {
+					open: { TicketCreator: { channels: { AttachFiles: true } } },
 				}),
 		],
 		[
