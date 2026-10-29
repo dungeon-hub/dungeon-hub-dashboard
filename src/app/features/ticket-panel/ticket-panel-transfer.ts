@@ -84,6 +84,12 @@ function isNullableOptionalStringOrNumber(
 	);
 }
 
+function isNullableOptionalTicketLimit(
+	value: unknown,
+): value is number | null | undefined {
+	return value == null || (Number.isInteger(value) && (value as number) > 0);
+}
+
 function isOptionalStringArray(value: unknown): value is string[] | undefined {
 	return (
 		value == null ||
@@ -172,6 +178,8 @@ const ticketPanelFieldValidators = {
 		(typeof value === "string" && TRANSCRIPT_TARGETS.has(value)),
 	userTranscriptDm: isNullableOptionalString,
 	formQuestions: isFormQuestions,
+	openTicketLimit: isNullableOptionalTicketLimit,
+	closedTicketLimit: isNullableOptionalTicketLimit,
 	relatedCarryTier: isNullableOptionalStringOrNumber,
 	relatedCarryDifficulty: isNullableOptionalStringOrNumber,
 	supportRoles: isOptionalStringArray,
@@ -201,6 +209,8 @@ function copyTicketPanelCreation(
 		deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
 		userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
 		formQuestions: undefinedIfNull(panel.formQuestions),
+		openTicketLimit: undefinedIfNull(panel.openTicketLimit),
+		closedTicketLimit: undefinedIfNull(panel.closedTicketLimit),
 		relatedCarryTier: stringIfNotNull(panel.relatedCarryTier),
 		relatedCarryDifficulty: stringIfNotNull(panel.relatedCarryDifficulty),
 		supportRoles: undefinedIfNull(panel.supportRoles),
@@ -233,6 +243,8 @@ export function toTicketPanelCreation(
 		deleteTranscriptTarget: undefinedIfNull(panel.deleteTranscriptTarget),
 		userTranscriptDm: undefinedIfNull(panel.userTranscriptDm),
 		formQuestions: panel.formQuestions,
+		openTicketLimit: undefinedIfNull(panel.openTicketLimit),
+		closedTicketLimit: undefinedIfNull(panel.closedTicketLimit),
 		relatedCarryTier: panel.relatedCarryTier?.id,
 		relatedCarryDifficulty: panel.relatedCarryDifficulty?.id,
 		supportRoles: panel.supportRoles?.map((role) => role.id),
@@ -410,6 +422,8 @@ export function toTicketPanelUpdate(
 		resetTranscriptChannel: panel.transcriptChannel == null,
 		resetTicketMessage: panel.ticketMessage == null,
 		resetUserTranscriptDm: panel.userTranscriptDm == null,
+		resetOpenTicketLimit: panel.openTicketLimit == null,
+		resetClosedTicketLimit: panel.closedTicketLimit == null,
 		resetRelatedCarryTier: panel.relatedCarryTier == null,
 		resetRelatedCarryDifficulty: panel.relatedCarryDifficulty == null,
 	};
