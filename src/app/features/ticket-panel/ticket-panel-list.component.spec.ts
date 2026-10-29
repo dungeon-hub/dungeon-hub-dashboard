@@ -32,7 +32,10 @@ function panel(): TicketPanelModel {
 		additionalRoles: [],
 		openCategories: ["open"],
 		closedCategories: ["closed"],
-		permissions: { Everyone: { Denied: "1" } },
+		permissions: {
+			open: { Everyone: { actions: {}, channel: { ViewChannel: false } } },
+			closed: {},
+		},
 	};
 }
 
@@ -344,10 +347,7 @@ describe("TicketPanelListComponent transfers", () => {
 				transcriptChannel: "1036375112619937792",
 				relatedCarryTier: "28",
 				supportRoles: ["1061116185132933240"],
-				permissions: {
-					Everyone: { Denied: "1024" },
-					TicketCreator: { Allowed: "68608" },
-				},
+				permissions: undefined,
 			}),
 		);
 		expect(instance.pendingImportServer).toBeUndefined();
@@ -656,7 +656,7 @@ describe("TicketPanelListComponent transfers", () => {
 		instance.openCopyModal(existing);
 		const copiedPermissions = instance.pendingPanel?.permissions;
 		if (!copiedPermissions) throw new Error("Expected copied permissions");
-		copiedPermissions["Everyone"]["Denied"] = "changed";
+		copiedPermissions.open["Everyone"].channel["ViewChannel"] = true;
 		instance.newPanel = {
 			name: " SUPPORT ",
 			displayName: "Different",

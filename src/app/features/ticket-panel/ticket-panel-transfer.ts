@@ -1,10 +1,15 @@
 import type {
+	TicketCandidatePermissionsModel,
 	TicketPanelCreationModel,
 	TicketPanelModel,
+	TicketPanelPermissionsModel,
 	TicketPanelUpdateModel,
 } from "@dungeon-hub/api-client";
 
-export const TICKET_PANEL_EXPORT_VERSION = 1;
+export const TICKET_PANEL_EXPORT_VERSION = 2;
+
+/** Version 1 exports contain the old Kord permission bit sets, which are dropped on import. */
+const LEGACY_TICKET_PANEL_EXPORT_VERSION = 1;
 
 export interface TicketPanelExport {
 	version: number;
@@ -51,6 +56,39 @@ const FORM_TYPES = new Set([
 	"StringSelect",
 	"TextDisplay",
 ]);
+const TICKET_PERMISSION_PHASES = new Set(["open", "closed"]);
+const TICKET_PERMISSION_CANDIDATES = new Set([
+	"SupportTeam",
+	"AdditionalRoles",
+	"TicketCreator",
+	"TicketClaimer",
+	"Everyone",
+]);
+const TICKET_ACTIONS = new Set([
+	"Reopen",
+	"Close",
+	"Claim",
+	"Unclaim",
+	"Delete",
+	"AddUser",
+	"GenerateTranscript",
+]);
+const DISCORD_CHANNEL_PERMISSIONS = new Set([
+	"ViewChannel",
+	"SendMessages",
+	"ManageMessages",
+	"EmbedLinks",
+	"AttachFiles",
+	"ReadMessageHistory",
+	"MentionEveryone",
+]);
+
+function isSupportedExportVersion(version: unknown): boolean {
+	return (
+		version === TICKET_PANEL_EXPORT_VERSION ||
+		version === LEGACY_TICKET_PANEL_EXPORT_VERSION
+	);
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -105,7 +143,40 @@ function isFormQuestions(value: unknown): boolean {
 	);
 }
 
+function isBooleanRecord(value: unknown, keys: ReadonlySet<string>): boolean {
+	return (
+		value == null ||
+		(isRecord(value) &&
+			Object.entries(value).every(
+				([key, entry]) => keys.has(key) && typeof entry === "boolean",
+			))
+	);
+}
+
 function isPermissions(value: unknown): boolean {
+	return (
+		value == null ||
+		(isRecord(value) &&
+			Object.entries(value).every(
+				([phase, candidates]) =>
+					TICKET_PERMISSION_PHASES.has(phase) &&
+					(candidates == null ||
+						(isRecord(candidates) &&
+							Object.entries(candidates).every(
+								([candidate, permissions]) =>
+									TICKET_PERMISSION_CANDIDATES.has(candidate) &&
+									isRecord(permissions) &&
+									isBooleanRecord(permissions["actions"], TICKET_ACTIONS) &&
+									isBooleanRecord(
+										permissions["channel"],
+										DISCORD_CHANNEL_PERMISSIONS,
+									),
+							))),
+			))
+	);
+}
+
+function isLegacyPermissions(value: unknown): boolean {
 	return (
 		value == null ||
 		(isRecord(value) &&
@@ -130,19 +201,30 @@ function stringIfNotNull(
 	return value == null ? undefined : String(value);
 }
 
+/** Fills in the parts the API treats as omitted, so the result matches the generated types. */
 function normalizePermissions(
 	permissions: TicketPanelCreationModel["permissions"] | null | undefined,
-): TicketPanelCreationModel["permissions"] | undefined {
+): TicketPanelPermissionsModel | undefined {
 	if (permissions == null) return undefined;
+	return {
+		open: normalizePhasePermissions(permissions.open),
+		closed: normalizePhasePermissions(permissions.closed),
+	};
+}
+
+function normalizePhasePermissions(
+	candidates:
+		| Record<string, TicketCandidatePermissionsModel>
+		| null
+		| undefined,
+): Record<string, TicketCandidatePermissionsModel> {
 	return Object.fromEntries(
-		Object.entries(permissions).map(([scope, values]) => [
-			scope,
-			Object.fromEntries(
-				Object.entries(values).map(([state, bitSet]) => [
-					state,
-					String(bitSet),
-				]),
-			),
+		Object.entries(candidates ?? {}).map(([candidate, permissions]) => [
+			candidate,
+			{
+				actions: { ...(permissions.actions ?? {}) },
+				channel: { ...(permissions.channel ?? {}) },
+			},
 		]),
 	);
 }
@@ -183,6 +265,7 @@ const ticketPanelFieldValidators = {
 
 function copyTicketPanelCreation(
 	panel: TicketPanelCreationModel,
+	legacyPermissions: boolean,
 ): TicketPanelCreationModel {
 	return structuredClone({
 		name: panel.name,
@@ -207,7 +290,9 @@ function copyTicketPanelCreation(
 		additionalRoles: undefinedIfNull(panel.additionalRoles),
 		openCategories: undefinedIfNull(panel.openCategories),
 		closedCategories: undefinedIfNull(panel.closedCategories),
-		permissions: normalizePermissions(panel.permissions),
+		permissions: legacyPermissions
+			? undefined
+			: normalizePermissions(panel.permissions),
 	} satisfies TicketPanelCreationModel &
 		Record<keyof TicketPanelCreationModel, unknown>);
 }
@@ -299,7 +384,7 @@ function getBackupPanels(parsed: unknown): unknown[] | undefined {
 	const candidate = parsed as UntrustedTicketPanelExport;
 	if (candidate.panels === undefined) return undefined;
 	if (
-		candidate.version !== TICKET_PANEL_EXPORT_VERSION ||
+		!isSupportedExportVersion(candidate.version) ||
 		!Array.isArray(candidate.panels)
 	) {
 		throw new Error("This is not a supported ticket panel export.");
@@ -324,12 +409,17 @@ function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
 		throw new Error("This is not a supported ticket panel export.");
 	}
 	const panel = candidate.panel as UntrustedTicketPanel;
-	const hasInvalidPanelField = Object.entries(ticketPanelFieldValidators).some(
+	const legacyPermissions =
+		candidate.version === LEGACY_TICKET_PANEL_EXPORT_VERSION;
+	const validators = legacyPermissions
+		? { ...ticketPanelFieldValidators, permissions: isLegacyPermissions }
+		: ticketPanelFieldValidators;
+	const hasInvalidPanelField = Object.entries(validators).some(
 		([field, validate]) =>
 			!validate(panel[field as keyof TicketPanelCreationModel]),
 	);
 	if (
-		candidate.version !== TICKET_PANEL_EXPORT_VERSION ||
+		!isSupportedExportVersion(candidate.version) ||
 		!isOptionalExportId(candidate.id) ||
 		!isOptionalString(candidate.name) ||
 		!isOptionalString(candidate.server) ||
@@ -346,6 +436,7 @@ function parseTicketPanelExportValue(parsed: unknown): TicketPanelImport {
 		server: candidate.server,
 		panel: copyTicketPanelCreation(
 			panel as unknown as TicketPanelCreationModel,
+			legacyPermissions,
 		),
 	};
 }
