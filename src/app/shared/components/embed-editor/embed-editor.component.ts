@@ -10,88 +10,90 @@ import {
 } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
+let nextInstanceId = 1;
+
 @Component({
 	selector: "app-embed-editor",
 	standalone: true,
 	imports: [CommonModule, FormsModule],
 	template: `
-    <div class="flex flex-col gap-2 -mt-5">
-      <div class="flex items-center justify-end gap-2">
-        <span class="text-gray-400">
-          {{ mode === "editor" ? "Visual editor" : "Raw JSON" }}
-        </span>
-        <button
-          type="button"
-          (click)="toggleMode()"
-          class="w-16 h-6 rounded-full border border-gray-500 cursor-pointer inline-flex items-center"
-          title="Toggle between raw JSON and the visual editor"
-          aria-label="Toggle between raw JSON and the visual editor"
-        >
-          <span
-            class="w-4 h-4 rounded-full bg-gray-300"
-            [class.ml-1]="mode === 'raw'"
-            [class.ml-11]="mode === 'editor'"
-          ></span>
-        </button>
-      </div>
-
-      @if (parseError) {
-        <small id="embed-editor-parse-error" class="text-red-400 block">{{ parseError }}</small>
-      }
-
-      <div class="card rounded-lg border border-gray-600 p-3">
-        @if (mode === "raw") {
-        <textarea
-          rows="6"
-          [(ngModel)]="rawText"
-          [attr.aria-invalid]="parseError ? 'true' : null"
-          [attr.aria-describedby]="parseError ? 'embed-editor-parse-error' : null"
-          (input)="onRawTextInput()"
-          class="input font-mono text-sm w-full"
-        ></textarea>
-      } @else {
-        <div class="flex items-center gap-2">
+    <div class="flex flex-col gap-3 -mt-8">
+      <div class="flex justify-end">
+        <div class="inline-flex rounded-md border border-gray-600 bg-gray-900 p-0.5" role="group" aria-label="Embed editor mode">
           <button
             type="button"
-            (click)="addEntry()"
-            class="input inline-flex items-center cursor-pointer text-gray-300"
-            title="Add embed at the end"
+            (click)="setMode('editor')"
+            [attr.aria-pressed]="mode === 'editor'"
+            class="mode-option"
+            [class.mode-option-active]="mode === 'editor'"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
-            </svg>
-            <span class="ml-2">Add embed</span>
+            Visual
           </button>
-          @if (allowCustomEmbeds) {
-            <button
-              type="button"
-              (click)="addCustomEntry()"
-              class="input inline-flex items-center cursor-pointer text-gray-300"
-              title="Add custom embed at the end"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
-              </svg>
-              <span class="ml-2">Add custom embed</span>
-            </button>
-          }
+          <button
+            type="button"
+            (click)="setMode('raw')"
+            [attr.aria-pressed]="mode === 'raw'"
+            class="mode-option"
+            [class.mode-option-active]="mode === 'raw'"
+          >
+            JSON
+          </button>
         </div>
+      </div>
+
+      @if (mode === "raw") {
+        <textarea
+          rows="10"
+          [(ngModel)]="rawText"
+          [attr.aria-invalid]="parseError ? 'true' : null"
+          [attr.aria-describedby]="parseError ? parseErrorId : null"
+          (input)="onRawTextInput()"
+          class="input font-mono text-sm"
+          [class.border-red-500]="parseError"
+          spellcheck="false"
+        ></textarea>
+      }
+
+      @if (parseError) {
+        <p [id]="parseErrorId" class="rounded-md border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+          {{ parseError }}
+        </p>
+      }
+
+      @if (mode === "editor") {
+        @if (entries.length === 0) {
+          <div class="rounded-lg border border-dashed border-gray-600 px-4 py-6 text-center text-sm text-gray-400">
+            No embeds yet. Add one to get started.
+          </div>
+        }
 
         @for (entry of entries; track entry.id) {
-          <div class="card rounded-lg border border-gray-600 p-3">
-            <div class="flex items-center justify-between">
-              <span class="text-gray-300">
-                {{ entry.kind === "custom" ? "Custom embed" : "Embed" }}
-              </span>
-              <div class="flex gap-1">
+          <section
+            class="rounded-lg border border-gray-700 border-l-4 bg-gray-900/50"
+            [style.border-left-color]="entry.kind === 'custom' ? null : colorPreview(entry)"
+            [class.border-l-gray-500]="entry.kind === 'custom' || !colorPreview(entry)"
+          >
+            <header class="flex items-center justify-between gap-2 border-b border-gray-700 px-3 py-2">
+              <div class="flex min-w-0 items-baseline gap-2">
+                <span class="whitespace-nowrap text-sm font-semibold text-gray-200">
+                  {{ entry.kind === "custom" ? "Custom embed" : "Embed" }} {{ $index + 1 }}
+                </span>
+                @if (entry.kind === "custom" ? entry.customType : entry.title) {
+                  <span class="truncate text-sm text-gray-400">
+                    {{ entry.kind === "custom" ? entry.customType : entry.title }}
+                  </span>
+                }
+              </div>
+              <div class="flex shrink-0 gap-1">
                 <button
                   type="button"
                   (click)="moveEntry(entry, -1)"
                   [disabled]="$index === 0"
-                  class="input cursor-pointer text-gray-400"
+                  class="icon-button"
                   title="Move up"
+                  aria-label="Move embed up"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 15l6-6l6 6"></path>
                   </svg>
                 </button>
@@ -99,168 +101,246 @@ import { FormsModule } from "@angular/forms";
                   type="button"
                   (click)="moveEntry(entry, 1)"
                   [disabled]="$index === entries.length - 1"
-                  class="input cursor-pointer text-gray-400"
+                  class="icon-button"
                   title="Move down"
+                  aria-label="Move embed down"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6l6-6"></path>
                   </svg>
                 </button>
                 <button
                   type="button"
                   (click)="removeEntry(entry)"
-                  class="input cursor-pointer text-red-400 hover:text-red-300"
+                  class="icon-button icon-button-danger"
                   title="Delete embed"
+                  aria-label="Delete embed"
                 >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7l16 0M10 4l4 0l0 3M10 4l-4 0l0 3M7 9l10 0M7 19l10 0M7 9l0 10M17 9l0 10"></path>
                   </svg>
                 </button>
               </div>
-            </div>
+            </header>
 
-            @if (entry.kind === "custom") {
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                <div>
-                  <label class="label">Custom embed type</label>
-                  <input type="text" [(ngModel)]="entry.customType" class="input" />
+            <div class="flex flex-col gap-4 p-3">
+              @if (entry.kind === "custom") {
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <label class="field-label">
+                    Custom embed type
+                    <input type="text" [(ngModel)]="entry.customType" class="input" />
+                  </label>
+                  <label class="field-label">
+                    Custom data
+                    <input type="text" [(ngModel)]="entry.customData" class="input" />
+                  </label>
                 </div>
-                <div>
-                  <label class="label">Custom data</label>
-                  <input type="text" [(ngModel)]="entry.customData" class="input" />
+              } @else {
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <label class="field-label">
+                    Title
+                    <input type="text" [(ngModel)]="entry.title" class="input" />
+                  </label>
+                  <label class="field-label">
+                    Title URL
+                    <input type="url" [(ngModel)]="entry.url" class="input" placeholder="https://" />
+                  </label>
+                  <label class="field-label md:col-span-2">
+                    Description
+                    <textarea rows="3" [(ngModel)]="entry.description" class="input"></textarea>
+                  </label>
+                  <label class="field-label">
+                    Color
+                    <span class="flex gap-2">
+                      <input
+                        type="color"
+                        [value]="colorPreview(entry) ?? '#5865f2'"
+                        (input)="entry.color = $any($event.target).value"
+                        class="h-10 w-12 shrink-0 cursor-pointer rounded-md border border-gray-600 bg-gray-700 p-1"
+                        aria-label="Pick embed color"
+                      />
+                      <input type="text" [(ngModel)]="entry.color" class="input font-mono" placeholder="#5865f2" />
+                    </span>
+                  </label>
+                  <label class="field-label">
+                    Timestamp (ms)
+                    <input type="text" inputmode="numeric" [(ngModel)]="entry.timestamp" class="input font-mono" />
+                  </label>
                 </div>
-              </div>
-            } @else {
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                <div>
-                  <label class="label">Title</label>
-                  <input type="text" [(ngModel)]="entry.title" class="input" />
-                </div>
-                <div>
-                  <label class="label">Description</label>
-                  <input type="text" [(ngModel)]="entry.description" class="input" />
-                </div>
-                <div>
-                  <label class="label">URL</label>
-                  <input type="text" [(ngModel)]="entry.url" class="input" />
-                </div>
-                <div>
-                  <label class="label">Timestamp (ms)</label>
-                  <input type="text" [(ngModel)]="entry.timestamp" class="input" />
-                </div>
-                <div>
-                  <label class="label">Color (#hex)</label>
-                  <input type="text" [(ngModel)]="entry.color" class="input" />
-                </div>
-                <div>
-                  <label class="label">Image URL</label>
-                  <input type="text" [(ngModel)]="entry.image" class="input" />
-                </div>
-              </div>
 
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
-                <div>
-                  <label class="label">Footer text</label>
-                  <input type="text" [(ngModel)]="entry.footerText" class="input" />
-                </div>
-                <div>
-                  <label class="label">Footer icon URL</label>
-                  <input type="text" [(ngModel)]="entry.footerIcon" class="input" />
-                </div>
-                <div>
-                  <label class="label">Thumbnail URL</label>
-                  <input type="text" [(ngModel)]="entry.thumbnailUrl" class="input" />
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
-                <div>
-                  <label class="label">Author name</label>
-                  <input type="text" [(ngModel)]="entry.authorName" class="input" />
-                </div>
-                <div>
-                  <label class="label">Author URL</label>
-                  <input type="text" [(ngModel)]="entry.authorUrl" class="input" />
-                </div>
-                <div>
-                  <label class="label">Author icon URL</label>
-                  <input type="text" [(ngModel)]="entry.authorIcon" class="input" />
-                </div>
-              </div>
-
-              <div class="mt-2">
-                <button
-                  type="button"
-                  (click)="addField(entry)"
-                  class="input inline-flex items-center cursor-pointer text-gray-300"
-                  title="Add field at the end"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
-                  </svg>
-                  <span class="ml-2">Add field</span>
-                </button>
-
-                @for (field of entry.fields; track field.id) {
-                  <div class="flex items-center gap-2 mt-2">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <label class="label">
-                        Field name
-                        <input type="text" [(ngModel)]="field.name" class="input" />
-                      </label>
-                      <label class="label">
-                        Field value
-                        <input type="text" [(ngModel)]="field.value" class="input" />
-                      </label>
-                    </div>
-                    <label class="inline-flex items-center gap-1 text-gray-300">
-                      <input type="checkbox" [(ngModel)]="field.inline" class="mr-1" />
-                      Inline
+                <fieldset class="group-box">
+                  <legend class="group-legend">Images</legend>
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label class="field-label">
+                      Image URL
+                      <input type="url" [(ngModel)]="entry.image" class="input" placeholder="https://" />
                     </label>
-                    <div class="flex gap-1">
-                      <button
-                        type="button"
-                        (click)="moveField(entry, field, -1)"
-                        [disabled]="$index === 0"
-                        class="input cursor-pointer text-gray-400"
-                        title="Move field up"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 15l6-6l6 6"></path>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        (click)="moveField(entry, field, 1)"
-                        [disabled]="$index === entry.fields.length - 1"
-                        class="input cursor-pointer text-gray-400"
-                        title="Move field down"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6l6-6"></path>
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        (click)="removeField(entry, field)"
-                        class="input cursor-pointer text-red-400 hover:text-red-300"
-                        title="Delete field"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7l16 0M10 4l4 0l0 3M10 4l-4 0l0 3M7 9l10 0M7 19l10 0M7 9l0 10M17 9l0 10"></path>
-                        </svg>
-                      </button>
-                    </div>
+                    <label class="field-label">
+                      Thumbnail URL
+                      <input type="url" [(ngModel)]="entry.thumbnailUrl" class="input" placeholder="https://" />
+                    </label>
                   </div>
-                }
-              </div>
-            }
-          </div>
+                </fieldset>
+
+                <fieldset class="group-box">
+                  <legend class="group-legend">Author</legend>
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <label class="field-label">
+                      Name
+                      <input type="text" [(ngModel)]="entry.authorName" class="input" />
+                    </label>
+                    <label class="field-label">
+                      URL
+                      <input type="url" [(ngModel)]="entry.authorUrl" class="input" placeholder="https://" />
+                    </label>
+                    <label class="field-label">
+                      Icon URL
+                      <input type="url" [(ngModel)]="entry.authorIcon" class="input" placeholder="https://" />
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="group-box">
+                  <legend class="group-legend">Footer</legend>
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <label class="field-label">
+                      Text
+                      <input type="text" [(ngModel)]="entry.footerText" class="input" />
+                    </label>
+                    <label class="field-label">
+                      Icon URL
+                      <input type="url" [(ngModel)]="entry.footerIcon" class="input" placeholder="https://" />
+                    </label>
+                  </div>
+                </fieldset>
+
+                <fieldset class="group-box">
+                  <legend class="group-legend">Fields</legend>
+                  <div class="flex flex-col gap-2">
+                    @for (field of entry.fields; track field.id) {
+                      <div class="flex flex-col gap-3 rounded-md border border-gray-700 bg-gray-800 p-3 md:flex-row md:items-end">
+                        <div class="grid flex-1 grid-cols-1 gap-3 md:grid-cols-2">
+                          <label class="field-label">
+                            Name
+                            <input type="text" [(ngModel)]="field.name" class="input" />
+                          </label>
+                          <label class="field-label">
+                            Value
+                            <input type="text" [(ngModel)]="field.value" class="input" />
+                          </label>
+                        </div>
+                        <div class="flex items-center justify-between gap-3 md:h-10">
+                          <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-300">
+                            <input type="checkbox" [(ngModel)]="field.inline" class="h-4 w-4 accent-blue-500" />
+                            Inline
+                          </label>
+                          <div class="flex gap-1">
+                            <button
+                              type="button"
+                              (click)="moveField(entry, field, -1)"
+                              [disabled]="$index === 0"
+                              class="icon-button"
+                              title="Move field up"
+                              aria-label="Move field up"
+                            >
+                              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 15l6-6l6 6"></path>
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              (click)="moveField(entry, field, 1)"
+                              [disabled]="$index === entry.fields.length - 1"
+                              class="icon-button"
+                              title="Move field down"
+                              aria-label="Move field down"
+                            >
+                              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6l6-6"></path>
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              (click)="removeField(entry, field)"
+                              class="icon-button icon-button-danger"
+                              title="Delete field"
+                              aria-label="Delete field"
+                            >
+                              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7l16 0M10 4l4 0l0 3M10 4l-4 0l0 3M7 9l10 0M7 19l10 0M7 9l0 10M17 9l0 10"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                    <button type="button" (click)="addField(entry)" class="add-button self-start" title="Add field at the end">
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
+                      </svg>
+                      Add field
+                    </button>
+                  </div>
+                </fieldset>
+              }
+            </div>
+          </section>
         }
-        }
-      </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button type="button" (click)="addEntry()" class="add-button" title="Add embed at the end">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
+            </svg>
+            Add embed
+          </button>
+          @if (allowCustomEmbeds) {
+            <button type="button" (click)="addCustomEntry()" class="add-button" title="Add custom embed at the end">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-width="2" d="M12 5l0 14M5 12l14 0"></path>
+              </svg>
+              Add custom embed
+            </button>
+          }
+        </div>
+      }
     </div>
   `,
+	styles: [
+		`
+    .mode-option {
+      @apply rounded px-3 py-0.5 text-xs font-medium text-gray-400 transition-colors hover:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500;
+    }
+
+    .mode-option-active {
+      @apply bg-gray-700 text-gray-100;
+    }
+
+    .field-label {
+      @apply flex flex-col gap-1 text-sm font-medium text-gray-300;
+    }
+
+    .group-box {
+      @apply rounded-md border border-gray-700 px-3 pb-3 pt-1;
+    }
+
+    .group-legend {
+      @apply px-1 text-xs font-semibold uppercase tracking-wide text-gray-400;
+    }
+
+    .icon-button {
+      @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400;
+    }
+
+    .icon-button-danger {
+      @apply text-red-400 hover:bg-red-950/50 hover:text-red-300;
+    }
+
+    .add-button {
+      @apply inline-flex items-center gap-2 rounded-md border border-dashed border-gray-600 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:border-blue-500 hover:text-blue-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500;
+    }
+  `,
+	],
 })
 export class EmbedEditorComponent implements OnInit {
 	private cdr = inject(ChangeDetectorRef);
@@ -276,6 +356,7 @@ export class EmbedEditorComponent implements OnInit {
 	private wasArray = false;
 	private nextId = 1;
 	private lastEmitted: string | null = null;
+	readonly parseErrorId = `embed-editor-parse-error-${nextInstanceId++}`;
 
 	ngOnInit() {
 		this.rawText = this.embedJson ?? "";
@@ -304,6 +385,16 @@ export class EmbedEditorComponent implements OnInit {
 			this.emitChange(this.rawText);
 		}
 		this.cdr.detectChanges();
+	}
+
+	setMode(mode: "raw" | "editor") {
+		if (this.mode !== mode) this.toggleMode();
+	}
+
+	/** The embed color as a #rrggbb value usable for previews, or null if it is not one. */
+	colorPreview(entry: EmbedEntry): string | null {
+		const color = entry.color?.trim();
+		return color && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : null;
 	}
 
 	addEntry() {
