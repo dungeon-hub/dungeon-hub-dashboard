@@ -83,7 +83,8 @@ export class ChangeStreamService {
 				}
 			}
 
-			await this.delay(reconnectDelay, signal);
+			// randomized, so that many clients don't all reconnect at the same time, e.g. after the API restarted
+			await this.delay(reconnectDelay * (0.5 + Math.random() / 2), signal);
 			reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
 		}
 	}
