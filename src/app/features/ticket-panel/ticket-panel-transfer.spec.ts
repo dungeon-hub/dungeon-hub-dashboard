@@ -1,4 +1,7 @@
-import type { TicketPanelModel } from "@dungeon-hub/api-client";
+import type {
+	TicketPanelModel,
+	TicketPanelPermissionsModel,
+} from "@dungeon-hub/api-client";
 import { describe, expect, it } from "vitest";
 import {
 	detachServerBoundFields,
@@ -42,8 +45,23 @@ function panel(): TicketPanelModel {
 		additionalRoles: [{ id: "role-2" } as any],
 		openCategories: ["open"],
 		closedCategories: ["closed"],
-		permissions: { Everyone: { Denied: "1024" } },
+		permissions: {
+			open: {
+				Everyone: {
+					actions: { Close: false },
+					channel: { ViewChannel: false },
+				},
+			},
+			closed: {},
+		},
 	};
+}
+
+function everyonePermissions(
+	permissions: TicketPanelPermissionsModel | null | undefined,
+) {
+	if (!permissions) throw new Error("Expected permissions");
+	return permissions.open["Everyone"];
 }
 
 describe("ticket panel transfer", () => {
@@ -54,9 +72,7 @@ describe("ticket panel transfer", () => {
 
 		clone.name = "new-support";
 		clone.formQuestions?.push({ id: "new-question" } as any);
-		(clone.permissions as Record<string, Record<string, string>>)["Everyone"][
-			"Denied"
-		] = "0";
+		everyonePermissions(clone.permissions).channel["ViewChannel"] = true;
 
 		expect(original).toEqual(snapshot);
 		expect(clone.name).toBe("new-support");
@@ -124,15 +140,12 @@ describe("ticket panel transfer", () => {
 		const snapshot = structuredClone(source);
 
 		const backup = exportTicketPanels(source);
-		(
-			backup.panels[0].panel.permissions as Record<
-				string,
-				Record<string, string>
-			>
-		)["Everyone"]["Denied"] = "0";
+		everyonePermissions(backup.panels[0].panel.permissions).channel[
+			"ViewChannel"
+		] = true;
 
 		expect(backup).toMatchObject({
-			version: 1,
+			version: 2,
 			panels: [
 				{ id: "1", name: "support", panel: { name: "support" } },
 				{ id: "2", name: "billing", panel: { name: "billing" } },
@@ -156,19 +169,18 @@ describe("ticket panel transfer", () => {
 		const arrayImports = parseTicketPanelExports(
 			JSON.stringify([exportTicketPanel(first), exportTicketPanel(second)]),
 		);
-		(
-			backupImports[0].panel.permissions as Record<
-				string,
-				Record<string, string>
-			>
-		)["Everyone"]["Denied"] = "0";
+		everyonePermissions(backupImports[0].panel.permissions).channel[
+			"ViewChannel"
+		] = true;
 
 		expect(backupImports.map((item) => item.panel.name)).toEqual([
 			"support",
 			"billing",
 		]);
 		expect(arrayImports.map((item) => item.id)).toEqual(["1", "2"]);
-		expect(first.permissions["Everyone"]["Denied"]).toBe("1024");
+		expect(first.permissions.open["Everyone"].channel["ViewChannel"]).toBe(
+			false,
+		);
 	});
 
 	it.each([
@@ -211,7 +223,7 @@ describe("ticket panel transfer", () => {
 
 	it("serializes pretty JSON that can be used by file and clipboard import", () => {
 		const serialized = serializeTicketPanel(panel());
-		expect(serialized).toContain('\n  "version": 1');
+		expect(serialized).toContain('\n  "version": 2');
 		expect(isTicketPanelExport(serialized)).toBe(true);
 		expect(parseTicketPanelExport(serialized).panel.ticketMessage).toBe(
 			'{"content":"Help"}',
@@ -277,12 +289,12 @@ describe("ticket panel transfer", () => {
 		const imported = toTicketPanelCreation(original);
 		delete imported.emoji;
 		const update = toTicketPanelUpdate(imported);
-		(update.permissions as Record<string, Record<string, string>>)["Everyone"][
-			"Denied"
-		] = "0";
+		everyonePermissions(update.permissions).channel["ViewChannel"] = true;
 
 		expect(update.resetEmoji).toBe(true);
-		expect(original.permissions["Everyone"]["Denied"]).toBe("1024");
+		expect(original.permissions.open["Everyone"].channel["ViewChannel"]).toBe(
+			false,
+		);
 	});
 
 	it("preserves every supplied setting when building an overwrite update", () => {
@@ -327,7 +339,7 @@ describe("ticket panel transfer", () => {
 		expect(hasDuplicatePanelName(panels, "different", "Different")).toBe(false);
 	});
 
-	it("accepts legacy exports with numeric ids, numeric relations, and numeric permission bits", () => {
+	it("accepts legacy exports with numeric ids and relations, and replaces their permission bits with the defaults", () => {
 		const legacyExport = {
 			version: 1,
 			id: 4,
@@ -367,11 +379,37 @@ describe("ticket panel transfer", () => {
 		expect(imported.panel.name).toBe("f4");
 		expect(imported.panel.relatedCarryTier).toBe("28");
 		expect(imported.panel.supportRoles).toEqual(["1061116185132933240"]);
-		expect(imported.panel.permissions).toEqual({
-			Everyone: { Denied: "1024" },
-			TicketCreator: { Allowed: "68608" },
+		expect(imported.panel.permissions).toEqual({ open: {}, closed: {} });
+		// an overwrite replaces the existing permissions with the defaults as well
+		expect(toTicketPanelUpdate(imported.panel).permissions).toEqual({
+			open: {},
+			closed: {},
 		});
 		expect(isTicketPanelExport(JSON.stringify(legacyExport))).toBe(true);
+	});
+
+	it("rejects legacy exports with invalid permission bits", () => {
+		const exported = exportTicketPanel(panel()) as any;
+		exported.version = 1;
+		exported.panel.permissions = { Everyone: { Denied: {} } };
+
+		expect(() => parseTicketPanelExport(JSON.stringify(exported))).toThrow(
+			"not a supported ticket panel export",
+		);
+	});
+
+	it("fills in omitted permission parts, which the API treats as defaults", () => {
+		const exported = exportTicketPanel(panel()) as any;
+		exported.panel.permissions = {
+			open: { TicketCreator: { actions: { Close: false } } },
+		};
+
+		const imported = parseTicketPanelExport(JSON.stringify(exported));
+
+		expect(imported.panel.permissions).toEqual({
+			open: { TicketCreator: { actions: { Close: false }, channel: {} } },
+			closed: {},
+		});
 	});
 
 	it("rejects unsupported import files", () => {
@@ -480,12 +518,49 @@ describe("ticket panel transfer", () => {
 				(data.panel.formQuestions = [{ type: "TextInput", data: 123 }]),
 		],
 		[
-			"permission group",
-			(data: any) => (data.panel.permissions = { Everyone: [] }),
+			"permission phase",
+			(data: any) => (data.panel.permissions = { claimed: {} }),
 		],
 		[
-			"permission bit set",
-			(data: any) => (data.panel.permissions = { Everyone: { Denied: {} } }),
+			"permission candidate",
+			(data: any) => (data.panel.permissions = { open: { Moderators: {} } }),
+		],
+		[
+			"permission candidate value",
+			(data: any) => (data.panel.permissions = { open: { Everyone: [] } }),
+		],
+		[
+			"ticket action",
+			(data: any) =>
+				(data.panel.permissions = {
+					open: { Everyone: { actions: { Fly: true } } },
+				}),
+		],
+		[
+			"ticket action value",
+			(data: any) =>
+				(data.panel.permissions = {
+					open: { Everyone: { actions: { Close: "yes" } } },
+				}),
+		],
+		[
+			"candidate permission key",
+			(data: any) =>
+				(data.panel.permissions = {
+					open: { TicketCreator: { channels: { AttachFiles: true } } },
+				}),
+		],
+		[
+			"channel permission",
+			(data: any) =>
+				(data.panel.permissions = {
+					open: { Everyone: { channel: { Speak: true } } },
+				}),
+		],
+		[
+			"legacy permission bit set",
+			(data: any) =>
+				(data.panel.permissions = { Everyone: { Denied: "1024" } }),
 		],
 	])(
 		"rejects invalid %s values before they can reach the API",
