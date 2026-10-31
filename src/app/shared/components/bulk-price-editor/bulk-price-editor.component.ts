@@ -24,20 +24,23 @@ export function validateBulkPriceRows(rows: BulkPriceRow[]): string | null {
 	const amounts = new Set<number>();
 
 	for (const row of rows) {
+		const amount = row.amount ?? 0;
+		const price = row.price ?? 0;
+
 		if (
-			row.amount == null ||
-			row.price == null ||
-			row.amount < 1 ||
-			row.price < 1
+			!Number.isInteger(amount) ||
+			!Number.isInteger(price) ||
+			amount < 1 ||
+			price < 1
 		) {
-			return "Every bulk price needs an amount and a price of at least 1.";
+			return "Every bulk price needs a whole amount and price of at least 1.";
 		}
 
-		if (amounts.has(row.amount)) {
+		if (amounts.has(amount)) {
 			return "Only one bulk price per amount is allowed.";
 		}
 
-		amounts.add(row.amount);
+		amounts.add(amount);
 	}
 
 	return null;
@@ -63,7 +66,7 @@ export function toBulkPriceModels(rows: BulkPriceRow[]): BulkPriceModel[] {
             class="input"
             min="1"
             placeholder="Amount"
-            aria-label="Bulk amount"
+            [attr.aria-label]="'Bulk price ' + ($index + 1) + ' amount'"
           />
           <input
             [(ngModel)]="row.price"
@@ -71,12 +74,13 @@ export function toBulkPriceModels(rows: BulkPriceRow[]): BulkPriceModel[] {
             class="input"
             min="1"
             placeholder="Price per carry"
-            aria-label="Bulk price"
+            [attr.aria-label]="'Bulk price ' + ($index + 1) + ' price per carry'"
           />
           <button
             type="button"
             (click)="removeRow($index)"
             class="text-gray-400 hover:text-gray-200 p-1 flex-shrink-0"
+            [attr.aria-label]="'Remove bulk price ' + ($index + 1)"
             title="Remove bulk price"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
