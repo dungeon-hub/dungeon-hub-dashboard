@@ -17,6 +17,12 @@ import {
 	CarryTypeControllerService,
 	type CarryTypeModel,
 } from "@dungeon-hub/api-client";
+import {
+	BulkPriceEditorComponent,
+	type BulkPriceRow,
+	toBulkPriceModels,
+	validateBulkPriceRows,
+} from "../../shared/components/bulk-price-editor/bulk-price-editor.component";
 import { wasCleared } from "../../shared/utils/form-utils";
 import {
 	getIngameCarryTypeLabel,
@@ -26,7 +32,7 @@ import {
 @Component({
 	selector: "app-carry-tier-detail",
 	standalone: true,
-	imports: [CommonModule, RouterLink, FormsModule],
+	imports: [CommonModule, RouterLink, FormsModule, BulkPriceEditorComponent],
 	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
@@ -123,8 +129,8 @@ import {
                       <div class="text-sm text-gray-400 mt-2 space-y-1">
                         <p><strong>Price:</strong> {{ difficulty.price }} Coins</p>
                         <p><strong>Score:</strong> {{ difficulty.score }}</p>
-                        @if (difficulty.bulkPrice != null && difficulty.bulkAmount != null) {
-                          <p><strong>Bulk:</strong> {{ difficulty.bulkAmount }}x for {{ difficulty.bulkPrice }} Coins</p>
+                        @for (bulkPrice of difficulty.bulkPrices; track bulkPrice.amount) {
+                          <p><strong>Bulk:</strong> {{ bulkPrice.amount }}+ for {{ bulkPrice.price }} Coins each</p>
                         }
                         @if (difficulty.priceName) {
                           <p><strong>Alt. Price Name:</strong> {{ difficulty.priceName }}</p>
@@ -205,23 +211,9 @@ import {
               </div>
 
               <div>
-                <label class="label">Bulk Amount</label>
-                <input
-                  [(ngModel)]="newDifficulty.bulkAmount"
-                  type="number"
-                  class="input"
-                  min="1"
-                />
-              </div>
-
-              <div>
-                <label class="label">Bulk Price</label>
-                <input
-                  [(ngModel)]="newDifficulty.bulkPrice"
-                  type="number"
-                  class="input"
-                  min="0"
-                />
+                <label class="label">Bulk Prices</label>
+                <app-bulk-price-editor [(bulkPrices)]="newDifficulty.bulkPrices" />
+                <small class="text-gray-400">The price per carry of the highest reached amount is used.</small>
               </div>
 
               <div>
@@ -417,8 +409,7 @@ export class CarryTierDetailComponent implements OnInit {
 		displayName: "",
 		price: null as number | null,
 		score: null as number | null,
-		bulkAmount: null as number | null,
-		bulkPrice: null as number | null,
+		bulkPrices: [] as BulkPriceRow[],
 		thumbnailUrl: "",
 		priceName: "",
 		ingameCarryType:
@@ -531,6 +522,12 @@ export class CarryTierDetailComponent implements OnInit {
 		)
 			return;
 
+		const bulkPriceError = validateBulkPriceRows(this.newDifficulty.bulkPrices);
+		if (bulkPriceError) {
+			this.createError = bulkPriceError;
+			return;
+		}
+
 		this.isCreating = true;
 		this.createError = null;
 
@@ -542,14 +539,7 @@ export class CarryTierDetailComponent implements OnInit {
 			displayName: this.newDifficulty.displayName,
 			price: this.newDifficulty.price,
 			score: this.newDifficulty.score,
-			bulkAmount:
-				this.newDifficulty.bulkAmount != null
-					? this.newDifficulty.bulkAmount
-					: undefined,
-			bulkPrice:
-				this.newDifficulty.bulkPrice != null
-					? this.newDifficulty.bulkPrice
-					: undefined,
+			bulkPrices: toBulkPriceModels(this.newDifficulty.bulkPrices),
 			thumbnailUrl: this.newDifficulty.thumbnailUrl || undefined,
 			priceName: this.newDifficulty.priceName || undefined,
 			ingameCarryType: this.newDifficulty.ingameCarryType || undefined,
@@ -570,8 +560,7 @@ export class CarryTierDetailComponent implements OnInit {
 						displayName: "",
 						price: null,
 						score: null,
-						bulkAmount: null,
-						bulkPrice: null,
+						bulkPrices: [],
 						thumbnailUrl: "",
 						priceName: "",
 						ingameCarryType: null,
