@@ -383,4 +383,39 @@ describe("EmbedEditorComponent", () => {
 	it("gives every instance its own parse error id", () => {
 		expect(component().parseErrorId).not.toBe(component().parseErrorId);
 	});
+
+	it.each([
+		[1.5, "1.5"],
+		["123", "123"],
+		[1700000000000, "1700000000000"],
+	])("writes an unedited timestamp %j back unchanged", (timestamp, text) => {
+		const instance = component(JSON.stringify({ timestamp }));
+		expect(instance.entries[0].timestamp).toBe(text);
+		instance.entries[0].title = "edited";
+		expect(JSON.parse(instance.embedJson)).toEqual({
+			title: "edited",
+			timestamp,
+		});
+	});
+
+	it("converts an edited numeric timestamp text to a number", () => {
+		const instance = component(JSON.stringify({ timestamp: "123" }));
+		instance.entries[0].timestamp = "456";
+		expect(JSON.parse(instance.embedJson)).toEqual({ timestamp: 456 });
+	});
+
+	it("switches a string author to an object once a URL or icon is set", () => {
+		const instance = component(JSON.stringify({ author: "Someone" }));
+		instance.entries[0].authorUrl = "https://example.com";
+		expect(JSON.parse(instance.embedJson)).toEqual({
+			author: { name: "Someone", url: "https://example.com" },
+		});
+		instance.entries[0].authorUrl = "";
+		instance.entries[0].authorIcon = "https://example.com/icon.png";
+		expect(JSON.parse(instance.embedJson)).toEqual({
+			author: { name: "Someone", icon: "https://example.com/icon.png" },
+		});
+		instance.entries[0].authorIcon = "";
+		expect(JSON.parse(instance.embedJson)).toEqual({ author: "Someone" });
+	});
 });

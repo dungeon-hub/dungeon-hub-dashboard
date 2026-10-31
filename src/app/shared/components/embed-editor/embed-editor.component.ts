@@ -48,6 +48,7 @@ let nextInstanceId = 1;
           [attr.aria-invalid]="parseError ? 'true' : null"
           [attr.aria-describedby]="parseError ? parseErrorId : null"
           (input)="onRawTextInput()"
+          aria-label="Embed JSON"
           class="input font-mono text-sm"
           [class.!border-red-500]="parseError"
           spellcheck="false"
@@ -489,6 +490,7 @@ export class EmbedEditorComponent implements OnInit, OnChanges {
 			description: null,
 			url: null,
 			timestamp: null,
+			timestampSource: null,
 			color: null,
 			image: null,
 			footerText: null,
@@ -656,13 +658,12 @@ export class EmbedEditorComponent implements OnInit, OnChanges {
 					entry[key] = optionalString(element, key, key);
 					break;
 				case "timestamp":
-					if (typeof value === "number")
-						entry.timestamp = String(Math.trunc(value));
-					else if (typeof value === "string") entry.timestamp = value;
-					else
+					if (typeof value !== "number" && typeof value !== "string")
 						throw new EmbedTypeError(
 							`"timestamp" must be a number or a string.`,
 						);
+					entry.timestamp = String(value);
+					entry.timestampSource = { text: entry.timestamp, value };
 					break;
 				case "footer": {
 					const footer = requireObject(value, "footer");
@@ -772,7 +773,13 @@ export class EmbedEditorComponent implements OnInit, OnChanges {
 		this.put(embed, "image", entry.image);
 
 		const timestamp = entry.timestamp?.trim();
-		if (timestamp) {
+		// Until the input is edited, write the timestamp back exactly as it was loaded.
+		if (
+			entry.timestampSource &&
+			entry.timestamp === entry.timestampSource.text
+		) {
+			embed["timestamp"] = entry.timestampSource.value;
+		} else if (timestamp) {
 			embed["timestamp"] = /^\d+$/.test(timestamp)
 				? Number(timestamp)
 				: timestamp;
@@ -804,7 +811,8 @@ export class EmbedEditorComponent implements OnInit, OnChanges {
 		const authorName = this.val(entry.authorName);
 		const authorUrl = this.val(entry.authorUrl);
 		const authorIcon = this.val(entry.authorIcon);
-		if (entry.authorAsString) {
+		// The short string form can only hold a name, so URL or icon edits switch to the object form.
+		if (entry.authorAsString && authorUrl === null && authorIcon === null) {
 			embed["author"] = authorName ?? "";
 		} else if (
 			authorName !== null ||
@@ -872,6 +880,8 @@ type EmbedEntry = {
 	description: string | null;
 	url: string | null;
 	timestamp: string | null;
+	/** The timestamp as it was loaded, so an unedited value keeps its exact JSON value and type. */
+	timestampSource: { text: string; value: string | number } | null;
 	color: string | null;
 	image: string | null;
 	footerText: string | null;
