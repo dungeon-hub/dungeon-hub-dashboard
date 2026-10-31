@@ -2,9 +2,11 @@ import { CommonModule } from "@angular/common";
 import {
 	ChangeDetectorRef,
 	Component,
+	DestroyRef,
 	inject,
 	type OnInit,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, RouterLink } from "@angular/router";
 import {
@@ -18,6 +20,8 @@ import {
 	TicketPanelControllerService,
 } from "@dungeon-hub/api-client";
 import { forkJoin, of } from "rxjs";
+import { type ChangeEvent, isChangeOfType } from "../core/models/change-event";
+import { ChangeStreamService } from "../core/services/change-stream.service";
 import { AutocompleteComponent } from "../shared/components/autocomplete/autocomplete.component";
 import {
 	type AutocompleteItem,
@@ -161,6 +165,8 @@ export class StaticMessageListComponent implements OnInit {
 	private ticketPanelService = inject(TicketPanelControllerService);
 	private carryTypeService = inject(CarryTypeControllerService);
 	private carryTierService = inject(CarryTierControllerService);
+	private changeStreamService = inject(ChangeStreamService);
+	private destroyRef = inject(DestroyRef);
 	private cdr = inject(ChangeDetectorRef);
 
 	serverId!: string;
@@ -199,14 +205,15 @@ export class StaticMessageListComponent implements OnInit {
 		this.loadChannels();
 		this.loadObjectNameMaps();
 		this.loadStaticMessages();
+		this.listenToChanges();
 	}
 
 	getTypeLabel(type: StaticMessageType): string {
 		return getStaticMessageTypeLabel(type);
 	}
 
-	loadStaticMessages(): void {
-		this.loading = true;
+	loadStaticMessages(showLoading = true): void {
+		this.loading = showLoading;
 		this.loadError = null;
 		this.staticMessageService.findStaticMessages(this.serverId).subscribe({
 			next: (messages) => {
@@ -221,6 +228,55 @@ export class StaticMessageListComponent implements OnInit {
 				this.cdr.detectChanges();
 			},
 		});
+	}
+
+	/**
+	 * Keeps the list up to date, e.g. when the bot sent a static message or another user edited one.
+	 */
+	private listenToChanges(): void {
+		this.changeStreamService
+			.events(["StaticMessage", "TicketPanel", "CarryType", "CarryTier"])
+			.pipe(takeUntilDestroyed(this.destroyRef))
+			.subscribe((event) => {
+				if (event.kind === "connected") {
+					// changes might have been missed until the stream was (re)connected, so the list is reloaded
+					if (!event.resumed) {
+						this.loadStaticMessages(false);
+					}
+					return;
+				}
+
+				const { change } = event;
+				if (String(change.serverId) !== String(this.serverId)) return;
+
+				if (isChangeOfType(change, "StaticMessage")) {
+					this.applyStaticMessageChange(change);
+				} else {
+					// the names of the assigned objects might have changed
+					this.loadObjectNameMaps();
+				}
+			});
+	}
+
+	private applyStaticMessageChange(change: ChangeEvent<"StaticMessage">): void {
+		const changedId = String(change.data.id);
+		const index = this.staticMessages.findIndex(
+			(message) => String(message.id) === changedId,
+		);
+
+		if (change.action === "Deleted") {
+			this.staticMessages = this.staticMessages.filter(
+				(message) => String(message.id) !== changedId,
+			);
+		} else if (index === -1) {
+			this.staticMessages = [...this.staticMessages, change.data];
+		} else {
+			this.staticMessages = this.staticMessages.map((message, i) =>
+				i === index ? change.data : message,
+			);
+		}
+
+		this.cdr.detectChanges();
 	}
 
 	loadChannels(): void {
