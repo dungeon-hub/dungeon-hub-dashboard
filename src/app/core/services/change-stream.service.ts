@@ -14,6 +14,7 @@ import {
 	type ChangeEvent,
 	type ChangeEventType,
 	type ChangeStreamEvent,
+	CONNECTED_EVENT_NAME,
 } from "../models/change-event";
 import { AuthService } from "./auth.service";
 import { type ServerSentEvent, SseParser } from "./sse-parser";
@@ -21,12 +22,18 @@ import { type ServerSentEvent, SseParser } from "./sse-parser";
 const MIN_RECONNECT_DELAY_MS = 1_000;
 const MAX_RECONNECT_DELAY_MS = 60_000;
 
+interface StreamProgress {
+	/** The id of the last received event, which is sent when reconnecting to resume the stream. */
+	lastEventId: string | null;
+}
+
 /**
  * Connects to the change stream of the API, which pushes changes of entities the logged-in user is allowed to see.
  *
  * The browser's EventSource can't send the access token, so the stream is read with fetch instead.
  * A single connection is shared by all subscribers: it is opened with the first subscriber, closed after the last
- * one unsubscribed, and re-established automatically, e.g. after the access token expired.
+ * one unsubscribed, and re-established automatically, e.g. after the access token expired. When reconnecting, the id
+ * of the last received event is sent, so that the API can send the changes that were missed in the meantime.
  */
 @Injectable({
 	providedIn: "root",
@@ -42,7 +49,7 @@ export class ChangeStreamService {
 
 	/**
 	 * Emits every change of the given types, and a connected event whenever the stream was (re)connected.
-	 * Changes that happened while the stream was disconnected aren't replayed, so reload the shown data on connect.
+	 * If a connected event isn't resumed, changes might have been missed, so the shown data should be reloaded.
 	 */
 	events(types: ChangeEventType[]): Observable<ChangeStreamEvent> {
 		return this.events$.pipe(
@@ -58,11 +65,12 @@ export class ChangeStreamService {
 		emit: (event: ChangeStreamEvent) => void,
 	): Promise<void> {
 		let reconnectDelay = MIN_RECONNECT_DELAY_MS;
+		const progress: StreamProgress = { lastEventId: null };
 
 		while (!signal.aborted) {
 			try {
 				await this.waitForAuthentication(signal);
-				await this.connect(signal, emit, () => {
+				await this.connect(signal, emit, progress, () => {
 					reconnectDelay = MIN_RECONNECT_DELAY_MS;
 				});
 			} catch (error) {
@@ -83,13 +91,19 @@ export class ChangeStreamService {
 	private async connect(
 		signal: AbortSignal,
 		emit: (event: ChangeStreamEvent) => void,
+		progress: StreamProgress,
 		onConnected: () => void,
 	): Promise<void> {
+		const headers: Record<string, string> = {
+			Authorization: `Bearer ${this.authService.getAccessToken()}`,
+			Accept: "text/event-stream",
+		};
+		if (progress.lastEventId) {
+			headers["Last-Event-ID"] = progress.lastEventId;
+		}
+
 		const response = await fetch(`${environment.apiUrl}/api/v1/changes`, {
-			headers: {
-				Authorization: `Bearer ${this.authService.getAccessToken()}`,
-				Accept: "text/event-stream",
-			},
+			headers,
 			cache: "no-store",
 			signal,
 		});
@@ -97,9 +111,6 @@ export class ChangeStreamService {
 		if (!response.ok || !response.body) {
 			throw new Error(`The change stream responded with ${response.status}.`);
 		}
-
-		onConnected();
-		emit({ kind: "connected" });
 
 		const reader = response.body.getReader();
 		const decoder = new TextDecoder();
@@ -115,11 +126,30 @@ export class ChangeStreamService {
 			for (const event of parser.feed(
 				decoder.decode(value, { stream: true }),
 			)) {
+				if (event.event === CONNECTED_EVENT_NAME) {
+					onConnected();
+					emit({ kind: "connected", resumed: this.isResumed(event) });
+					continue;
+				}
+
 				const change = this.parseChange(event);
 				if (change) {
 					emit({ kind: "change", change });
 				}
+
+				// also changes of unknown types have an id, which marks how far the stream was received
+				if (event.id) {
+					progress.lastEventId = event.id;
+				}
 			}
+		}
+	}
+
+	private isResumed(event: ServerSentEvent): boolean {
+		try {
+			return (JSON.parse(event.data) as { resumed?: boolean }).resumed === true;
+		} catch {
+			return false;
 		}
 	}
 

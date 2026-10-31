@@ -52,12 +52,15 @@ export interface ChangeEvent<T extends ChangeEventType = ChangeEventType> {
 }
 
 /**
- * Either a change, or the signal that the stream was (re)connected. Changes that happened while the stream was
- * disconnected aren't replayed, so the state should be reloaded on every connect.
+ * Either a change, or the signal that the stream was (re)connected. If the stream couldn't be resumed (e.g. on the
+ * first connect), changes might have been missed, so the shown data should be reloaded.
  */
 export type ChangeStreamEvent =
-	| { kind: "connected" }
+	| { kind: "connected"; resumed: boolean }
 	| { kind: "change"; change: ChangeEvent };
+
+/** The name of the event that starts every connection, see ChangeStreamConnectedModel in the API. */
+export const CONNECTED_EVENT_NAME = "Connected";
 
 export function isChangeOfType<T extends ChangeEventType>(
 	change: ChangeEvent,

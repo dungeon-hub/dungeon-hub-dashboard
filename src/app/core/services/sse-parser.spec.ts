@@ -6,10 +6,12 @@ describe("SseParser", () => {
 		const parser = new SseParser();
 
 		const events = parser.feed(
-			':connected\n\nevent:StaticMessage\ndata:{"id":1}\n\n:heartbeat\n\n',
+			':heartbeat\n\nid:stream:1\nevent:StaticMessage\ndata:{"id":1}\n\n:heartbeat\n\n',
 		);
 
-		expect(events).toEqual([{ event: "StaticMessage", data: '{"id":1}' }]);
+		expect(events).toEqual([
+			{ id: "stream:1", event: "StaticMessage", data: '{"id":1}' },
+		]);
 	});
 
 	it("parses events that are split across chunks", () => {
@@ -19,7 +21,7 @@ describe("SseParser", () => {
 		expect(parser.feed('et\r\ndata: {"id"')).toEqual([]);
 		expect(parser.feed(":2}\r")).toEqual([]);
 		expect(parser.feed("\n\r\n")).toEqual([
-			{ event: "Ticket", data: '{"id":2}' },
+			{ id: null, event: "Ticket", data: '{"id":2}' },
 		]);
 	});
 
@@ -27,7 +29,7 @@ describe("SseParser", () => {
 		const parser = new SseParser();
 
 		expect(parser.feed("data: first\ndata: second\n\n")).toEqual([
-			{ event: "message", data: "first\nsecond" },
+			{ id: null, event: "message", data: "first\nsecond" },
 		]);
 	});
 });

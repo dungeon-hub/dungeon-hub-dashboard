@@ -239,8 +239,10 @@ export class StaticMessageListComponent implements OnInit {
 			.pipe(takeUntilDestroyed(this.destroyRef))
 			.subscribe((event) => {
 				if (event.kind === "connected") {
-					// changes that happened before the stream was connected aren't sent, so the list is reloaded
-					this.loadStaticMessages(false);
+					// changes might have been missed until the stream was (re)connected, so the list is reloaded
+					if (!event.resumed) {
+						this.loadStaticMessages(false);
+					}
 					return;
 				}
 

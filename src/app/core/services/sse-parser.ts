@@ -1,4 +1,6 @@
 export interface ServerSentEvent {
+	/** The id of the event, if it has one. */
+	id: string | null;
 	event: string;
 	data: string;
 }
@@ -6,11 +8,12 @@ export interface ServerSentEvent {
 /**
  * Incrementally parses a text/event-stream, as specified in
  * https://html.spec.whatwg.org/multipage/server-sent-events.html#event-stream-interpretation.
- * Comments (e.g. heartbeats) and events without data are skipped, ids and retry fields aren't used by the API.
+ * Comments (e.g. heartbeats) and events without data are skipped, the retry field isn't used by the API.
  */
 export class SseParser {
 	private buffer = "";
 	private eventName = "";
+	private eventId: string | null = null;
 	private dataLines: string[] = [];
 
 	/**
@@ -71,6 +74,8 @@ export class SseParser {
 
 		if (field === "event") {
 			this.eventName = value;
+		} else if (field === "id") {
+			this.eventId = value;
 		} else if (field === "data") {
 			this.dataLines.push(value);
 		}
@@ -82,12 +87,14 @@ export class SseParser {
 		const event =
 			this.dataLines.length > 0
 				? {
+						id: this.eventId,
 						event: this.eventName || "message",
 						data: this.dataLines.join("\n"),
 					}
 				: null;
 
 		this.eventName = "";
+		this.eventId = null;
 		this.dataLines = [];
 		return event;
 	}
