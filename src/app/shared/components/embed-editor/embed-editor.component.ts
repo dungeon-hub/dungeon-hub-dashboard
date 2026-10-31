@@ -1,12 +1,12 @@
 import { CommonModule } from "@angular/common";
 import {
-	ChangeDetectorRef,
 	Component,
 	EventEmitter,
 	Input,
-	inject,
+	type OnChanges,
 	type OnInit,
 	Output,
+	type SimpleChanges,
 } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 
@@ -49,7 +49,7 @@ let nextInstanceId = 1;
           [attr.aria-describedby]="parseError ? parseErrorId : null"
           (input)="onRawTextInput()"
           class="input font-mono text-sm"
-          [class.border-red-500]="parseError"
+          [class.!border-red-500]="parseError"
           spellcheck="false"
         ></textarea>
       }
@@ -128,7 +128,18 @@ let nextInstanceId = 1;
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <label class="field-label">
                     Custom embed type
-                    <input type="text" [(ngModel)]="entry.customType" class="input" />
+                    <input
+                      type="text"
+                      [(ngModel)]="entry.customType"
+                      class="input"
+                      [class.!border-amber-500]="!entry.customType?.trim()"
+                      [attr.aria-describedby]="entry.customType?.trim() ? null : parseErrorId + '-custom-' + entry.id"
+                    />
+                    @if (!entry.customType?.trim()) {
+                      <small [id]="parseErrorId + '-custom-' + entry.id" class="font-normal text-amber-400">
+                        Required. This embed is not saved until it has a type.
+                      </small>
+                    }
                   </label>
                   <label class="field-label">
                     Custom data
@@ -149,19 +160,25 @@ let nextInstanceId = 1;
                     Description
                     <textarea rows="3" [(ngModel)]="entry.description" class="input"></textarea>
                   </label>
-                  <label class="field-label">
-                    Color
+                  <div class="field-label">
+                    <span aria-hidden="true">Color</span>
                     <span class="flex gap-2">
                       <input
                         type="color"
                         [value]="colorPreview(entry) ?? '#5865f2'"
                         (input)="entry.color = $any($event.target).value"
                         class="h-10 w-12 shrink-0 cursor-pointer rounded-md border border-gray-600 bg-gray-700 p-1"
-                        aria-label="Pick embed color"
+                        aria-label="Embed color picker"
                       />
-                      <input type="text" [(ngModel)]="entry.color" class="input font-mono" placeholder="#5865f2" />
+                      <input
+                        type="text"
+                        [(ngModel)]="entry.color"
+                        class="input font-mono"
+                        placeholder="#5865f2"
+                        aria-label="Embed color (hex)"
+                      />
                     </span>
-                  </label>
+                  </div>
                   <label class="field-label">
                     Timestamp (ms)
                     <input type="text" inputmode="numeric" [(ngModel)]="entry.timestamp" class="input font-mono" />
@@ -309,7 +326,7 @@ let nextInstanceId = 1;
 	styles: [
 		`
     .mode-option {
-      @apply rounded px-3 py-0.5 text-xs font-medium text-gray-400 transition-colors hover:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500;
+      @apply rounded px-3 py-0.5 text-xs font-medium text-gray-400 hover:text-gray-200;
     }
 
     .mode-option-active {
@@ -329,7 +346,7 @@ let nextInstanceId = 1;
     }
 
     .icon-button {
-      @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400;
+      @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-700 hover:text-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-30;
     }
 
     .icon-button-danger {
@@ -342,16 +359,14 @@ let nextInstanceId = 1;
   `,
 	],
 })
-export class EmbedEditorComponent implements OnInit {
-	private cdr = inject(ChangeDetectorRef);
-
+export class EmbedEditorComponent implements OnInit, OnChanges {
 	@Input() embedJson: string = "";
 	@Input() allowCustomEmbeds: boolean = false;
 	@Output() embedJsonChange = new EventEmitter<string>();
 
 	entries: EmbedEntry[] = [];
 	rawText = "";
-	mode = "raw";
+	mode: "raw" | "editor" = "raw";
 	parseError: string | null = null;
 	private wasArray = false;
 	private nextId = 1;
@@ -359,32 +374,37 @@ export class EmbedEditorComponent implements OnInit {
 	readonly parseErrorId = `embed-editor-parse-error-${nextInstanceId++}`;
 
 	ngOnInit() {
+		this.load(true);
+	}
+
+	ngOnChanges(changes: SimpleChanges) {
+		const change = changes["embedJson"];
+		if (!change || change.firstChange) return;
+		// The host echoes back what this editor emitted; only reload on outside changes.
+		if ((this.embedJson ?? "") === this.lastEmitted) return;
+		this.load(this.mode === "editor");
+	}
+
+	private load(preferEditor: boolean) {
 		this.rawText = this.embedJson ?? "";
 		this.lastEmitted = this.rawText;
-		this.mode = "editor";
 		this.entries = [];
 		this.parseError = null;
-		if (!this.parse(this.rawText)) {
-			this.mode = "raw";
-		}
+		const parsed = this.parse(this.rawText);
+		this.mode = parsed && preferEditor ? "editor" : "raw";
 	}
 
 	toggleMode() {
 		if (this.mode === "raw") {
 			this.entries = [];
 			this.parseError = null;
-			if (!this.parse(this.rawText)) {
-				this.mode = "raw";
-				this.cdr.detectChanges();
-				return;
-			}
+			if (!this.parse(this.rawText)) return;
 			this.mode = "editor";
 		} else {
 			this.mode = "raw";
 			this.rawText = this.serialize();
 			this.emitChange(this.rawText);
 		}
-		this.cdr.detectChanges();
 	}
 
 	setMode(mode: "raw" | "editor") {
@@ -490,7 +510,13 @@ export class EmbedEditorComponent implements OnInit {
 	}
 
 	private createField(): EmbedField {
-		return { id: this.nextId++, name: "", value: "", inline: false };
+		return {
+			id: this.nextId++,
+			name: "",
+			value: "",
+			inline: false,
+			extras: {},
+		};
 	}
 
 	// Any direct edit of a parsed entry (via ngModel) re-serializes and notifies the host form.
@@ -554,13 +580,13 @@ export class EmbedEditorComponent implements OnInit {
 	}
 
 	private parseEntries(list: Json[]): boolean {
-		for (const element of list) {
+		for (const [index, element] of list.entries()) {
+			const at = list.length > 1 ? `Embed ${index + 1}: ` : "";
 			if (typeof element === "string") {
-				if (!this.allowCustomEmbeds) {
-					this.parseError =
-						"Plain strings are custom embeds, which are not supported here.";
-					return false;
-				}
+				if (!this.allowCustomEmbeds)
+					return this.fail(
+						`${at}Plain strings are custom embeds, which are not supported here.`,
+					);
 				this.entries.push(
 					this.wrapEntry({
 						...this.createEntry(),
@@ -571,48 +597,54 @@ export class EmbedEditorComponent implements OnInit {
 				);
 				continue;
 			}
-			if (
-				element === null ||
-				typeof element !== "object" ||
-				Array.isArray(element)
-			) {
-				this.parseError =
-					"Each embed must be a JSON object (or a custom embed string).";
-				return false;
-			}
+			if (!isJsonObject(element))
+				return this.fail(
+					`${at}Each embed must be a JSON object (or a custom embed string).`,
+				);
 			if ("customEmbed" in element) {
-				if (!this.allowCustomEmbeds) {
-					this.parseError = "Custom embeds are not supported here.";
-					return false;
-				}
+				if (!this.allowCustomEmbeds)
+					return this.fail(`${at}Custom embeds are not supported here.`);
 				const customEmbed = element["customEmbed"];
-				if (typeof customEmbed !== "string") {
-					this.parseError = "customEmbed must be a string.";
-					return false;
-				}
+				if (typeof customEmbed !== "string")
+					return this.fail(`${at}"customEmbed" must be a string.`);
 				const customData = element["customData"];
-				if (customData !== undefined && typeof customData !== "string") {
-					this.parseError = "customData must be a string.";
-					return false;
-				}
+				if (customData !== undefined && typeof customData !== "string")
+					return this.fail(`${at}"customData" must be a string.`);
 				this.entries.push(
 					this.wrapEntry({
 						...this.createEntry(),
 						kind: "custom",
 						customType: customEmbed,
-						customData:
-							customData === null ? null : (customData as string | null),
+						customData: customData ?? null,
 						customWasString: false,
 					}),
 				);
 				continue;
 			}
-			this.entries.push(this.parseEmbedEntry(element));
+			const entry = this.parseEmbedEntry(element, at);
+			if (!entry) return false;
+			this.entries.push(entry);
 		}
 		return true;
 	}
 
-	private parseEmbedEntry(element: { [key: string]: Json }): EmbedEntry {
+	private fail(message: string): false {
+		this.parseError = `${message} Fix it in the raw JSON to use the visual editor.`;
+		return false;
+	}
+
+	/** Parses one embed object, or sets parseError and returns null if a known property has an unexpected type. */
+	private parseEmbedEntry(element: JsonObject, at: string): EmbedEntry | null {
+		try {
+			return this.wrapEntry(this.readEmbed(element));
+		} catch (error) {
+			if (!(error instanceof EmbedTypeError)) throw error;
+			this.fail(`${at}${error.message}`);
+			return null;
+		}
+	}
+
+	private readEmbed(element: JsonObject): EmbedEntry {
 		const entry = this.createEntry();
 		for (const [key, value] of Object.entries(element)) {
 			switch (key) {
@@ -621,79 +653,65 @@ export class EmbedEditorComponent implements OnInit {
 				case "url":
 				case "color":
 				case "image":
-					entry[key] = typeof value === "string" ? value : null;
+					entry[key] = optionalString(element, key, key);
 					break;
 				case "timestamp":
-					entry.timestamp =
-						typeof value === "number"
-							? String(Math.trunc(value))
-							: typeof value === "string"
-								? value
-								: null;
+					if (typeof value === "number")
+						entry.timestamp = String(Math.trunc(value));
+					else if (typeof value === "string") entry.timestamp = value;
+					else
+						throw new EmbedTypeError(
+							`"timestamp" must be a number or a string.`,
+						);
 					break;
 				case "footer": {
-					if (
-						typeof value !== "object" ||
-						value === null ||
-						Array.isArray(value)
-					)
-						break;
-					const footer = value;
-					entry.footerText =
-						typeof footer["text"] === "string" ? footer["text"] : null;
-					entry.footerIcon =
-						typeof footer["icon"] === "string" ? footer["icon"] : null;
+					const footer = requireObject(value, "footer");
+					entry.footerText = optionalString(footer, "text", "footer.text");
+					entry.footerIcon = optionalString(footer, "icon", "footer.icon");
 					entry.footerExtras = this.extrasOf(footer, ["text", "icon"]);
 					break;
 				}
 				case "thumbnail": {
-					if (
-						typeof value !== "object" ||
-						value === null ||
-						Array.isArray(value)
-					)
-						break;
-					const thumbnail = value;
-					entry.thumbnailUrl =
-						typeof thumbnail["url"] === "string" ? thumbnail["url"] : null;
+					const thumbnail = requireObject(value, "thumbnail");
+					entry.thumbnailUrl = optionalString(
+						thumbnail,
+						"url",
+						"thumbnail.url",
+					);
 					entry.thumbnailExtras = this.extrasOf(thumbnail, ["url"]);
 					break;
 				}
-				case "author": {
+				case "author":
 					if (typeof value === "string") {
 						entry.authorName = value;
 						entry.authorAsString = true;
-					} else if (
-						typeof value === "object" &&
-						value !== null &&
-						!Array.isArray(value)
-					) {
-						const author = value;
-						entry.authorName =
-							typeof author["name"] === "string" ? author["name"] : null;
-						entry.authorUrl =
-							typeof author["url"] === "string" ? author["url"] : null;
-						entry.authorIcon =
-							typeof author["icon"] === "string" ? author["icon"] : null;
-						entry.authorExtras = this.extrasOf(author, ["name", "url", "icon"]);
+						break;
 					}
+					if (!isJsonObject(value))
+						throw new EmbedTypeError(`"author" must be an object or a string.`);
+					entry.authorName = optionalString(value, "name", "author.name");
+					entry.authorUrl = optionalString(value, "url", "author.url");
+					entry.authorIcon = optionalString(value, "icon", "author.icon");
+					entry.authorExtras = this.extrasOf(value, ["name", "url", "icon"]);
 					break;
-				}
 				case "fields":
-					if (!Array.isArray(value)) break;
-					for (const field of value) {
-						if (
-							typeof field !== "object" ||
-							field === null ||
-							Array.isArray(field)
-						)
-							continue;
+					if (!Array.isArray(value))
+						throw new EmbedTypeError(`"fields" must be an array.`);
+					for (const [index, item] of value.entries()) {
+						const path = `fields[${index}]`;
+						const field = requireObject(item, path);
+						const inline = field["inline"];
+						if (inline !== undefined && typeof inline !== "boolean")
+							throw new EmbedTypeError(
+								`"${path}.inline" must be true or false.`,
+							);
 						entry.fields.push(
 							this.wrapField({
 								id: this.nextId++,
-								name: typeof field["name"] === "string" ? field["name"] : "",
-								value: typeof field["value"] === "string" ? field["value"] : "",
-								inline: field["inline"] === true,
+								name: optionalString(field, "name", `${path}.name`) ?? "",
+								value: optionalString(field, "value", `${path}.value`) ?? "",
+								inline: inline ?? false,
+								extras: this.extrasOf(field, ["name", "value", "inline"]),
 							}),
 						);
 					}
@@ -702,11 +720,11 @@ export class EmbedEditorComponent implements OnInit {
 					entry.extras[key] = value;
 			}
 		}
-		return this.wrapEntry(entry);
+		return entry;
 	}
 
 	private extrasOf(
-		value: { [key: string]: Json },
+		value: JsonObject,
 		knownKeys: string[],
 	): Record<string, Json> {
 		const extras: Record<string, Json> = {};
@@ -722,8 +740,15 @@ export class EmbedEditorComponent implements OnInit {
 	}
 
 	serialize(): string {
-		if (this.entries.length === 0) return "";
-		const built = this.entries.map((entry) => this.buildEntry(entry));
+		// A custom embed without a type has nothing to send, so it stays out until one is filled in.
+		const built = this.entries
+			.filter(
+				(entry) =>
+					entry.kind !== "custom" ||
+					this.val(entry.customType?.trim() ?? null) !== null,
+			)
+			.map((entry) => this.buildEntry(entry));
+		if (built.length === 0) return "";
 		if (!this.wasArray && built.length === 1)
 			return JSON.stringify(built[0], null, 2);
 		return JSON.stringify(built, null, 2);
@@ -731,11 +756,9 @@ export class EmbedEditorComponent implements OnInit {
 
 	private buildEntry(entry: EmbedEntry): Json {
 		if (entry.kind === "custom") {
-			if (entry.customWasString && !entry.customData)
-				return entry.customType ?? "";
-			const custom: Record<string, Json> = {};
-			const customType = this.val(entry.customType);
-			if (customType !== null) custom["customEmbed"] = customType;
+			const customType = entry.customType?.trim() ?? "";
+			if (entry.customWasString && !entry.customData) return customType;
+			const custom: Record<string, Json> = { customEmbed: customType };
 			const customData = this.val(entry.customData);
 			if (customData !== null) custom["customData"] = customData;
 			return custom;
@@ -798,6 +821,7 @@ export class EmbedEditorComponent implements OnInit {
 
 		if (entry.fields.length > 0) {
 			embed["fields"] = entry.fields.map((field) => ({
+				...field.extras,
 				name: field.name,
 				value: field.value,
 				inline: field.inline,
@@ -814,6 +838,32 @@ export class EmbedEditorComponent implements OnInit {
 }
 
 type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+type JsonObject = { [key: string]: Json };
+
+function isJsonObject(value: Json | undefined): value is JsonObject {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Thrown while parsing an embed when a known property has an unexpected type. */
+class EmbedTypeError extends Error {}
+
+function requireObject(value: Json, path: string): JsonObject {
+	if (!isJsonObject(value))
+		throw new EmbedTypeError(`"${path}" must be an object.`);
+	return value;
+}
+
+function optionalString(
+	owner: JsonObject,
+	key: string,
+	path: string,
+): string | null {
+	const value = owner[key];
+	if (value === undefined) return null;
+	if (typeof value !== "string")
+		throw new EmbedTypeError(`"${path}" must be a string.`);
+	return value;
+}
 
 type EmbedEntry = {
 	id: number;
@@ -846,4 +896,5 @@ type EmbedField = {
 	name: string;
 	value: string;
 	inline: boolean;
+	extras: Record<string, Json>;
 };

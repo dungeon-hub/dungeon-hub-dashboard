@@ -1,3 +1,4 @@
+import { SimpleChange } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { describe, expect, it } from "vitest";
 import { EmbedEditorComponent } from "./embed-editor.component";
@@ -209,31 +210,53 @@ describe("EmbedEditorComponent", () => {
 		expect(JSON.parse(instance.serialize())).toEqual(embed);
 	});
 
-	it("drops malformed nested values instead of throwing", () => {
-		const instance = component(
-			JSON.stringify({
-				footer: "broken",
-				thumbnail: ["x"],
-				author: 5,
-				fields: "no",
-			}),
-		);
-		const entry = instance.entries[0];
-		expect(entry.footerText).toBeNull();
-		expect(entry.thumbnailUrl).toBeNull();
-		expect(entry.authorName).toBeNull();
-		expect(entry.fields).toEqual([]);
-		expect(JSON.parse(instance.serialize())).toEqual({});
+	it.each([
+		[{ footer: "broken" }, '"footer" must be an object.'],
+		[{ thumbnail: ["x"] }, '"thumbnail" must be an object.'],
+		[{ author: 5 }, '"author" must be an object or a string.'],
+		[{ fields: "no" }, '"fields" must be an array.'],
+		[{ color: 16711680 }, '"color" must be a string.'],
+		[{ title: 1 }, '"title" must be a string.'],
+		[{ timestamp: true }, '"timestamp" must be a number or a string.'],
+		[{ footer: { text: 1 } }, '"footer.text" must be a string.'],
+		[{ fields: ["bad"] }, '"fields[0]" must be an object.'],
+		[
+			{ fields: [{ name: 1, value: "v" }] },
+			'"fields[0].name" must be a string.',
+		],
+		[
+			{ fields: [{ name: "n", value: "v", inline: "yes" }] },
+			'"fields[0].inline" must be true or false.',
+		],
+	])(
+		"refuses the visual editor for %j with a clear error",
+		(embed, message) => {
+			const json = JSON.stringify(embed);
+			const instance = component(json);
+			expect(instance.mode).toBe("raw");
+			expect(instance.parseError).toContain(message);
+			expect(instance.rawText).toBe(json);
+			instance.toggleMode();
+			expect(instance.mode).toBe("raw");
+			expect(instance.parseError).toContain(message);
+		},
+	);
+
+	it("names the failing embed when there are several", () => {
+		const instance = component(JSON.stringify([{ title: "A" }, { color: 1 }]));
+		expect(instance.parseError).toContain('Embed 2: "color" must be a string.');
 	});
 
-	it("skips malformed field entries but keeps the valid ones", () => {
-		const instance = component(
-			JSON.stringify({ fields: ["bad", { name: "n", value: "v" }] }),
-		);
-		const serialized = JSON.parse(instance.serialize());
-		expect(serialized.fields).toEqual([
-			{ name: "n", value: "v", inline: false },
-		]);
+	it("preserves unknown field properties", () => {
+		const embed = {
+			fields: [{ name: "n", value: "v", inline: true, emoji: "x" }],
+		};
+		const instance = component(JSON.stringify(embed));
+		expect(instance.entries[0].fields[0].extras).toEqual({ emoji: "x" });
+		instance.entries[0].fields[0].name = "m";
+		expect(JSON.parse(instance.embedJson)).toEqual({
+			fields: [{ name: "m", value: "v", inline: true, emoji: "x" }],
+		});
 	});
 
 	it("supports custom embeds when the host allows them", () => {
@@ -257,11 +280,16 @@ describe("EmbedEditorComponent", () => {
 		expect(instance.parseError).toContain("custom embeds");
 	});
 
-	it("drops a blank custom embed type instead of emitting an empty key", () => {
+	it("leaves custom embeds without a type out of the JSON", () => {
 		const instance = component(JSON.stringify({ customEmbed: "x" }), true);
+		instance.entries[0].customType = " ";
+		expect(instance.serialize()).toBe("");
+	});
+
+	it("leaves a cleared custom embed string out instead of emitting an empty string", () => {
+		const instance = component(JSON.stringify(["a", "b"]), true);
 		instance.entries[0].customType = "";
-		const serialized = JSON.parse(instance.serialize());
-		expect(serialized).toEqual({});
+		expect(JSON.parse(instance.embedJson)).toEqual(["b"]);
 	});
 
 	it("switching back to raw shows the serialized JSON and emits it", () => {
@@ -315,5 +343,44 @@ describe("EmbedEditorComponent", () => {
 		instance.rawText = JSON.stringify({ title: "fixed" });
 		instance.onRawTextInput();
 		expect(instance.parseError).toBeNull();
+	});
+
+	it("reloads when the host passes new JSON", () => {
+		const instance = component(JSON.stringify({ title: "A" }));
+		instance.embedJson = JSON.stringify({ title: "B" });
+		instance.ngOnChanges({
+			embedJson: new SimpleChange(
+				JSON.stringify({ title: "A" }),
+				instance.embedJson,
+				false,
+			),
+		});
+		expect(instance.mode).toBe("editor");
+		expect(instance.entries[0].title).toBe("B");
+	});
+
+	it("ignores the host echoing back what the editor emitted", () => {
+		const instance = component(JSON.stringify({ title: "A" }));
+		const entry = instance.entries[0];
+		entry.title = "B";
+		instance.ngOnChanges({
+			embedJson: new SimpleChange(undefined, instance.embedJson, false),
+		});
+		expect(instance.entries[0]).toBe(entry);
+	});
+
+	it("stays in raw mode when the host passes new JSON while raw is open", () => {
+		const instance = component(JSON.stringify({ title: "A" }));
+		instance.toggleMode();
+		instance.embedJson = JSON.stringify({ title: "B" });
+		instance.ngOnChanges({
+			embedJson: new SimpleChange(undefined, instance.embedJson, false),
+		});
+		expect(instance.mode).toBe("raw");
+		expect(instance.rawText).toBe(JSON.stringify({ title: "B" }));
+	});
+
+	it("gives every instance its own parse error id", () => {
+		expect(component().parseErrorId).not.toBe(component().parseErrorId);
 	});
 });
