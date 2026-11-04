@@ -36,6 +36,8 @@ function panel(): TicketPanelModel {
 		ticketMessage: '{"content":"Help"}',
 		userTranscriptDm: '["transcript"]',
 		formQuestions: [{ type: "TextInput", data: '{"label":"Question"}' }],
+		openTicketLimit: 1,
+		closedTicketLimit: 2,
 		relatedCarryTier: { id: "tier-1" } as any,
 		relatedCarryDifficulty: { id: "difficulty-1" } as any,
 		supportRoles: [{ id: "role-1" } as any],
@@ -102,6 +104,8 @@ describe("ticket panel transfer", () => {
 			deleteTranscriptTarget: original.deleteTranscriptTarget,
 			userTranscriptDm: original.userTranscriptDm,
 			formQuestions: original.formQuestions,
+			openTicketLimit: original.openTicketLimit,
+			closedTicketLimit: original.closedTicketLimit,
 			relatedCarryTier: original.relatedCarryTier?.id,
 			relatedCarryDifficulty: original.relatedCarryDifficulty?.id,
 			supportRoles: original.supportRoles.map((role) => role.id),
@@ -229,6 +233,9 @@ describe("ticket panel transfer", () => {
 		'{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"supportRoles":"not-an-array"}}',
 		'{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"permissions":[]}}',
 		'{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"permissions":"invalid"}}',
+		'{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"openTicketLimit":0}}',
+		'{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"closedTicketLimit":1.5}}',
+		'{"version":1,"panel":{"name":"support","closeable":false,"closeConfirmation":false,"claimable":false,"requiresLinking":false,"closedTicketLimit":"1"}}',
 		'{"version":2,"panel":{"name":"support"}}',
 	])("does not enable clipboard import for invalid data: %s", (contents) => {
 		expect(isTicketPanelExport(contents)).toBe(false);
@@ -298,8 +305,22 @@ describe("ticket panel transfer", () => {
 		expect(update.resetTranscriptChannel).toBe(false);
 		expect(update.resetTicketMessage).toBe(false);
 		expect(update.resetUserTranscriptDm).toBe(false);
+		expect(update.resetOpenTicketLimit).toBe(false);
+		expect(update.resetClosedTicketLimit).toBe(false);
 		expect(update.resetRelatedCarryTier).toBe(false);
 		expect(update.resetRelatedCarryDifficulty).toBe(false);
+	});
+
+	it("resets ticket limits that are missing from an imported panel", () => {
+		const creation = toTicketPanelCreation({
+			...panel(),
+			openTicketLimit: null,
+			closedTicketLimit: undefined,
+		});
+		const update = toTicketPanelUpdate(creation);
+
+		expect(update.resetOpenTicketLimit).toBe(true);
+		expect(update.resetClosedTicketLimit).toBe(true);
 	});
 
 	it("does not update or reset detached relations during an import overwrite", () => {
@@ -415,6 +436,8 @@ describe("ticket panel transfer", () => {
 		exported.panel.closeTranscriptTarget = null;
 		exported.panel.deleteTranscriptTarget = null;
 		exported.panel.userTranscriptDm = null;
+		exported.panel.openTicketLimit = null;
+		exported.panel.closedTicketLimit = null;
 
 		const imported = parseTicketPanelExport(JSON.stringify(exported));
 
@@ -427,6 +450,8 @@ describe("ticket panel transfer", () => {
 		expect(imported.panel.closeTranscriptTarget).toBeUndefined();
 		expect(imported.panel.deleteTranscriptTarget).toBeUndefined();
 		expect(imported.panel.userTranscriptDm).toBeUndefined();
+		expect(imported.panel.openTicketLimit).toBeUndefined();
+		expect(imported.panel.closedTicketLimit).toBeUndefined();
 	});
 
 	it("normalizes accepted null collection values to undefined before API use", () => {
