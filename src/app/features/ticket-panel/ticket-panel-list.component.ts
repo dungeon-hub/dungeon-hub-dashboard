@@ -41,13 +41,6 @@ const DEFAULT_TICKET_PANEL: Omit<
 	ticketMessage:
 		'{"content":"Welcome, {user.mention}!\\nPlease describe your {panel.name} request below further."}',
 	userTranscriptDm: '["transcript"]',
-	permissions: {
-		SupportTeam: { Allowed: "68608" },
-		AdditionalRoles: { Allowed: "68608" },
-		TicketCreator: { Allowed: "68608" },
-		TicketClaimer: { Allowed: "68608" },
-		Everyone: { Denied: "1024" },
-	},
 };
 
 @Component({
