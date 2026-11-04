@@ -18,6 +18,13 @@ import {
 	type CarryTypeModel,
 } from "@dungeon-hub/api-client";
 import {
+	BulkPriceEditorComponent,
+	type BulkPriceRow,
+	toBulkPriceModels,
+	toBulkPriceRows,
+	validateBulkPriceRows,
+} from "../../shared/components/bulk-price-editor/bulk-price-editor.component";
+import {
 	getIngameCarryTypeLabel,
 	INGAME_CARRY_TYPE_LABELS,
 } from "./ingame-carry-type-labels";
@@ -25,7 +32,7 @@ import {
 @Component({
 	selector: "app-carry-difficulty-detail",
 	standalone: true,
-	imports: [CommonModule, RouterLink, FormsModule],
+	imports: [CommonModule, RouterLink, FormsModule, BulkPriceEditorComponent],
 	template: `
     <div class="container mx-auto px-4 py-8">
       <div class="mb-8">
@@ -79,8 +86,15 @@ import {
             <p><strong>Identifier:</strong> {{ difficulty.identifier }}</p>
             <p><strong>Price:</strong> {{ difficulty.price }} Coins</p>
             <p><strong>Score:</strong> {{ difficulty.score }}</p>
-            @if (difficulty.bulkAmount != null && difficulty.bulkPrice != null) {
-              <p><strong>Bulk Purchase:</strong> {{ difficulty.bulkAmount }}x for {{ difficulty.bulkPrice }} Coins</p>
+            @if (difficulty.bulkPrices.length > 0) {
+              <div>
+                <strong>Bulk Purchase:</strong>
+                <ul class="list-disc list-inside">
+                  @for (bulkPrice of difficulty.bulkPrices; track bulkPrice.amount) {
+                    <li>{{ bulkPrice.amount }}+ carries: {{ bulkPrice.price }} Coins each</li>
+                  }
+                </ul>
+              </div>
             } @else {
               <p><strong>Bulk Purchase:</strong> Not configured</p>
             }
@@ -143,25 +157,9 @@ import {
               </div>
 
               <div>
-                <label class="label">Bulk Amount</label>
-                <input
-                  [(ngModel)]="editForm.bulkAmount"
-                  type="number"
-                  class="input"
-                  min="1"
-                />
-                <small class="text-gray-400">Current: {{ difficulty.bulkAmount || 'None' }} (clear to remove)</small>
-              </div>
-
-              <div>
-                <label class="label">Bulk Price</label>
-                <input
-                  [(ngModel)]="editForm.bulkPrice"
-                  type="number"
-                  class="input"
-                  min="0"
-                />
-                <small class="text-gray-400">Current: {{ difficulty.bulkPrice || 'None' }} (clear to remove)</small>
+                <label class="label">Bulk Prices</label>
+                <app-bulk-price-editor [(bulkPrices)]="editForm.bulkPrices" />
+                <small class="text-gray-400">The price per carry of the highest reached amount is used.</small>
               </div>
 
               <div>
@@ -269,8 +267,7 @@ export class CarryDifficultyDetailComponent implements OnInit {
 		displayName: "",
 		price: null as number | null,
 		score: null as number | null,
-		bulkAmount: null as number | null,
-		bulkPrice: null as number | null,
+		bulkPrices: [] as BulkPriceRow[],
 		thumbnailUrl: "",
 		priceName: "",
 		ingameCarryType:
@@ -359,14 +356,7 @@ export class CarryDifficultyDetailComponent implements OnInit {
 							displayName: this.difficulty.displayName,
 							price: this.difficulty.price,
 							score: this.difficulty.score,
-							bulkAmount:
-								this.difficulty.bulkAmount != null
-									? this.difficulty.bulkAmount
-									: null,
-							bulkPrice:
-								this.difficulty.bulkPrice != null
-									? this.difficulty.bulkPrice
-									: null,
+							bulkPrices: toBulkPriceRows(this.difficulty.bulkPrices),
 							thumbnailUrl: this.difficulty.thumbnailUrl || "",
 							priceName: this.difficulty.priceName || "",
 							ingameCarryType: this.difficulty.ingameCarryType || null,
@@ -392,17 +382,15 @@ export class CarryDifficultyDetailComponent implements OnInit {
 	updateDifficulty() {
 		if (!this.difficulty || this.isUpdating) return;
 
+		const bulkPriceError = validateBulkPriceRows(this.editForm.bulkPrices);
+		if (bulkPriceError) {
+			this.updateError = bulkPriceError;
+			return;
+		}
+
 		this.isUpdating = true;
 		this.updateError = null;
 
-		const resetBulkAmount = this.wasCleared(
-			this.difficulty.bulkAmount,
-			this.editForm.bulkAmount,
-		);
-		const resetBulkPrice = this.wasCleared(
-			this.difficulty.bulkPrice,
-			this.editForm.bulkPrice,
-		);
 		const resetThumbnailUrl = this.wasCleared(
 			this.difficulty.thumbnailUrl,
 			this.editForm.thumbnailUrl,
@@ -419,16 +407,7 @@ export class CarryDifficultyDetailComponent implements OnInit {
 			displayName: this.editForm.displayName || undefined,
 			price: this.editForm.price !== null ? this.editForm.price : undefined,
 			score: this.editForm.score !== null ? this.editForm.score : undefined,
-			bulkAmount: resetBulkAmount
-				? undefined
-				: this.editForm.bulkAmount != null
-					? this.editForm.bulkAmount
-					: undefined,
-			bulkPrice: resetBulkPrice
-				? undefined
-				: this.editForm.bulkPrice != null
-					? this.editForm.bulkPrice
-					: undefined,
+			bulkPrices: toBulkPriceModels(this.editForm.bulkPrices),
 			thumbnailUrl: resetThumbnailUrl
 				? undefined
 				: this.editForm.thumbnailUrl || undefined,
@@ -438,8 +417,6 @@ export class CarryDifficultyDetailComponent implements OnInit {
 			ingameCarryType: resetIngameCarryType
 				? undefined
 				: this.editForm.ingameCarryType || undefined,
-			resetBulkAmount: resetBulkAmount,
-			resetBulkPrice: resetBulkPrice,
 			resetThumbnailUrl: resetThumbnailUrl,
 			resetPriceName: resetPriceName,
 			resetIngameCarryType: resetIngameCarryType,

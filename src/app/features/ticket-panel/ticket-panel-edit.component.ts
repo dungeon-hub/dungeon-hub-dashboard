@@ -118,6 +118,46 @@ import { wasCleared } from "../../shared/utils/form-utils";
               </label>
             </div>
 
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="label">Open Ticket Limit</label>
+                <input
+                  formControlName="openTicketLimit"
+                  type="number"
+                  min="1"
+                  step="1"
+                  class="input"
+                  placeholder="No limit"
+                />
+                <small class="text-gray-400"
+                >Maximum open tickets a user can have in this panel. Reopening tickets ignores this limit</small
+                >
+                @if (form.get('openTicketLimit')?.invalid && form.get('openTicketLimit')?.touched) {
+                  <small class="text-red-400 block">Must be a whole number of at least 1</small>
+                }
+              </div>
+              <div>
+                <label class="label">Closed Ticket Limit</label>
+                <input
+                  formControlName="closedTicketLimit"
+                  type="number"
+                  min="1"
+                  step="1"
+                  class="input"
+                  placeholder="No limit"
+                />
+                <small class="text-gray-400"
+                >Maximum closed tickets a user can have in this panel before they can't close another one</small
+                >
+                @if (form.get('closedTicketLimit')?.invalid && form.get('closedTicketLimit')?.touched) {
+                  <small class="text-red-400 block">Must be a whole number of at least 1</small>
+                }
+              </div>
+            </div>
+            <small class="text-gray-400 block mt-2"
+            >Leave empty for no limit. Creating and deleted tickets aren't counted, and support roles, additional roles and administrators are excluded</small
+            >
+
             <div class="mt-6 space-y-4">
               <div>
                 <label class="label">Ticket Message Content</label>
@@ -351,6 +391,8 @@ export class TicketPanelEditComponent implements OnInit {
 			claimable: [false],
 			closeable: [false],
 			closeConfirmation: [false],
+			openTicketLimit: [null as number | null, this.ticketLimitValidators],
+			closedTicketLimit: [null as number | null, this.ticketLimitValidators],
 			ticketMessageContent: [""],
 			ticketMessageEmbeds: ["", this.jsonValidator],
 			ticketMessageButtons: ["", this.jsonValidator],
@@ -370,6 +412,11 @@ export class TicketPanelEditComponent implements OnInit {
 			formQuestions: ["", this.jsonValidator],
 		});
 	}
+
+	readonly ticketLimitValidators = [
+		Validators.min(1),
+		Validators.pattern(/^\d+$/),
+	];
 
 	jsonValidator(control: AbstractControl): ValidationErrors | null {
 		if (!control.value || control.value.trim() === "") {
@@ -422,6 +469,8 @@ export class TicketPanelEditComponent implements OnInit {
 			claimable: panel.claimable || false,
 			closeable: panel.closeable || false,
 			closeConfirmation: panel.closeConfirmation || false,
+			openTicketLimit: panel.openTicketLimit ?? null,
+			closedTicketLimit: panel.closedTicketLimit ?? null,
 			ticketMessageContent: ticketMessage.content || "",
 			ticketMessageEmbeds: ticketMessage.embeds
 				? JSON.stringify(ticketMessage.embeds, null, 2)
@@ -558,6 +607,16 @@ export class TicketPanelEditComponent implements OnInit {
 			claimable: formValue.claimable ?? null,
 			closeable: formValue.closeable ?? null,
 			closeConfirmation: formValue.closeConfirmation ?? null,
+			openTicketLimit: formValue.openTicketLimit ?? null,
+			resetOpenTicketLimit: wasCleared(
+				this.panel.openTicketLimit,
+				formValue.openTicketLimit,
+			),
+			closedTicketLimit: formValue.closedTicketLimit ?? null,
+			resetClosedTicketLimit: wasCleared(
+				this.panel.closedTicketLimit,
+				formValue.closedTicketLimit,
+			),
 			ticketMessage: JSON.stringify(ticketMessage),
 			resetTicketMessage: false,
 			openChannelName: formValue.openChannelName || null,
