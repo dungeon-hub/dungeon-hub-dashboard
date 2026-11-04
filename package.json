@@ -18,7 +18,7 @@
     "@angular/forms": "^22.2.4",
     "@angular/platform-browser": "^22.2.4",
     "@angular/router": "^22.2.4",
-    "@dungeon-hub/api-client": "^0.7.7",
+    "@dungeon-hub/api-client": "^0.8.0",
     "angular-oauth2-oidc": "^22.0.2",
     "dotenv": "^17.4.2",
     "rxjs": "~7.8.0",
