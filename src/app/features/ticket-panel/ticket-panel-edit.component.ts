@@ -28,6 +28,10 @@ import {
 	type TicketPanelUpdateModel,
 } from "@dungeon-hub/api-client";
 import { AutocompleteComponent } from "../../shared/components/autocomplete/autocomplete.component";
+import {
+	PermissionToggleComponent,
+	type PermissionValue,
+} from "../../shared/components/permission-toggle/permission-toggle.component";
 import { wasCleared } from "../../shared/utils/form-utils";
 import {
 	DISCORD_CHANNEL_PERMISSIONS,
@@ -36,8 +40,15 @@ import {
 	ticketActionsForPhase,
 } from "./ticket-panel-transfer";
 
-type PermissionState = "default" | "allow" | "deny";
+type PermissionState = PermissionValue;
 type PermissionGroup = "actions" | "channel";
+
+const ACTION_PERMISSION_OPTIONS: PermissionState[] = ["deny", "allow"];
+const CHANNEL_PERMISSION_OPTIONS: PermissionState[] = [
+	"deny",
+	"default",
+	"allow",
+];
 
 @Component({
 	selector: "app-ticket-panel-edit",
@@ -48,6 +59,11 @@ type PermissionGroup = "actions" | "channel";
 		FormsModule,
 		RouterLink,
 		AutocompleteComponent,
+		PermissionToggleComponent,
+	],
+	styles: [
+		`
+  `,
 	],
 	template: `
     <div class="container mx-auto px-4 py-8 max-w-6xl">
@@ -367,15 +383,12 @@ type PermissionGroup = "actions" | "channel";
                             @for (action of actionsForPhase(phase); track action) {
                               <div class="flex items-center justify-between gap-2 mb-1">
                                 <span class="text-gray-300 text-base">{{ action }}</span>
-                                <select
-                                  class="input w-auto"
-                                  [ngModel]="getPermission(phase, candidate, 'actions', action) === 'allow' ? 'allow' : 'deny'"
-                                  (ngModelChange)="setPermission(phase, candidate, 'actions', action, $event)"
-                                  [ngModelOptions]="{ standalone: true }"
-                                >
-                                  <option value="allow">Allow</option>
-                                  <option value="deny">Deny</option>
-                                </select>
+                                <app-permission-toggle
+                                  [value]="getPermission(phase, candidate, 'actions', action)"
+                                  [options]="actionPermissionOptions"
+                                  [label]="action"
+                                  (valueChange)="setPermission(phase, candidate, 'actions', action, $event)"
+                                />
                               </div>
                             }
                           </div>
@@ -384,16 +397,12 @@ type PermissionGroup = "actions" | "channel";
                             @for (permission of channelPermissions; track permission) {
                               <div class="flex items-center justify-between gap-2 mb-1">
                                 <span class="text-gray-300 text-base">{{ permission }}</span>
-                                <select
-                                  class="input w-auto"
-                                  [ngModel]="getPermission(phase, candidate, 'channel', permission)"
-                                  (ngModelChange)="setPermission(phase, candidate, 'channel', permission, $event)"
-                                  [ngModelOptions]="{ standalone: true }"
-                                >
-                                  <option value="default">Don't modify</option>
-                                  <option value="allow">Allow</option>
-                                  <option value="deny">Deny</option>
-                                </select>
+                                <app-permission-toggle
+                                  [value]="getPermission(phase, candidate, 'channel', permission)"
+                                  [options]="channelPermissionOptions"
+                                  [label]="permission"
+                                  (valueChange)="setPermission(phase, candidate, 'channel', permission, $event)"
+                                />
                               </div>
                             }
                           </div>
@@ -664,6 +673,9 @@ export class TicketPanelEditComponent implements OnInit {
 			];
 		return value === undefined ? "default" : value ? "allow" : "deny";
 	}
+
+	readonly actionPermissionOptions = ACTION_PERMISSION_OPTIONS;
+	readonly channelPermissionOptions = CHANNEL_PERMISSION_OPTIONS;
 
 	setPermission(
 		phase: string,
