@@ -127,9 +127,11 @@ const OPTION_META = {
           [attr.data-option]="option"
           [class.selected]="selected() === option"
           role="radio"
+          [attr.tabindex]="selected() === option ? 0 : -1"
           [attr.aria-checked]="selected() === option"
           [attr.aria-label]="meta[option].label"
           (click)="select(option)"
+          (keydown)="onKeydown($event, option)"
         >
           {{ meta[option].symbol }}
         </button>
@@ -152,6 +154,31 @@ export class PermissionToggleComponent {
 
 	protected readonly selected = computed(() => this.options()[this.index()]);
 
+	/** Moves focus and selection between options with the arrow keys (WAI-ARIA radio group). */
+	protected onKeydown(event: KeyboardEvent, option: PermissionValue): void {
+		const options = this.options();
+		const current = options.indexOf(option);
+		let next: number;
+		switch (event.key) {
+			case "ArrowRight":
+			case "ArrowDown":
+				next = (current + 1) % options.length;
+				break;
+			case "ArrowLeft":
+			case "ArrowUp":
+				next = (current - 1 + options.length) % options.length;
+				break;
+			default:
+				return;
+		}
+		event.preventDefault();
+		const group = (event.currentTarget as HTMLElement).parentElement;
+		const buttons = group?.querySelectorAll<HTMLElement>(".permission-segment");
+		buttons?.[next]?.focus();
+		this.select(options[next]);
+	}
+
+	/** Emits the chosen option unless it is already selected. */
 	protected select(option: PermissionValue): void {
 		if (option !== this.selected()) {
 			this.valueChange.emit(option);

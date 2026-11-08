@@ -35,6 +35,7 @@ import {
 import { wasCleared } from "../../shared/utils/form-utils";
 import {
 	DISCORD_CHANNEL_PERMISSIONS,
+	normalizePermissions,
 	TICKET_PERMISSION_CANDIDATES,
 	TICKET_PERMISSION_PHASES,
 	ticketActionsForPhase,
@@ -386,7 +387,7 @@ const CHANNEL_PERMISSION_OPTIONS: PermissionState[] = [
                                 <app-permission-toggle
                                   [value]="getPermission(phase, candidate, 'actions', action)"
                                   [options]="actionPermissionOptions"
-                                  [label]="action"
+                                  [label]="phase + ' ' + candidate + ' ticket action: ' + action"
                                   (valueChange)="setPermission(phase, candidate, 'actions', action, $event)"
                                 />
                               </div>
@@ -400,7 +401,7 @@ const CHANNEL_PERMISSION_OPTIONS: PermissionState[] = [
                                 <app-permission-toggle
                                   [value]="getPermission(phase, candidate, 'channel', permission)"
                                   [options]="channelPermissionOptions"
-                                  [label]="permission"
+                                  [label]="phase + ' ' + candidate + ' channel permission: ' + permission"
                                   (valueChange)="setPermission(phase, candidate, 'channel', permission, $event)"
                                 />
                               </div>
@@ -591,9 +592,10 @@ export class TicketPanelEditComponent implements OnInit {
 				: "",
 		});
 
-		this.permissionDraft = structuredClone(
-			panel.permissions ?? { open: {}, closed: {} },
-		);
+		this.permissionDraft = normalizePermissions(panel.permissions) ?? {
+			open: {},
+			closed: {},
+		};
 
 		// Set selected channel object for autocomplete
 		this.selectedTranscriptChannel = panel.transcriptChannel || null;

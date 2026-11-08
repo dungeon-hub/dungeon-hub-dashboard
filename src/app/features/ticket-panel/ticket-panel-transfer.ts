@@ -246,7 +246,7 @@ function stringIfNotNull(
 }
 
 /** Fills in the parts the API treats as omitted, so the result matches the generated types. */
-function normalizePermissions(
+export function normalizePermissions(
 	permissions: TicketPanelCreationModel["permissions"] | null | undefined,
 ): TicketPanelPermissionsModel | undefined {
 	if (permissions == null) return undefined;
@@ -256,6 +256,7 @@ function normalizePermissions(
 	};
 }
 
+/** Copies the candidates of one phase, filling in omitted action and channel groups. */
 function normalizePhasePermissions(
 	candidates:
 		| Record<string, TicketCandidatePermissionsModel>
