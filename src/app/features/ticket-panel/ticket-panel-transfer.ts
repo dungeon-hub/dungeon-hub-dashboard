@@ -56,15 +56,16 @@ const FORM_TYPES = new Set([
 	"StringSelect",
 	"TextDisplay",
 ]);
-const TICKET_PERMISSION_PHASES = new Set(["open", "closed"]);
-const TICKET_PERMISSION_CANDIDATES = new Set([
+/** The OpenAPI spec exposes these keys as free-form strings, so the dashboard keeps its own lists. */
+export const TICKET_PERMISSION_PHASES = ["open", "closed"] as const;
+export const TICKET_PERMISSION_CANDIDATES = [
 	"SupportTeam",
 	"AdditionalRoles",
 	"TicketCreator",
 	"TicketClaimer",
 	"Everyone",
-]);
-const TICKET_ACTIONS = new Set([
+] as const;
+export const TICKET_ACTIONS = [
 	"Reopen",
 	"Close",
 	"Claim",
@@ -72,9 +73,30 @@ const TICKET_ACTIONS = new Set([
 	"Delete",
 	"AddUser",
 	"GenerateTranscript",
-]);
-const TICKET_CANDIDATE_PERMISSION_KEYS = new Set(["actions", "channel"]);
-const DISCORD_CHANNEL_PERMISSIONS = new Set([
+] as const;
+/** Mirrors `TicketAction.phases` on the server; actions outside their phases are dropped there. */
+const TICKET_ACTION_PHASES: Record<
+	(typeof TICKET_ACTIONS)[number],
+	readonly (typeof TICKET_PERMISSION_PHASES)[number][]
+> = {
+	Reopen: ["closed"],
+	Close: ["open"],
+	Claim: ["open"],
+	Unclaim: ["open"],
+	Delete: ["open", "closed"],
+	AddUser: ["open"],
+	GenerateTranscript: ["open", "closed"],
+};
+
+export function ticketActionsForPhase(
+	phase: (typeof TICKET_PERMISSION_PHASES)[number],
+): (typeof TICKET_ACTIONS)[number][] {
+	return TICKET_ACTIONS.filter((action) =>
+		TICKET_ACTION_PHASES[action].includes(phase),
+	);
+}
+
+export const DISCORD_CHANNEL_PERMISSIONS = [
 	"ViewChannel",
 	"SendMessages",
 	"ManageMessages",
@@ -82,7 +104,19 @@ const DISCORD_CHANNEL_PERMISSIONS = new Set([
 	"AttachFiles",
 	"ReadMessageHistory",
 	"MentionEveryone",
-]);
+] as const;
+
+const TICKET_PERMISSION_PHASE_SET: ReadonlySet<string> = new Set(
+	TICKET_PERMISSION_PHASES,
+);
+const TICKET_PERMISSION_CANDIDATE_SET: ReadonlySet<string> = new Set(
+	TICKET_PERMISSION_CANDIDATES,
+);
+const TICKET_ACTION_SET: ReadonlySet<string> = new Set(TICKET_ACTIONS);
+const TICKET_CANDIDATE_PERMISSION_KEYS = new Set(["actions", "channel"]);
+const DISCORD_CHANNEL_PERMISSION_SET: ReadonlySet<string> = new Set(
+	DISCORD_CHANNEL_PERMISSIONS,
+);
 
 function isSupportedExportVersion(version: unknown): boolean {
 	return (
@@ -166,20 +200,20 @@ function isPermissions(value: unknown): boolean {
 		(isRecord(value) &&
 			Object.entries(value).every(
 				([phase, candidates]) =>
-					TICKET_PERMISSION_PHASES.has(phase) &&
+					TICKET_PERMISSION_PHASE_SET.has(phase) &&
 					(candidates == null ||
 						(isRecord(candidates) &&
 							Object.entries(candidates).every(
 								([candidate, permissions]) =>
-									TICKET_PERMISSION_CANDIDATES.has(candidate) &&
+									TICKET_PERMISSION_CANDIDATE_SET.has(candidate) &&
 									isRecord(permissions) &&
 									Object.keys(permissions).every((key) =>
 										TICKET_CANDIDATE_PERMISSION_KEYS.has(key),
 									) &&
-									isBooleanRecord(permissions["actions"], TICKET_ACTIONS) &&
+									isBooleanRecord(permissions["actions"], TICKET_ACTION_SET) &&
 									isBooleanRecord(
 										permissions["channel"],
-										DISCORD_CHANNEL_PERMISSIONS,
+										DISCORD_CHANNEL_PERMISSION_SET,
 									),
 							))),
 			))
@@ -212,7 +246,7 @@ function stringIfNotNull(
 }
 
 /** Fills in the parts the API treats as omitted, so the result matches the generated types. */
-function normalizePermissions(
+export function normalizePermissions(
 	permissions: TicketPanelCreationModel["permissions"] | null | undefined,
 ): TicketPanelPermissionsModel | undefined {
 	if (permissions == null) return undefined;
@@ -222,6 +256,7 @@ function normalizePermissions(
 	};
 }
 
+/** Copies the candidates of one phase, filling in omitted action and channel groups. */
 function normalizePhasePermissions(
 	candidates:
 		| Record<string, TicketCandidatePermissionsModel>

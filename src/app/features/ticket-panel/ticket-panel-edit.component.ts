@@ -24,10 +24,32 @@ import {
 	DiscordServerControllerService,
 	TicketPanelControllerService,
 	type TicketPanelModel,
+	type TicketPanelPermissionsModel,
 	type TicketPanelUpdateModel,
 } from "@dungeon-hub/api-client";
 import { AutocompleteComponent } from "../../shared/components/autocomplete/autocomplete.component";
+import {
+	PermissionToggleComponent,
+	type PermissionValue,
+} from "../../shared/components/permission-toggle/permission-toggle.component";
 import { wasCleared } from "../../shared/utils/form-utils";
+import {
+	DISCORD_CHANNEL_PERMISSIONS,
+	normalizePermissions,
+	TICKET_PERMISSION_CANDIDATES,
+	TICKET_PERMISSION_PHASES,
+	ticketActionsForPhase,
+} from "./ticket-panel-transfer";
+
+type PermissionState = PermissionValue;
+type PermissionGroup = "actions" | "channel";
+
+const ACTION_PERMISSION_OPTIONS: PermissionState[] = ["deny", "allow"];
+const CHANNEL_PERMISSION_OPTIONS: PermissionState[] = [
+	"deny",
+	"default",
+	"allow",
+];
 
 @Component({
 	selector: "app-ticket-panel-edit",
@@ -38,6 +60,11 @@ import { wasCleared } from "../../shared/utils/form-utils";
 		FormsModule,
 		RouterLink,
 		AutocompleteComponent,
+		PermissionToggleComponent,
+	],
+	styles: [
+		`
+  `,
 	],
 	template: `
     <div class="container mx-auto px-4 py-8 max-w-6xl">
@@ -335,6 +362,60 @@ import { wasCleared } from "../../shared/utils/form-utils";
             </div>
           </div>
 
+          <!-- Permissions -->
+          <div class="card">
+            <h3 class="text-xl font-semibold mb-2">Permissions</h3>
+            <small class="text-gray-400 block mb-4"
+            >Ticket actions are granted if any matching candidate grants them; "Deny" only means this candidate
+              doesn't grant the action. Channel permissions become Discord permission overwrites:
+              "Don't modify" leaves a permission as it is on the channel</small
+            >
+            <div class="space-y-6">
+              @for (phase of permissionPhases; track phase) {
+                <div>
+                  <h4 class="text-lg font-semibold mb-2">{{ phase === 'open' ? 'Open tickets' : 'Closed tickets' }}</h4>
+                  <div class="space-y-2">
+                    @for (candidate of permissionCandidates; track candidate) {
+                      <details class="border border-gray-700 rounded p-3">
+                        <summary class="cursor-pointer text-gray-200">{{ candidate }}</summary>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-3">
+                          <div>
+                            <label class="label">Ticket actions</label>
+                            @for (action of actionsForPhase(phase); track action) {
+                              <div class="flex items-center justify-between gap-2 mb-1">
+                                <span class="text-gray-300 text-base">{{ action }}</span>
+                                <app-permission-toggle
+                                  [value]="getPermission(phase, candidate, 'actions', action)"
+                                  [options]="actionPermissionOptions"
+                                  [label]="phase + ' ' + candidate + ' ticket action: ' + action"
+                                  (valueChange)="setPermission(phase, candidate, 'actions', action, $event)"
+                                />
+                              </div>
+                            }
+                          </div>
+                          <div>
+                            <label class="label">Channel permissions</label>
+                            @for (permission of channelPermissions; track permission) {
+                              <div class="flex items-center justify-between gap-2 mb-1">
+                                <span class="text-gray-300 text-base">{{ permission }}</span>
+                                <app-permission-toggle
+                                  [value]="getPermission(phase, candidate, 'channel', permission)"
+                                  [options]="channelPermissionOptions"
+                                  [label]="phase + ' ' + candidate + ' channel permission: ' + permission"
+                                  (valueChange)="setPermission(phase, candidate, 'channel', permission, $event)"
+                                />
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      </details>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
           <!-- Sticky Save Button -->
           <div class="sticky bottom-4 right-4 flex justify-end">
             <button
@@ -371,6 +452,16 @@ export class TicketPanelEditComponent implements OnInit {
 	carryDifficulties: CarryDifficultyModel[] = [];
 	discordChannels: DiscordChannelModel[] = [];
 	selectedTranscriptChannel: DiscordChannelModel | null = null;
+
+	readonly permissionPhases = TICKET_PERMISSION_PHASES;
+	readonly permissionCandidates = TICKET_PERMISSION_CANDIDATES;
+	readonly channelPermissions = DISCORD_CHANNEL_PERMISSIONS;
+	readonly actionsForPhase = ticketActionsForPhase;
+	/** Working copy of the panel permissions, keyed by phase, candidate and group. */
+	private permissionDraft: TicketPanelPermissionsModel = {
+		open: {},
+		closed: {},
+	};
 
 	ngOnInit() {
 		this.serverId = this.route.snapshot.params["serverId"];
@@ -501,6 +592,11 @@ export class TicketPanelEditComponent implements OnInit {
 				: "",
 		});
 
+		this.permissionDraft = normalizePermissions(panel.permissions) ?? {
+			open: {},
+			closed: {},
+		};
+
 		// Set selected channel object for autocomplete
 		this.selectedTranscriptChannel = panel.transcriptChannel || null;
 
@@ -565,6 +661,41 @@ export class TicketPanelEditComponent implements OnInit {
 					this.cdr.detectChanges();
 				},
 			});
+	}
+
+	getPermission(
+		phase: string,
+		candidate: string,
+		group: PermissionGroup,
+		permission: string,
+	): PermissionState {
+		const value =
+			this.permissionDraft[phase as "open" | "closed"]?.[candidate]?.[group]?.[
+				permission
+			];
+		return value === undefined ? "default" : value ? "allow" : "deny";
+	}
+
+	readonly actionPermissionOptions = ACTION_PERMISSION_OPTIONS;
+	readonly channelPermissionOptions = CHANNEL_PERMISSION_OPTIONS;
+
+	setPermission(
+		phase: string,
+		candidate: string,
+		group: PermissionGroup,
+		permission: string,
+		state: PermissionState,
+	) {
+		const candidates = this.permissionDraft[phase as "open" | "closed"];
+		if (!candidates[candidate]) {
+			candidates[candidate] = { actions: {}, channel: {} };
+		}
+		const entry = candidates[candidate];
+		if (state === "default") {
+			delete entry[group][permission];
+		} else {
+			entry[group][permission] = state === "allow";
+		}
 	}
 
 	save() {
@@ -673,7 +804,7 @@ export class TicketPanelEditComponent implements OnInit {
 				formValue.relatedCarryDifficulty,
 			),
 			formQuestions: formQuestions ?? null,
-			permissions: undefined,
+			permissions: this.permissionDraft,
 		};
 
 		this.ticketPanelService
