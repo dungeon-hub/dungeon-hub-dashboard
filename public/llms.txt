@@ -1,0 +1,10 @@
+# Dungeon Hub Dashboard
+
+> Web dashboard for managing configuration and data for the Dungeon Hub Discord bot: bot settings, ticket systems, carry requests and server configurations. Access requires logging in with Discord via OAuth2.
+
+## Links
+
+- [Login](https://dashboard.dungeon-hub.net/login): The only publicly accessible page. All other pages require authentication.
+- [Dungeon Hub Discord bot](https://github.com/dungeon-hub/dungeon-hub-application): Source code of the bot this dashboard manages.
+- [Dungeon Hub API](https://api.dungeon-hub.net/): The API that this dashboard talks to.
+- [Dashboard source code](https://github.com/dungeon-hub/dungeon-hub-dashboard): Source code of this dashboard.

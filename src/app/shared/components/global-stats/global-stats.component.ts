@@ -135,7 +135,7 @@ function pickStatValue(
                             class="text-xs"
                             [class.text-green-400]="isPositiveTrend(card, period.key)"
                             [class.text-red-400]="isNegativeTrend(card, period.key)"
-                            [class.text-gray-500]="isNeutralTrend(card, period.key)"
+                            [class.text-gray-400]="isNeutralTrend(card, period.key)"
                           >
                             {{ trend }}
                           </p>
@@ -146,7 +146,7 @@ function pickStatValue(
                 </dl>
               }
               @if (card.description) {
-                <p class="mt-4 text-sm text-gray-500">{{ card.description }}</p>
+                <p class="mt-4 text-sm text-gray-400">{{ card.description }}</p>
               }
             </article>
           }
